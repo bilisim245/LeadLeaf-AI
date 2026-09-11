@@ -10,15 +10,18 @@
 
 ## 10 günlük ZORUNLU kapsam (MVP) — bu bitmeden hiçbir bonusa dokunulmaz
 
+**MİMARİ GÜNCELLEMESİ:** LLM-Agent adımı ve Telegram botu artık **n8n'in içinde** ("prompt geliştirme n8n'de" isteniyor). Python tarafında sadece CNN'i sunan FastAPI servisi kalıyor; bot, prompt, LLM çağrısı, kayıt ve cevap — hepsi n8n workflow'unda.
+
 ```
-Telegram foto → MobileNetV2 (5 sınıf: domates saglikli + 4 yaygin hastalik)
-   → hastalik + %guven
-   → LLM-Agent: guven kontrolu + anlasilir on-degerlendirme
-              + kulturel/biyolojik onlem (ILAC DOZU DEGIL)
-              + "tani degil, on-degerlendirme" uyarisi
-              + %70 alti guven -> "ziraat muhendisine danis"
+Telegram (n8n Telegram Trigger — foto alır)
+   → n8n: HTTP Request → FastAPI /predict (MobileNetV2, 5 sınıf: domates saglikli + 4 hastalik)
+   → n8n: IF (guven kontrolu)
+   → n8n: HTTP Request → Claude API (PROMPT n8n icinde, agent/prompt_taslagi.md'den baslar)
+              -> anlasilir on-degerlendirme + kulturel/biyolojik onlem (ILAC DOZU DEGIL)
+              -> "tani degil, on-degerlendirme" uyarisi
+              -> %70 alti guven -> "ziraat muhendisine danis"
    → n8n: Google Sheets kaydi + basit PDF
-   → Telegram cevabi
+   → n8n: Telegram Send — cevabi kullaniciya gonder
 ```
 
 Neden 5 sınıf (38 değil): aynı mimariyle risk çok daha düşük, model hızlı ve yüksek doğrulukla eğitilir. Sonra tek satır değişiklikle (`SELECTED_CLASSES = None`) 38 sınıfa büyür.
@@ -46,13 +49,13 @@ Bunlar **zorunlu teslimden çıkarıldı** çünkü 10 günde ya entegrasyon ris
 
 ## Katmanlar (MVP)
 
-| Katman | Ne yapar | Araç |
-|---|---|---|
-| **DL modeli** | Yaprak fotoğrafı → 5 sınıftan biri + % güven | Keras/TensorFlow, MobileNetV2 transfer learning |
-| **Inference servisi** | Modeli HTTP ile sunar (`/predict`) | FastAPI |
-| **Telegram botu** | Kullanıcı arayüzü: foto al, cevap ver | python-telegram-bot |
-| **LLM-Agent** | Güven kontrolü, kültürel/biyolojik öneri, JSON rapor, eskalasyon | Anthropic Claude |
-| **n8n** | Webhook → Google Sheets kaydı → PDF | n8n (Docker) |
+| Katman | Ne yapar | Araç | Nerede |
+|---|---|---|---|
+| **DL modeli** | Yaprak fotoğrafı → 5 sınıftan biri + % güven | Keras/TensorFlow, MobileNetV2 transfer learning | Kaggle (eğitim) + FastAPI (Python) |
+| **Inference servisi** | Modeli HTTP ile sunar (`/predict`) | FastAPI | Python — tek Python parçası |
+| **Telegram botu** | Foto al, cevabı gönder | n8n Telegram Trigger + Telegram node | **n8n** |
+| **LLM-Agent + prompt** | Güven kontrolü, kültürel/biyolojik öneri, JSON rapor, eskalasyon | Claude API (HTTP Request node) | **n8n** — prompt burada geliştirilir |
+| **Kayıt + dağıtım** | Google Sheets kaydı, PDF, Telegram cevabı | n8n node'ları | **n8n** |
 
 ---
 
@@ -68,22 +71,22 @@ bitki-hastalik-tespiti/
 │   └── 01_train_model_kaggle.py     Kaggle GPU'da model eğitimi (domates 5 sınıf)
 ├── model/                           model.keras + class_names.json (Kaggle'dan iner)
 ├── inference/
-│   └── app.py                       FastAPI: görsel → {hastalik, guven, ilk3}   [Gün 4]
+│   └── app.py                       FastAPI: görsel → {hastalik, guven, ilk3}   [Gün 4] — TEK Python parçası
 ├── agent/
-│   ├── agent.py                     teşhis → JSON rapor (kültürel/biyolojik öneri)  [Gün 5-6]
+│   ├── prompt_taslagi.md            n8n'e yapıştırılacak prompt taslağı (LLM çağrısı n8n'de) [Gün 5-6]
 │   ├── weather.py                   BEKLEMEDE — bonus aşamasında entegre edilecek
 │   └── knowledge/                   RAG kaynak dokümanları (doğrulanmış bilgi)   [Gün 8, bonus]
 ├── rag/
 │   └── build_index.py               Chroma index  [Gün 8, bonus]
 ├── bot/
-│   ├── telegram_bot.py              ana bot: foto al, agent çağır, cevap ver     [Gün 5-6]
-│   └── db.py                        BEKLEMEDE — bonus aşamasında entegre edilecek
+│   └── db.py                        BEKLEMEDE — bonus aşamasında entegre edilecek (tarla defteri)
 ├── n8n/
 │   ├── docker-compose.yml
-│   └── workflow_rapor.json          Webhook → Sheets → PDF                       [Gün 7]
+│   └── workflow.json                Telegram Trigger → predict → IF → Claude (prompt burada) → Sheets/PDF → Telegram reply  [Gün 5-7]
 ├── ui/
-│   └── app.py                       Gradio — jüriye hızlı gösterim / bot yedeği  [opsiyonel]
+│   └── app.py                       Gradio — jüriye hızlı gösterim / n8n yedeği [opsiyonel]
 └── report/
+    ├── kod_notlarim.md              kodun sade açıklaması (mülakat/sunum için)
     └── rapor_taslagi.md             bootcamp raporu + sunum notları              [Gün 9]
 ```
 
@@ -113,10 +116,10 @@ bitki-hastalik-tespiti/
 |----|-------|-------|
 | 1 | Kurulum + veri inceleme + repo | Hesaplar hazır, GitHub repo açık, domates 5 sınıfı görüldü |
 | 2–3 | **Model eğitimi** (`01_train_model_kaggle.py`, `SELECTED_CLASSES` = domates 5 sınıf) | Doğrulama doğruluğu ≥ %90, confusion matrix; `model.keras` + `class_names.json` + `demo_images/` → `model/` |
-| 4 | Inference servisi | `POST /predict` görsel → `{hastalik, guven, ilk3}` |
-| 5 | Telegram botu iskeleti | Bota foto at → `/predict` çağrılır → ham teşhis mesajı |
-| 6 | LLM-Agent | Güven kontrolü + kültürel/biyolojik öneri + JSON rapor; bot düzgün mesaj döner |
-| 7 | n8n | `docker compose up` → Webhook → Google Sheets kaydı → basit PDF |
+| 4 | Inference servisi | `POST /predict` görsel → `{hastalik, guven, ilk3}` çalışıyor, Postman/tarayıcıdan test edildi |
+| 5 | n8n kurulumu + Telegram bağlantısı | `docker compose up`; n8n'de Telegram Trigger + Send node'ları bağlı, bota foto atınca ham teşhis dönüyor |
+| 6 | n8n'de LLM-Agent + prompt geliştirme | HTTP Request node → Claude API; `agent/prompt_taslagi.md`'den başlanıp n8n'de test edile edile iyileştirilir; IF ile %70 güven yönlendirmesi |
+| 7 | n8n: kayıt + rapor | Google Sheets kaydı + basit PDF; tüm akış tek workflow'da |
 | 8 | Uçtan uca test + uç durumlar | Yaprak olmayan görsel, düşük güven, bilinmeyen sınıf senaryoları |
 | 9 | Rapor | `report/rapor_taslagi.md`: metodoloji, metrikler, örnek çıktılar, sınırlılıklar |
 | 10 | Sunum + GitHub | Slaytlar + demo videosu + repoya son push |

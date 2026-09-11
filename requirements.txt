@@ -1,0 +1,33 @@
+# --- Yerel (inference + agent + rag + ui) ---
+# NOT: Model EĞİTİMİ Kaggle'da yapılır, bu paketler eğitim için değil.
+
+# Inference servisi
+fastapi
+uvicorn[standard]
+python-multipart
+pillow
+numpy
+
+# DL model yükleme (CPU yeterli — tek görsel tahmini)
+torch            # sorun olursa: pip install torch --index-url https://download.pytorch.org/whl/cpu
+transformers
+safetensors
+
+# LLM Agent
+anthropic
+langchain
+langchain-anthropic
+langchain-community
+
+# RAG
+langchain-chroma
+chromadb
+sentence-transformers
+
+# Demo arayüzü
+gradio
+
+# Yardımcılar
+python-dotenv
+requests
+jinja2

@@ -1,0 +1,22 @@
+# Ortam / gizli anahtarlar
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Model dosyalari (buyuk, Kaggle'dan elle indirilip eklenir)
+model/*.keras
+model/*.h5
+
+# Veritabani
+*.sqlite
+*.sqlite3
+
+# n8n verisi
+n8n/.n8n/
+
+# Isletim sistemi / editor
+.DS_Store
+Thumbs.db
+.vscode/

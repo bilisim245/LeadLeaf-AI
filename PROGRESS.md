@@ -19,6 +19,14 @@
 
 Bu, n8n Telegram akışını GECİKTİRMEZ (paralel ilerliyor) — sadece yerel Gradio demosunun ve rapor kalitesinin derinliğini artırıyor.
 
+**KAPSAM GÜNCELLEMESİ (2026-09-15) — RAG (metin + görsel) + açıklanabilirlik:**
+1. **Metin RAG:** `agent/knowledge/*.md` (5 hastalık dokümanı, elle yazılmış/doğrulanmış — etken, belirtiler, karıştırılabilecek hastalıklar, kültürel/biyolojik önlem) → `rag/build_index.py` ile Chroma vektör DB'ye indexleniyor (çok dilli embedding modeli, Türkçe için). `agent/rag.py`'deki `retrieve_context()` bunu `agent/report.py`'ye (yerel demo) bağladı — LLM artık ezberden değil kaynağa dayalı yazıyor.
+2. **Görsel RAG:** Ayrı bir CLIP modeli EKLEMEDEN, eğitilen MobileNetV2'nin son katmandan önceki (GAP) çıktısını embedding olarak yeniden kullanan bir tasarım (`rag/build_image_index.py`, `agent/image_rag.py`). `inference/app.py`'ye bağlandı (`benzer_gorseller` alanı) — ama **gerçek model gelmeden aktif olmaz** (bilerek; rastgele ağırlıklarla embedding anlamsız olurdu). Model gelince tek komutla (`python rag/build_image_index.py`) devreye girer.
+3. **Fine-tuning netleştirmesi:** Mevcut 2 aşamalı transfer learning ZATEN fine-tuning (son 40 katman açılıp küçük öğrenme oranıyla eğitiliyor) — bu `report/kod_notlarim.md`'de detaylı açıklandı (neden tüm ağ değil son 40 katman, ne zaman daha agresif fine-tuning düşünülür).
+4. **`report/kod_notlarim.md` genişletildi** — inference/app.py, RAG (metin+görsel), weather/db entegrasyonu, senaryo tablosunun neden ML modeli olmadığı — hepsi "sunumda anlatabilme" için sade Türkçe'yle yazıldı.
+
+requirements.txt'e `chromadb` + `sentence-transformers` geri eklendi (RAG için — daha önce "bonus aşamasında eklenecek" notuyla çıkarılmıştı, şimdi o aşamaya gelindi).
+
 ---
 
 ## Genel durum

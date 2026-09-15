@@ -73,7 +73,139 @@ VALID_DIR_FULL = os.path.join(DATA_ROOT, "valid")
 > (modelin **hiç görmediği**, kendini test ettiğimiz fotoğraflar). Bu ayrım şart — yoksa model
 > ezberler, gerçek başarımını bilemeyiz.
 
+### 3) Model kurulumu — MobileNetV2 transfer learning + FINE-TUNING
+
+```python
+base = keras.applications.MobileNetV2(input_shape=(224,224,3), include_top=False, weights="imagenet")
+base.trainable = False
+...
+h1 = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS_HEAD, ...)   # 1. aşama
+
+base.trainable = True
+for layer in base.layers[:-40]:
+    layer.trainable = False
+h2 = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS_FINE, ...)  # 2. aşama
+```
+
+> **"Fine-tuning yapıyor muyuz?" sorusuna cevap: EVET, zaten yapıyoruz.** İki aşamalı bir
+> transfer learning stratejisi kullanıyoruz:
+> 1. **1. aşama (feature extraction):** MobileNetV2, ImageNet'te 1.4 milyon görselle
+>    önceden eğitilmiş. Bu ağırlıkları DONDURUP (`trainable = False`) sadece üstüne
+>    eklediğimiz yeni sınıflandırma katmanını (`Dense(5, softmax)`) eğitiyoruz. Bu, az
+>    veriyle hızlı ve stabil bir başlangıç sağlar.
+> 2. **2. aşama (fine-tuning):** Base modelin SON 40 katmanının kilidini açıp
+>    (`base.trainable = True` + ilk katmanları tekrar dondurma) çok küçük bir öğrenme
+>    oranıyla (`1e-5`, 1. aşamadaki `1e-3`'ten 100x küçük) devam ediyoruz. Bu, ImageNet'in
+>    genel görsel özelliklerini (kenar, doku) korurken, ağın SON katmanlarını "domates
+>    yaprağı hastalığı" gibi bize özel detaylara ince ayarlıyor.
+>
+> **Neden TÜM ağı baştan fine-tune etmiyoruz?** Veri setimiz küçük (domates + 5 sınıf).
+> Tüm 155 katmanı büyük öğrenme oranıyla eğitmek → EZBERLEME (overfitting) riski çok
+> yüksek olurdu. Son 40 katmanla sınırlamak, "az veriyle güvenli fine-tuning" için
+> standart bir pratiktir.
+>
+> **Ne zaman DAHA FAZLA fine-tuning yapılır?** Veri arttıkça (ör. 38 sınıfa/tüm bitkilere
+> genişleyince — `SELECTED_CLASSES = None`), dondurulan katman sayısını azaltıp
+> (`base.layers[:-40]` yerine `[:-80]` gibi) daha agresif fine-tuning denenebilir. Bu,
+> TÜBİTAK/TEKNOFEST aşamasında planlanan bir iyileştirme.
+
+### 4) Değerlendirme — confusion matrix + classification report
+
+```python
+y_pred = model.predict(val_ds).argmax(axis=1)
+report = classification_report(y_true, y_pred, target_names=class_names, digits=4)
+cm = confusion_matrix(y_true, y_pred)
+```
+
+> Modelin sadece "genel doğruluğunu" değil, HANGİ sınıfı HANGİ sınıfla karıştırdığını da
+> görmek istiyoruz (confusion matrix). Örn. Erken yanıklık ile Septoria birbirine
+> benzer göründüğünden (bkz. `agent/knowledge/`), model bunları karıştırabilir — bu
+> beklenen ve rapora yazılacak bir sınırlılıktır, gizlenmeyecek.
+
 ---
 
-*(Devamı geldikçe buraya eklenecek: alt küme oluşturma, veri seti okuma, model kurulumu — MobileNetV2 ve
-transfer learning, 2 aşamalı eğitim, değerlendirme/confusion matrix, kaydetme.)*
+## Dosya: `notebooks/00_veri_kesfi.py` (Veri seti keşfi — "veri setini ayrıntılı incele" geri bildirimi üzerine)
+
+> Modele geçmeden önce veriyi VARSAYIMLA değil SAYIYLA incelemek için yazıldı. Üç şey
+> ölçüyor: (1) sınıf dengesizliği, (2) görsel boyutu tutarlılığı, (3) **train/valid
+> sızıntısı (data leakage)** — bu veri seti "Augmented" (döndürme/aynalama ile
+> çoğaltılmış), yani aynı orijinal fotoğrafın varyasyonları teorik olarak hem train'e
+> hem valid'e düşebilir. Bunu `imagehash.phash` (perceptual hash) ile örnekleyerek
+> kontrol ediyoruz: iki görselin hash'i çok yakınsa (Hamming mesafesi ≤4), muhtemelen
+> aynı fotoğrafın türevidirler. Sonuç yüksekse (ör. >%10), doğrulama doğruluğumuzun
+> GERÇEKTE OLDUĞUNDAN yüksek görünebileceğini rapora sınırlılık olarak yazacağız —
+> bu, PlantVillage tabanlı veri setlerine literatürde yöneltilen bilinen bir eleştiridir
+> ve bunu bilip söylemek, görmezden gelmekten çok daha güçlü bir sunum noktasıdır.
+
+---
+
+## Dosya: `inference/app.py` (FastAPI — CNN'i HTTP ile sunar)
+
+> Tek görevi: bir görsel al, model ile sınıflandır, JSON döndür. **DEMO MODU**: model
+> dosyaları (`model/model.keras`) henüz yoksa (Colab eğitimi bitmediyse) servis
+> ÇÖKMEZ — rastgele ama biçimce doğru bir sonuç üretir. Bu sayede n8n/Gradio akışının
+> TAMAMI, gerçek model gelmeden test edilip gösterilebilir; model gelince (aynı
+> dosya yoluna kopyalanınca) kod değişmeden gerçek tahmine geçer.
+>
+> **Görsel RAG entegrasyonu:** Gerçek model yüklendiğinde, modelin son sınıflandırma
+> katmanından (Dense+softmax) BİR ÖNCEKİ katmanı (`GlobalAveragePooling2D` çıktısı,
+> 1280 sayılık bir vektör) ikinci bir "embedding modeli" olarak da kullanıyoruz.
+> Neden ayrı bir görsel-embedding modeli (CLIP vb.) İNDİRMİYORUZ: modelimiz zaten
+> "bu yaprak neye benziyor" bilgisini öğrenmiş durumda — bu temsili yeniden kullanmak
+> hem ekstra indirme/karmaşıklık gerektirmiyor hem de doğrudan AÇIKLANABİLİR (modelin
+> kendi kararına dayanan bir benzerlik). `/predict` yanıtına `benzer_gorseller` alanı
+> olarak, veri setinden en yakın referans görseller + benzerlik yüzdesi ekleniyor.
+
+---
+
+## Dosya: `rag/build_index.py` + `agent/rag.py` (Metin RAG — hastalık bilgi tabanı)
+
+> **Neden RAG:** LLM'e "bu hastalık nedir, ne yapılmalı" diye sorduğumuzda, cevabı kendi
+> eğitim verisinden (ezberinden) üretir — bu hem HALÜSİNASYON riski taşır hem de "bu
+> bilgi nereden geliyor" sorusuna cevap veremeyiz. Bunun yerine, `agent/knowledge/`
+> altına HER hastalık için elle yazılmış, doğrulanmış bir doküman (etken, belirtiler,
+> uygun koşullar, karıştırılabilecek hastalıklar, kültürel/biyolojik önlemler) koyduk.
+> `rag/build_index.py` bunları parçalara (chunk) ayırıp çok dilli bir embedding modeliyle
+> (`paraphrase-multilingual-MiniLM-L12-v2` — Türkçe metin için seçildi) vektörleştirip
+> Chroma vektör veritabanına kaydediyor. `agent/rag.py`'deki `retrieve_context()`,
+> CNN'in bulduğu hastalık adına göre en alakalı parçaları geri getirip LLM'in
+> promptuna ekliyor — LLM artık "kaynağa dayalı" konuşuyor, ezberden değil.
+>
+> **Neden sadece 5 dokümanla "gerçek" vektör arama yapıyoruz, direkt sözlük (dict)
+> yeterli olmaz mıydı?** Fonksiyonel olarak evet, 5 sınıf için basit bir sözlük de
+> işi görür. Ama vektör tabanlı tasarım (a) veri tabanı büyüdükçe (38 sınıfa
+> çıkınca) DOĞRUDAN ölçeklenir, (b) serbest metin sorgularla da (ör. çiftçinin kendi
+> tarif ettiği belirtiyle) arama yapılmasına izin verir — bu, "İleri seviye" bootcamp
+> hedefine (RAG ile zenginleştirilmiş öneri) uygun, ileriye dönük bir mimari kararı.
+
+---
+
+## Dosya: `bot/db.py` + `agent/weather.py` (artık MVP'de — Tarla 360 dashboard'u besliyor)
+
+> `db.py`: SQLite tabanlı basit bir "tarla defteri" — her analiz kaydını (hastalık,
+> güven, tarih) saklar. `ui/app.py`, aynı çiftçi/tarla için geçmiş kayıtları çekip
+> bir TREND GRAFİĞİ çiziyor (referans dashboard'daki "alışveriş aralığı trendi"nin
+> karşılığı). `recent_cluster()` fonksiyonu, "son 7 günde aynı ilçede kaç farklı
+> çiftçi aynı hastalığı bildirdi" sorusuna cevap veriyor — bölgesel salgın erken
+> uyarısının temeli.
+>
+> `weather.py`: Open-Meteo'dan (ücretsiz, API anahtarı gerekmez) o bölgenin 3 günlük
+> hava tahminini çekip basit bir sezgisel kuralla ("nem ≥%80 veya yağış ≥10mm → yüksek
+> risk") mantar hastalığı riski hesaplıyor. Bu, "Riski düşürmek için ne yapmalı?"
+> senaryo tablosundaki risk skoruna girdi oluyor.
+
+---
+
+## "Senaryo analizi" tablosu neden ML modeli DEĞİL (dürüstlük notu)
+
+`ui/app.py`'deki tablo ("Mevcut durum" / "Kültürel önlem" / "Tekrar kontrol" / "Uzmana
+danış" ve her biri için bir risk yüzdesi) referans alınan dashboard'daki "Riski
+düşürmek için ne yapmalı?" panelinden esinlendi. AMA o dashboard muhtemelen gerçek
+geçmiş verilerle EĞİTİLMİŞ bir öneri/uplift modeli kullanıyor; bizim burada milyonlarca
+etiketli "müdahale → sonuç" verisi yok. Bu yüzden tablomuz **kural tabanlı, açıkça
+etiketlenmiş bir simülasyondur** (katsayılar: kültürel önlem ~%30 risk azaltımı, uzmana
+danışma ~%50 — sezgisel, kalibre edilmemiş). Sunumda bu ayrımı net yapmak
+("yapısı aynı, ama biz kalibre edilmiş bir model değil şeffaf bir sezgisel kural
+kullandık") hem dürüst hem de veri biliminde olgunluk göstergesidir — sahte kesinlik
+iddia etmemek, MVP'nin zaten benimsediği "kesin teşhis değil, ön değerlendirme"
+ilkesiyle birebir tutarlı.

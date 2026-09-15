@@ -18,6 +18,10 @@ tensorflow-cpu
 # Yerel demo agent (SADECE ui/app.py Gradio demosu için — üretim akışı n8n'de)
 anthropic
 
+# RAG — hastalık bilgi tabanı (metin) + görsel benzerlik araması
+chromadb
+sentence-transformers
+
 # Demo arayüzü (opsiyonel, jüri/hızlı test için) — "Tarla 360": trend grafiği + senaryo analizi
 gradio
 matplotlib

@@ -42,7 +42,9 @@ Bunlar **zorunlu teslimden çıkarıldı** çünkü 10 günde ya entegrasyon ris
 | Tarla defteri / zaman içi takip | ✅ **MVP'ye alındı (2026-09-15)** — `ui/app.py`'de trend grafiği olarak kullanılıyor | Aynı şekilde |
 | Bölgesel hastalık uyarısı (proaktif, cron ile otomatik bildirim) | Yapılmadı — `db.recent_cluster` altyapısı hazır, sadece n8n cron/bildirim eksik | Gerçek kullanıcı tabanı olmadan tam demo edilemez; TÜBİTAK aşamasında |
 | Konum tabanlı hastalık haritası | Yapılmadı | TÜBİTAK aşamasında |
-| Gelişmiş RAG (çok kaynaklı) | Yapılmadı | TÜBİTAK aşamasında |
+| Temel RAG (metin, 5 hastalık) | ✅ **MVP'ye alındı (2026-09-15)** | `agent/knowledge/` + Chroma, `agent/report.py`'ye bağlı |
+| Görsel RAG (embedding benzerliği) | ✅ Kodu yazıldı, gerçek model gelince aktif olacak | `rag/build_image_index.py` + `agent/image_rag.py` |
+| Gelişmiş/çok kaynaklı RAG (resmi standart dokümanlar, 38 sınıf) | Yapılmadı | TÜBİTAK aşamasında |
 | 38 sınıf / çoklu bitki | Notebook'ta hazır (`SELECTED_CLASSES = None`) | MVP çalışınca açılır |
 | Düşük güvende farklı açıdan foto isteme | Yapılmadı | Kolay ek, TÜBİTAK aşamasında |
 | Öğrenci/çiftçi için farklı ayrıntı seviyesi | Yapılmadı | TÜBİTAK aşamasında |
@@ -79,11 +81,14 @@ bitki-hastalik-tespiti/
 │                                     (model yoksa DEMO MODU: rastgele ama tutarlı sonuç döner)
 ├── agent/
 │   ├── prompt_taslagi.md            n8n'e yapıştırılacak prompt taslağı (LLM çağrısı n8n'de) [Gün 5-6]
-│   ├── report.py                    ✅ SADECE yerel demo (ui/app.py) için — prompt_taslagi.md ile aynı sistem promptu
+│   ├── report.py                    ✅ SADECE yerel demo (ui/app.py) için — prompt_taslagi.md ile aynı sistem promptu, artık RAG bağlamı ekliyor
+│   ├── rag.py                       ✅ Metin RAG sorgulama — hastalık adına göre kaynak metin getirir
+│   ├── image_rag.py                 ✅ Görsel RAG sorgulama — kosinüs benzerliğiyle en yakın referans görseller
 │   ├── weather.py                   ✅ MVP'ye alındı (2026-09-15) — ui/app.py'de hava durumu riski için kullanılıyor
-│   └── knowledge/                   RAG kaynak dokümanları (doğrulanmış bilgi)   [Gün 8, bonus]
+│   └── knowledge/                   ✅ 5 hastalık dokümanı (etken, belirtiler, ayrım, kültürel/biyolojik önlem)
 ├── rag/
-│   └── build_index.py               Chroma index  [Gün 8, bonus]
+│   ├── build_index.py               ✅ Metin RAG index'i (Chroma) — agent/knowledge/*.md'den, şimdiden çalışıyor
+│   └── build_image_index.py         ✅ Görsel RAG index'i — gerçek model.keras + demo_images gelince çalıştırılır
 ├── bot/
 │   └── db.py                        ✅ MVP'ye alındı (2026-09-15) — ui/app.py'de tarla geçmişi/trend için kullanılıyor
 ├── n8n/

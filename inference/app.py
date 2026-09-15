@@ -22,6 +22,7 @@ import io
 import json
 import os
 import random
+import sys
 from typing import Optional
 
 import numpy as np
@@ -29,6 +30,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from agent.image_rag import find_similar, index_var_mi
 
 load_dotenv()
 
@@ -56,17 +60,18 @@ app.add_middleware(
 )
 
 _model = None
+_embedding_model = None  # gorsel RAG icin - modelin son katmandan onceki (GAP) ciktisi
 _class_names: list[str] = []
 DEMO_MODE = True
 
 
 def _load_model_if_available() -> None:
     """Model dosyaları varsa yükler; yoksa DEMO_MODE'da kalır (servis çökmez)."""
-    global _model, _class_names, DEMO_MODE
+    global _model, _embedding_model, _class_names, DEMO_MODE
 
     if not (os.path.exists(MODEL_PATH) and os.path.exists(CLASS_NAMES_PATH)):
         print(f"[UYARI] Model bulunamadı ({MODEL_PATH}). DEMO MODU aktif — "
-              f"Kaggle eğitimi bitince model/ klasörüne kopyalayıp servisi yeniden başlat.")
+              f"Colab eğitimi bitince model/ klasörüne kopyalayıp servisi yeniden başlat.")
         _class_names = DEMO_CLASS_NAMES
         DEMO_MODE = True
         return
@@ -79,6 +84,18 @@ def _load_model_if_available() -> None:
         _class_names = json.load(f)
     DEMO_MODE = False
     print(f"[OK] Model yüklendi: {MODEL_PATH} ({len(_class_names)} sınıf)")
+
+    # Görsel RAG için: son Dense (softmax) katmanından ÖNCEKİ (GAP) çıktısını veren
+    # ikinci bir model — ayrı bir CLIP modeli indirmeden, sınıflandırıcının kendi
+    # öğrenilmiş temsilini yeniden kullanıyoruz (bkz. rag/build_image_index.py).
+    if index_var_mi():
+        try:
+            _embedding_model = tf.keras.Model(
+                inputs=_model.input, outputs=_model.layers[-2].output
+            )
+            print("[OK] Görsel RAG embedding modeli hazır.")
+        except Exception as e:
+            print(f"[UYARI] Görsel RAG embedding modeli kurulamadı: {e}")
 
 
 @app.on_event("startup")
@@ -144,6 +161,18 @@ async def predict(file: UploadFile = File(...)) -> dict:
         for s, p in sirali[:3]
     ]
 
+    # Görsel RAG: modelin GAP-katmanı embedding'iyle en benzer referans görselleri bul
+    benzer_gorseller: list[dict] = []
+    if not DEMO_MODE and _embedding_model is not None:
+        try:
+            arr = np.array(img.resize((IMG_SIZE, IMG_SIZE))).astype("float32")
+            from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+            arr = np.expand_dims(preprocess_input(arr), axis=0)
+            emb = _embedding_model.predict(arr, verbose=0)[0]
+            benzer_gorseller = find_similar(emb, k=3)
+        except Exception as e:
+            print(f"[UYARI] Görsel RAG sorgusu başarısız: {e}")
+
     return {
         "hastalik": top_class,
         "hastalik_tr": TR_ADLAR.get(top_class, top_class),
@@ -151,6 +180,7 @@ async def predict(file: UploadFile = File(...)) -> dict:
         "ilk3": ilk3,
         "uzmana_yonlendir": guven < CONFIDENCE_THRESHOLD * 100,
         "demo_mode": DEMO_MODE,
+        "benzer_gorseller": benzer_gorseller,
     }
 
 

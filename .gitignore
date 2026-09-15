@@ -5,9 +5,13 @@ venv/
 __pycache__/
 *.pyc
 
-# Model dosyalari (buyuk, Kaggle'dan elle indirilip eklenir)
+# Model dosyalari (buyuk, Kaggle/Colab'dan elle indirilip eklenir)
 model/*.keras
 model/*.h5
+
+# RAG index'leri (uretilen dosyalar - build script'leriyle yeniden olusturulur)
+rag/chroma_db/
+rag/image_embeddings.npz
 
 # Veritabani
 *.sqlite

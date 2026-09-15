@@ -50,7 +50,23 @@ gerçek credential'ını seçmen yeterli (id otomatik güncellenir).
 Telegram botuna bir domates yaprağı fotoğrafı gönder → n8n execution log'unda adım adım
 akışı izle → Sheets'e satır düştüğünü ve Telegram'a cevap geldiğini doğrula.
 
-## 5) Prompt geliştirme ("prompt geliştirme n8n'de")
+## 5) RAG'i n8n'e taşımak (opsiyonel, ileri seviye — sunumda "yol haritası" olarak anlatılabilir)
+
+Yerel demoda (`ui/app.py`) RAG zaten çalışıyor (`agent/rag.py` + Chroma). n8n Cloud'da
+AYNI seviyeye çıkmak için iki yol var:
+
+- **Basit:** `HTTP Request - Claude Agent` node'undan ÖNCE bir HTTP Request ile
+  `agent/rag.py`'nin mantığını saran küçük bir endpoint'e (`inference/app.py`'ye
+  eklenecek `/rag-context?hastalik=...` gibi) istek atıp dönen metni prompt'a ekle.
+- **n8n-native:** n8n'in kendi **Vector Store node'ları** (Chroma/Pinecone/Qdrant) ve
+  **Embeddings node'u** ile `agent/knowledge/*.md` dosyalarını doğrudan n8n içinde
+  indexleyip sorgula (LangChain tabanlı n8n AI node'ları bunu destekliyor).
+
+Bu MVP'nin zorunlu kapsamında DEĞİL — şu an prompt (`agent/prompt_taslagi.md`) sabit
+metinle çalışıyor. Sunumda "RAG'i şu an yerelde gösteriyoruz, n8n'e taşımak yol
+haritasında" demek yeterli ve dürüst bir çerçeve.
+
+## 6) Prompt geliştirme ("prompt geliştirme n8n'de")
 
 `HTTP Request - Claude Agent` node'unun `jsonBody` alanındaki `system` metnini n8n
 arayüzünden doğrudan düzenleyip test edebilirsin (execution'ı tekrar çalıştır, sonucu

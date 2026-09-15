@@ -1,20 +1,13 @@
 """
 Gradio Demo Arayüzü — "Tarla 360" (jüriye/hızlı teste yerel görselleştirme)
 
-GÜNCELLEME (2026-09-15): Tek fotoğraf → tek statik rapor yerine, referans alınan
-bir müşteri analitiği dashboard'undaki yapı uyarlandı: geçmiş TREND'i, hava
-durumu bazlı RİSK paneli, bölgesel kümelenme ve müdahale SENARYO analizi.
-Bunun için "bonus" aşamasına ertelenen `bot/db.py` (tarla defteri) ve
-`agent/weather.py` (hava durumu) MVP'ye çekildi — ikisi de zaten yazılıp test
-edilmişti, sadece bağlı değildi.
+TASARIM NOTU (2026-09-15): Arayüz, düz metin listesi yerine RENK KODLU, KARTLI bir
+dashboard olarak tasarlandı — risk seviyesine göre yeşil/sarı/kırmızı rozet, ayrı
+kartlarda trend/hava/senaryo/benzer-görsel blokları. Amaç: kod bilmeyen birinin bile
+tek bakışta "durum iyi mi kötü mü, ne yapmalı" sorusuna cevap bulabilmesi.
 
-⚠️ ÖNEMLİ DÜRÜSTLÜK NOTU: "Senaryo analizi" tablosu EĞİTİLMİŞ BİR ML MODELİNİN
-ÇIKTISI DEĞİLDİR — kural tabanlı, açıkça etiketlenmiş bir örnekleyici
-simülasyondur (bkz. README "Etik/sınırlılık notu"). Amaç, farklı müdahalelerin
-GÖRECELİ etkisini göstermek; kesin/kalibre edilmiş bir sayı iddiası yoktur.
-
-Akış: çiftçi/tarla bilgisi + görsel → /predict (CNN) → agent/report.py (LLM) →
-      db.py'ye kaydet → geçmiş trend + hava durumu riski + senaryo tablosu.
+Akış: çiftçi/tarla bilgisi + görsel → /predict (CNN, + varsa benzer referans görseller)
+      → agent/report.py (LLM + RAG) → db.py'ye kaydet → trend + hava riski + senaryo.
 
 Çalıştırma (önce inference servisini ayrı bir terminalde başlat):
     .venv\\Scripts\\python.exe -m uvicorn inference.app:app --port 8000
@@ -43,9 +36,36 @@ from bot.db import DB
 load_dotenv()
 
 INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:8000")
+PROJE_KOKU = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEMO_IMAGES_DIR = os.path.join(PROJE_KOKU, "model", "demo_images")
 db = DB()  # bot/tarla_defteri.sqlite — yerel dosya, ek kurulum yok
 
 RISK_CARPANI = {"dusuk": 0.9, "orta": 1.0, "yuksek": 1.15, "bilinmiyor": 1.0}
+
+# --- Renkler (risk seviyesine göre) --------------------------------------------------
+YESIL = {"bg": "#ecfdf5", "border": "#10b981", "text": "#065f46"}
+SARI = {"bg": "#fffbeb", "border": "#f59e0b", "text": "#92400e"}
+KIRMIZI = {"bg": "#fef2f2", "border": "#ef4444", "text": "#991b1b"}
+
+
+def _risk_rengi(risk: float) -> dict:
+    if risk < 30:
+        return YESIL
+    if risk < 60:
+        return SARI
+    return KIRMIZI
+
+
+CUSTOM_CSS = """
+.baslik-banner {
+    background: linear-gradient(135deg, #059669 0%, #10b981 60%, #34d399 100%);
+    color: white; padding: 24px 28px; border-radius: 16px; margin-bottom: 8px;
+}
+.baslik-banner h1 { margin: 0 0 6px 0; font-size: 1.5rem; }
+.baslik-banner p { margin: 0; opacity: 0.92; font-size: 0.92rem; }
+.kart { border-radius: 14px !important; }
+.tanidashboard { font-family: inherit; }
+"""
 
 
 def _demo_user_id(isim: str, il: str, ilce: str) -> int:
@@ -84,26 +104,112 @@ def _senaryo_tablosu(risk: float):
 
 def _trend_grafigi(gecmis: list[dict]):
     fig, ax = plt.subplots(figsize=(5, 3))
+    fig.patch.set_facecolor("#fafafa")
     if not gecmis:
         ax.text(0.5, 0.5, "Henüz geçmiş kayıt yok\n(ilk analiz bu olacak)",
-                ha="center", va="center", fontsize=10)
+                ha="center", va="center", fontsize=10, color="#6b7280")
         ax.axis("off")
         return fig
 
     gecmis = list(reversed(gecmis))  # eskiden yeniye
     tarihler = [g["ts"][:10] for g in gecmis]
     guvenler = [g["guven"] * 100 if g["guven"] <= 1 else g["guven"] for g in gecmis]
-    ax.plot(tarihler, guvenler, marker="o", color="#c0392b")
+    ax.plot(tarihler, guvenler, marker="o", color="#059669", linewidth=2)
+    ax.fill_between(range(len(tarihler)), guvenler, alpha=0.08, color="#059669")
     ax.set_ylabel("Güven / risk (%)")
-    ax.set_title("Bu tarlada geçmiş gözlemler")
+    ax.set_title("Bu tarlada geçmiş gözlemler", fontsize=11, fontweight="bold")
     ax.tick_params(axis="x", rotation=45)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
     fig.tight_layout()
     return fig
 
 
+def _rapor_html(cnn: dict, rapor: dict, risk: float, kume_sayisi: int, ilce: str) -> str:
+    renk = _risk_rengi(risk)
+    demo_banner = (
+        f'<div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:10px 14px;'
+        f'border-radius:8px;margin-bottom:14px;font-size:0.9rem;color:#78350f;">'
+        f'⚠️ <b>DEMO MODU:</b> Gerçek model henüz yüklenmedi (Colab eğitimi tamamlanmadı). '
+        f'Sınıflandırma sonucu RASTGELE üretildi — gösterim amaçlıdır.</div>'
+        if cnn.get("demo_mode") else ""
+    )
+    uzman_uyarisi = (
+        f'<div style="background:#fee2e2;border-left:4px solid #ef4444;padding:10px 14px;'
+        f'border-radius:8px;margin:12px 0;font-size:0.9rem;color:#7f1d1d;">'
+        f'⚠️ Bu sonuç kesin değil — bir <b>ziraat mühendisine danışmanız</b> önerilir.</div>'
+        if cnn.get("uzmana_yonlendir") else ""
+    )
+    kume_notu = (
+        f'<p style="font-size:0.88rem;color:#4b5563;margin-top:10px;">📍 Son 7 günde '
+        f'<b>{ilce}</b> ilçesinde aynı hastalığı bildiren <b>{kume_sayisi} farklı çiftçi</b> '
+        f'daha var.</p>' if kume_sayisi > 0 else ""
+    )
+    rag_notu = (
+        '<p style="font-size:0.82rem;color:#059669;margin-top:10px;">🔗 Bu açıklama, '
+        'doğrulanmış kaynak dokümandan RAG (vektör arama) ile getirilen bağlama dayanıyor.</p>'
+        if rapor.get("_rag_kullanildi") else
+        '<p style="font-size:0.82rem;color:#9ca3af;margin-top:10px;">RAG bağlamı bulunamadı — '
+        '<code>rag/build_index.py</code> çalıştırılmamış olabilir.</p>'
+    )
+    kaynak_notu = (
+        '<p style="font-size:0.82rem;color:#9ca3af;">(Rapor: yerel şablon — '
+        '<code>ANTHROPIC_API_KEY</code> tanımlı değil.)</p>'
+        if rapor.get("_kaynak") == "sablon" else ""
+    )
+
+    return f"""
+    {demo_banner}
+    <div style="background:{renk['bg']};border:1.5px solid {renk['border']};border-radius:14px;
+                padding:20px 22px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <h2 style="margin:0;color:{renk['text']};">🔎 {cnn['hastalik_tr']}</h2>
+        <span style="background:{renk['border']};color:white;padding:5px 14px;border-radius:999px;
+                     font-weight:600;font-size:0.95rem;">Risk: %{risk}</span>
+      </div>
+      <p style="color:{renk['text']};opacity:0.85;margin:6px 0 0 0;font-size:0.9rem;">
+        Model güveni: %{cnn['guven']}
+      </p>
+      {uzman_uyarisi}
+      <h4 style="margin-bottom:4px;">Açıklama</h4>
+      <p style="margin-top:0;">{rapor.get('aciklama', '-')}</p>
+      <h4 style="margin-bottom:4px;">Önerilen kültürel/biyolojik önlemler</h4>
+      <p style="margin-top:0;white-space:pre-line;">{rapor.get('onlem', '-')}</p>
+      {kume_notu}
+      <hr style="border:none;border-top:1px solid {renk['border']}44;margin:14px 0 8px 0;">
+      <p style="font-size:0.85rem;font-style:italic;color:{renk['text']};opacity:0.8;">
+        {rapor.get('uyari', 'Bu bir ön değerlendirmedir, kesin teşhis değildir.')}
+      </p>
+      {kaynak_notu}
+      {rag_notu}
+    </div>
+    """
+
+
+def _hava_html(hava: dict) -> str:
+    risk_map = {"dusuk": ("Düşük", YESIL), "orta": ("Orta", SARI),
+                "yuksek": ("Yüksek", KIRMIZI), "bilinmiyor": ("Bilinmiyor", {"bg": "#f3f4f6", "border": "#9ca3af", "text": "#374151"})}
+    etiket, renk = risk_map.get(hava.get("mantar_riski", "bilinmiyor"), risk_map["bilinmiyor"])
+    return f"""
+    <div style="background:{renk['bg']};border:1.5px solid {renk['border']};border-radius:14px;
+                padding:16px 18px;height:100%;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h4 style="margin:0;">🌦️ Hava durumu — mantar riski</h4>
+        <span style="background:{renk['border']};color:white;padding:3px 12px;border-radius:999px;
+                     font-size:0.85rem;font-weight:600;">{etiket}</span>
+      </div>
+      <pre style="white-space:pre-wrap;font-family:inherit;font-size:0.85rem;color:{renk['text']};
+                  margin:10px 0 0 0;">{hava.get('ozet_metni', '-')}</pre>
+    </div>
+    """
+
+
 def analiz_et(isim, il, ilce, urun, image):
+    bos_gallery = []
     if image is None:
-        return ("Lütfen bir yaprak fotoğrafı yükleyin.", {}, None, "", [], {})
+        uyari_html = '<p style="color:#ef4444;">⚠️ Lütfen bir yaprak fotoğrafı yükleyin.</p>'
+        return uyari_html, {}, None, "", [], bos_gallery, {}
+
     isim = (isim or "Çiftçi").strip()
     il = (il or "Antalya").strip()
     ilce = (ilce or "Serik").strip()
@@ -121,17 +227,17 @@ def analiz_et(isim, il, ilce, urun, image):
         cnn = r.json()
     except requests.exceptions.ConnectionError:
         hata = (
-            f"❌ Inference servisine ulaşılamadı ({INFERENCE_URL}).\n\n"
-            "Önce şunu ayrı bir terminalde çalıştırın:\n"
-            "  .venv\\Scripts\\python.exe -m uvicorn inference.app:app --port 8000"
+            f'<p style="color:#ef4444;">❌ Inference servisine ulaşılamadı ({INFERENCE_URL}).<br>'
+            "Önce şunu ayrı bir terminalde çalıştırın:<br>"
+            "<code>.venv\\Scripts\\python.exe -m uvicorn inference.app:app --port 8000</code></p>"
         )
-        return (hata, {}, None, "", [], {})
+        return hata, {}, None, "", [], bos_gallery, {}
     except Exception as e:
-        return (f"❌ Hata: {e}", {}, None, "", [], {})
+        return f'<p style="color:#ef4444;">❌ Hata: {e}</p>', {}, None, "", [], bos_gallery, {}
 
     rapor = generate_report(cnn["hastalik"], cnn["hastalik_tr"], cnn["guven"])
 
-    # --- Tarla defteri: kullanıcı/alan + gözlem kaydı (bot/db.py, artık entegre) ---
+    # --- Tarla defteri: kullanıcı/alan + gözlem kaydı (bot/db.py) ---
     uid = _demo_user_id(isim, il, ilce)
     db.upsert_user(uid, isim, il=il, ilce=ilce)
     fid = db.get_or_create_default_field(uid, crop=urun or "domates")
@@ -140,7 +246,7 @@ def analiz_et(isim, il, ilce, urun, image):
     gecmis = db.history(uid, fid, limit=10)
     kume_sayisi = db.recent_cluster(cnn["hastalik"], ilce, gun=7) if cnn["hastalik"] != "Tomato___healthy" else 0
 
-    # --- Hava durumu bazlı mantar riski (agent/weather.py, artık entegre) ---
+    # --- Hava durumu bazlı mantar riski (agent/weather.py) ---
     try:
         hava = weather_summary(f"{ilce}, {il}")
     except Exception as e:
@@ -152,85 +258,81 @@ def analiz_et(isim, il, ilce, urun, image):
 
     etiketler = {it["sinif_tr"]: it["olasilik"] / 100 for it in cnn["ilk3"]}
 
-    demo_uyarisi = (
-        "\n\n> ⚠️ **DEMO MODU:** Gerçek model henüz `model/` klasörüne konmadı "
-        "(Kaggle/Colab eğitimi tamamlanmadı). Sınıflandırma sonucu RASTGELE üretildi.\n"
-        if cnn.get("demo_mode") else ""
-    )
-    kaynak_notu = (
-        "\n\n*(Rapor: yerel şablon — `ANTHROPIC_API_KEY` .env'de tanımlı değil.)*"
-        if rapor.get("_kaynak") == "sablon" else ""
-    )
+    rapor_html = _rapor_html(cnn, rapor, risk, kume_sayisi, ilce)
+    hava_html = _hava_html(hava)
 
-    kume_notu = (
-        f"\n\n📍 **Bölgesel not:** Son 7 günde {ilce}'de aynı hastalığı bildiren "
-        f"**{kume_sayisi} farklı çiftçi** daha var." if kume_sayisi > 0 else ""
-    )
+    # --- Görsel RAG: benzer referans görseller (gerçek model gelince dolu gelir) ---
+    galeri = []
+    for it in cnn.get("benzer_gorseller", []):
+        yol = os.path.join(DEMO_IMAGES_DIR, it["dosya"])
+        if os.path.exists(yol):
+            galeri.append((yol, f"{it['sinif']} — %{it['benzerlik']} benzer"))
 
-    md = f"""{demo_uyarisi}
-## 🔎 Tespit: {cnn['hastalik_tr']}
-**Güven:** %{cnn['guven']} · **Risk skoru (hava + bölge dahil):** %{risk}
-
-{"### ⚠️ Bu sonuç kesin değil — bir ziraat mühendisine danışmanızı öneririz." if cnn['uzmana_yonlendir'] else ""}
-
-### Açıklama
-{rapor.get('aciklama', '-')}
-
-### Önerilen kültürel/biyolojik önlemler
-{rapor.get('onlem', '-')}
-{kume_notu}
-
----
-*{rapor.get('uyari', 'Bu bir ön değerlendirmedir, kesin teşhis değildir.')}*
-{kaynak_notu}
-"""
-
-    hava_md = f"""### 🌦️ Hava durumu — mantar hastalığı riski
-{hava.get('ozet_metni', '-')}
-"""
-
-    return md, etiketler, trend_fig, hava_md, senaryo, cnn
+    return rapor_html, etiketler, trend_fig, hava_html, senaryo, galeri, cnn
 
 
-with gr.Blocks(title="LeadLeaf AI — Tarla 360") as demo:
-    gr.Markdown(
-        "# 🍅 LeadLeaf AI — Tarla 360 (Yerel Demo)\n"
-        "Çiftçi/tarla bilgisi + yaprak fotoğrafı → CNN sınıflandırma + LLM raporu + "
-        "**geçmiş trend** + **hava durumu riski** + **müdahale senaryo analizi**.\n\n"
-        "*Üretimde bu akış n8n (Telegram bot) üzerinden çalışır — bu ekran yerel "
-        "görselleştirme/test amaçlıdır.*"
-    )
+THEME = gr.themes.Soft(primary_hue="emerald", secondary_hue="amber", neutral_hue="slate")
+
+with gr.Blocks(title="LeadLeaf AI — Tarla 360", theme=THEME, css=CUSTOM_CSS) as demo:
+    gr.HTML("""
+        <div class="baslik-banner">
+          <h1>🍅 LeadLeaf AI — Tarla 360</h1>
+          <p>Çiftçi/tarla bilgisi + yaprak fotoğrafı → CNN sınıflandırma + RAG destekli LLM raporu +
+          geçmiş trend + hava durumu riski + müdahale senaryo analizi.</p>
+        </div>
+        <p style="font-size:0.85rem;color:#6b7280;margin-top:6px;">
+          Üretimde bu akış n8n (Telegram bot) üzerinden çalışır — bu ekran yerel görselleştirme/test amaçlıdır.
+        </p>
+    """)
+
+    with gr.Group(elem_classes="kart"):
+        gr.Markdown("### 👤 Çiftçi ve tarla bilgisi")
+        with gr.Row():
+            isim_in = gr.Textbox(label="Çiftçi adı", value="Ahmet")
+            il_in = gr.Textbox(label="İl", value="Antalya")
+            ilce_in = gr.Textbox(label="İlçe", value="Serik")
+            urun_in = gr.Textbox(label="Ürün", value="domates")
+
     with gr.Row():
-        isim_in = gr.Textbox(label="Çiftçi adı", value="Ahmet")
-        il_in = gr.Textbox(label="İl", value="Antalya")
-        ilce_in = gr.Textbox(label="İlçe", value="Serik")
-        urun_in = gr.Textbox(label="Ürün", value="domates")
+        with gr.Column(scale=1):
+            with gr.Group(elem_classes="kart"):
+                gr.Markdown("### 📸 Fotoğraf")
+                img_in = gr.Image(type="pil", label="Yaprak fotoğrafı", height=280)
+                btn = gr.Button("🔍 Analiz Et", variant="primary", size="lg")
+                lbl_out = gr.Label(label="İlk 3 tahmin")
+        with gr.Column(scale=2):
+            rapor_out = gr.HTML(label="Rapor")
 
     with gr.Row():
         with gr.Column():
-            img_in = gr.Image(type="pil", label="Yaprak fotoğrafı")
-            btn = gr.Button("Analiz Et", variant="primary")
+            trend_out = gr.Plot(label="📈 Geçmiş trend (bu tarla)")
         with gr.Column():
-            lbl_out = gr.Label(label="İlk 3 tahmin")
-            md_out = gr.Markdown(label="Rapor")
+            hava_out = gr.HTML(label="Hava durumu riski")
 
-    with gr.Row():
-        trend_out = gr.Plot(label="Geçmiş trend (bu tarla)")
-        hava_out = gr.Markdown(label="Hava durumu riski")
+    with gr.Group(elem_classes="kart"):
+        gr.Markdown("### 🎯 Riski düşürmek için ne yapmalı? "
+                    "<span style='font-size:0.8rem;color:#9ca3af;font-weight:normal;'>"
+                    "(kural tabanlı senaryo — ML tahmini DEĞİL)</span>")
+        senaryo_out = gr.Dataframe(
+            headers=["Senaryo", "Modellenen risk", "Fark", "Not"],
+            label=None,
+        )
 
-    gr.Markdown("### 🎯 Riski düşürmek için ne yapmalı? (kural tabanlı senaryo — ML tahmini DEĞİL)")
-    senaryo_out = gr.Dataframe(
-        headers=["Senaryo", "Modellenen risk", "Fark", "Not"],
-        label="Senaryo analizi",
-    )
+    with gr.Group(elem_classes="kart"):
+        gr.Markdown("### 🖼️ Benzer referans görseller "
+                    "<span style='font-size:0.8rem;color:#9ca3af;font-weight:normal;'>"
+                    "(görsel RAG — modelin öğrendiği özniteliklerle en yakın örnekler)</span>")
+        benzer_out = gr.Gallery(label=None, columns=3, height=180,
+                                 object_fit="cover",
+                                 show_label=False)
 
-    with gr.Accordion("Ham CNN çıktısı (debug)", open=False):
+    with gr.Accordion("🔧 Ham CNN çıktısı (debug)", open=False):
         json_out = gr.JSON()
 
     btn.click(
         analiz_et,
         inputs=[isim_in, il_in, ilce_in, urun_in, img_in],
-        outputs=[md_out, lbl_out, trend_out, hava_out, senaryo_out, json_out],
+        outputs=[rapor_out, lbl_out, trend_out, hava_out, senaryo_out, benzer_out, json_out],
     )
 
 if __name__ == "__main__":

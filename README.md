@@ -53,7 +53,7 @@ Bunlar **zorunlu teslimden çıkarıldı** çünkü 10 günde ya entegrasyon ris
 
 | Katman | Ne yapar | Araç | Nerede |
 |---|---|---|---|
-| **DL modeli** | Yaprak fotoğrafı → 5 sınıftan biri + % güven | Keras/TensorFlow, MobileNetV2 transfer learning | Kaggle (eğitim) + FastAPI (Python) |
+| **DL modeli** | Yaprak fotoğrafı → 5 sınıftan biri + % güven | Keras/TensorFlow, MobileNetV2 transfer learning | Google Colab (eğitim) + FastAPI (Python) |
 | **Inference servisi** | Modeli HTTP ile sunar (`/predict`) | FastAPI | Python — tek Python parçası |
 | **Telegram botu** | Foto al, cevabı gönder | n8n Telegram Trigger + Telegram node | **n8n** |
 | **LLM-Agent + prompt** | Güven kontrolü, kültürel/biyolojik öneri, JSON rapor, eskalasyon | Claude API (HTTP Request node) | **n8n** — prompt burada geliştirilir |
@@ -70,8 +70,9 @@ bitki-hastalik-tespiti/
 ├── requirements.txt
 ├── .env.example
 ├── notebooks/
-│   └── 01_train_model_kaggle.py     Kaggle GPU'da model eğitimi (domates 5 sınıf)
-├── model/                           model.keras + class_names.json (Kaggle'dan iner)
+│   ├── 01_train_model_colab.py      ✅ Google Colab'da model eğitimi (domates 5 sınıf) — ana yol, sıfır kurulum
+│   └── 01_train_model_kaggle.py     Alternatif: Kaggle GPU'da aynı eğitim (kullanmak isteyen için)
+├── model/                           model.keras + class_names.json (Colab'dan iner)
 ├── inference/
 │   └── app.py                       ✅ FastAPI: görsel → {hastalik, guven, ilk3}   [Gün 4] — TEK Python parçası
 │                                     (model yoksa DEMO MODU: rastgele ama tutarlı sonuç döner)
@@ -98,12 +99,12 @@ bitki-hastalik-tespiti/
 
 ## Gün 0 — Kurulum (hepsi ücretsiz)
 
-1. **Kaggle:** kaggle.com → üye ol → Settings'ten telefon doğrula (GPU için).
+1. **Kaggle:** kaggle.com → üye ol (SADECE veri seti indirmek için API token — telefon doğrulama/GPU gerekmiyor, eğitim Colab'da).
 2. **GitHub:** github.com → `LeadLeaf-AI` (veya `bitki-hastalik-tespiti`) adında boş repo.
 3. **Anthropic:** console.anthropic.com → API Keys → anahtar oluştur, kaydet.
 4. **Telegram botu:** Telegram'da **@BotFather** → `/newbot` → token'ı kaydet.
-5. **Docker Desktop** kur (n8n günü için).
-6. Python 3.10–3.12 kurulu olsun.
+5. **n8n Cloud** hesabı: n8n.io → ücretsiz deneme (Docker Desktop artık GEREKMİYOR — bkz. `n8n/README_N8N.md`).
+6. Python 3.9+ kurulu olsun (yerelde sadece inference + Gradio demo için; eğitim Colab'da).
 7. Yerel ortam:
    ```powershell
    cd C:\Users\90539\bitki-hastalik-tespiti
@@ -119,9 +120,9 @@ bitki-hastalik-tespiti/
 | Gün | Hedef | Çıktı |
 |----|-------|-------|
 | 1 | Kurulum + veri inceleme + repo | Hesaplar hazır, GitHub repo açık, domates 5 sınıfı görüldü |
-| 2–3 | **Model eğitimi** (`01_train_model_kaggle.py`, `SELECTED_CLASSES` = domates 5 sınıf) | Doğrulama doğruluğu ≥ %90, confusion matrix; `model.keras` + `class_names.json` + `demo_images/` → `model/` |
-| 4 | Inference servisi | `POST /predict` görsel → `{hastalik, guven, ilk3}` çalışıyor, Postman/tarayıcıdan test edildi |
-| 5 | n8n kurulumu + Telegram bağlantısı | `docker compose up`; n8n'de Telegram Trigger + Send node'ları bağlı, bota foto atınca ham teşhis dönüyor |
+| 2–3 | **Model eğitimi** (`01_train_model_colab.py`, Google Colab, `SELECTED_CLASSES` = domates 5 sınıf) | Doğrulama doğruluğu ≥ %90, confusion matrix; `model.keras` + `class_names.json` + `demo_images/` → `model/` |
+| 4 | Inference servisi | ✅ `POST /predict` görsel → `{hastalik, guven, ilk3}` çalışıyor, test edildi (DEMO MODU + `ui/app.py` Gradio) |
+| 5 | n8n Cloud kurulumu + Telegram bağlantısı | `n8n/workflow.json` import edilir; n8n'de Telegram Trigger + Send node'ları bağlı, bota foto atınca ham teşhis dönüyor |
 | 6 | n8n'de LLM-Agent + prompt geliştirme | HTTP Request node → Claude API; `agent/prompt_taslagi.md`'den başlanıp n8n'de test edile edile iyileştirilir; IF ile %70 güven yönlendirmesi |
 | 7 | n8n: kayıt + rapor | Google Sheets kaydı + basit PDF; tüm akış tek workflow'da |
 | 8 | Uçtan uca test + uç durumlar | Yaprak olmayan görsel, düşük güven, bilinmeyen sınıf senaryoları |
@@ -144,7 +145,7 @@ bitki-hastalik-tespiti/
 
 ## Sık sorunlar
 
-- **Kaggle GPU yok:** Notebook → sağ panel → Accelerator = GPU; telefon doğrulaması gerekli.
-- **Model yerelde yüklenmiyor:** Kaggle'daki TensorFlow sürümünü not al, yerelde aynısını kur.
+- **Colab'da GPU görünmüyor:** Runtime (Çalışma zamanı) → Change runtime type → Hardware accelerator = GPU (T4) seç, oturumu yeniden başlat.
+- **Model yerelde yüklenmiyor:** Colab'daki TensorFlow sürümünü not al (`tf.__version__`), yerelde `pip install tensorflow-cpu==<aynı sürüm>` ile eşitle.
 - **Bot cevap vermiyor:** BotFather token'ı `.env`'de doğru mu; `telegram_bot.py` çalışıyor mu.
 - **n8n Sheets/Gmail yetki hatası:** credential'lar n8n arayüzünden bağlanır (~5 dk).

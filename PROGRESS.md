@@ -10,13 +10,15 @@
 
 **MİMARİ KARARI (2026-09-15):** n8n artık **local Docker değil, n8n Cloud** (kurulum hızı için). Detay: `n8n/README_N8N.md`. Ayrıca Kaggle eğitimi bitmeden uçtan uca görselleştirme yapabilmek için `inference/app.py`'ye **DEMO MODU** eklendi (model dosyası yoksa rastgele ama tutarlı sonuç döner, model gelince otomatik gerçek moda geçer) ve `ui/app.py` (Gradio) + `agent/report.py` (sadece bu yerel demo için, prompt_taslagi.md ile aynı sistem promptu) yazıldı.
 
+**KARAR (2026-09-15):** Model eğitimi için **Kaggle yerine Google Colab** (sıfır yerel kurulum, tarayıcıda ücretsiz GPU). `notebooks/01_train_model_colab.py` yazıldı — Kaggle hesabı SADECE veri setini indirmek için gerekiyor (kaggle.json ile, API üzerinden), eğitimin kendisi Colab'ın GPU'sunda çalışıyor. `01_train_model_kaggle.py` alternatif olarak duruyor (Kaggle'da çalıştırmak isteyen olursa).
+
 ---
 
 ## Genel durum
 
 - [x] **Gün 0** — Kurulum (hesaplar + ortam) — venv + `pip install -r requirements.txt` yapıldı; hesaplar hâlâ *Sen*'de bekliyor
 - [ ] **Gün 1** — Veri inceleme + GitHub repo (repo zaten bağlı, Kaggle veri incelemesi bekliyor)
-- [ ] **Gün 2–3** — Model eğitimi (domates, 5 sınıf) — **Kaggle GPU gerektirir, bu ortamda yapılamaz**
+- [ ] **Gün 2–3** — Model eğitimi (domates, 5 sınıf) — **Colab GPU gerektirir (tarayıcıda, kurulum yok), bu ortamda yapılamaz**
 - [x] **Gün 4** — Inference servisi (FastAPI) — tek Python parçası — ✅ yazıldı + test edildi (DEMO MODU'nda `/health` ve `/predict` çalışıyor)
 - [ ] **Gün 5** — n8n Cloud kurulumu + Telegram Trigger/Send bağlantısı (workflow.json taslağı hazır, `n8n/README_N8N.md`)
 - [ ] **Gün 6** — n8n'de LLM-Agent + prompt geliştirme (HTTP Request → Claude)
@@ -31,21 +33,22 @@
 ## Detaylı görev listesi
 
 ### Gün 0 — Kurulum
-- [ ] Kaggle hesabı + telefon doğrulama — *Sen*
+- [ ] Kaggle hesabı (SADECE veri seti indirmek için — telefon doğrulama/GPU gerekmiyor artık, eğitim Colab'da) — *Sen*
 - [ ] GitHub hesabı + boş repo — *Sen*
 - [ ] Anthropic API anahtarı — *Sen*
 - [ ] Telegram bot token (@BotFather → /newbot) — *Sen*
-- [ ] Docker Desktop kurulu — *Sen*
-- [ ] `venv` + `pip install -r requirements.txt` — *Sen*
+- [ ] n8n Cloud hesabı (n8n.io) — Docker Desktop artık GEREKMİYOR — *Sen*
+- [ ] `venv` + `pip install -r requirements.txt` — ✅ bu ortamda yapıldı
 - [ ] `.env.example` → `.env`, anahtarları doldur — *Sen*
 
 ### Gün 1 — Veri inceleme + repo
-- [ ] Kaggle'da "New Plant Diseases Dataset" (vipoooool) ekle, domates 5 sınıfını gör — *Sen*
+- [ ] Kaggle'da "New Plant Diseases Dataset" (vipoooool) sayfasına gir, veri yapısını gör (indirme Colab'da API ile otomatik olacak) — *Sen*
 - [ ] Projeyi GitHub'a ilk push — *Beraber*
 - [ ] `.gitignore` (venv, .env, *.sqlite, model dosyaları) — *Ben*
 
 ### Gün 2–3 — Model eğitimi (domates, 5 sınıf)
-- [ ] `01_train_model_kaggle.py` → Kaggle'a yapıştır, GPU aç, `SELECTED_CLASSES` (domates 5 sınıf) ile çalıştır — *Sen*
+- [ ] `01_train_model_colab.py` → Google Colab'a yapıştır, Runtime > GPU (T4) seç, Kaggle API token'ını yükle (sadece veri indirmek için), Run All — *Sen*
+- [ ] Çıkan `leadleaf_model_ciktisi.zip`'i indir, aç, içindekileri `model/` klasörüne koy — *Sen*
 - [ ] Doğrulama doğruluğu ≥ %90 — *hedef*
 - [ ] `model.keras`, `class_names.json`, `metrics.txt`, `confusion_matrix.png`, `demo_images/` indir → `model/`, `demo_images/` — *Sen*
 

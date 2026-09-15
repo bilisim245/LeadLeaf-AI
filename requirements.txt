@@ -18,8 +18,9 @@ tensorflow-cpu
 # Yerel demo agent (SADECE ui/app.py Gradio demosu için — üretim akışı n8n'de)
 anthropic
 
-# Demo arayüzü (opsiyonel, jüri/hızlı test için)
+# Demo arayüzü (opsiyonel, jüri/hızlı test için) — "Tarla 360": trend grafiği + senaryo analizi
 gradio
+matplotlib
 # Not: gradio 4.44.1 + pydantic>=2.11 bilinen bir uyumsuzluk içeriyor
 # (gradio_client TypeError: argument of type 'bool' is not iterable).
 # Python 3.10+ ortamında `pip install -U gradio` ile 5.x'e geçilebilir; 3.9'da bu pin gerekli.

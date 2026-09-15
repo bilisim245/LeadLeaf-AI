@@ -12,6 +12,13 @@
 
 **KARAR (2026-09-15):** Model eğitimi için **Kaggle yerine Google Colab** (sıfır yerel kurulum, tarayıcıda ücretsiz GPU). `notebooks/01_train_model_colab.py` yazıldı — Kaggle hesabı SADECE veri setini indirmek için gerekiyor (kaggle.json ile, API üzerinden), eğitimin kendisi Colab'ın GPU'sunda çalışıyor. `01_train_model_kaggle.py` alternatif olarak duruyor (Kaggle'da çalıştırmak isteyen olursa).
 
+**KAPSAM GÜNCELLEMESİ (2026-09-15) — "derinlik" geri bildirimi:** Referans alınan bir müşteri analitiği dashboard'u (trend grafiği + senaryo analizi + sıralı aksiyon önerisi) ile karşılaştırıldığında, tek-fotoğraf/tek-rapor akışının yüzeysel kaldığı değerlendirildi. Buna karşılık:
+1. **`bot/db.py` (tarla defteri) ve `agent/weather.py` (hava durumu) "bonus" aşamasından MVP'ye çekildi** — ikisi de zaten yazılıp test edilmişti, sadece bağlı değildi. Artık `ui/app.py` bunları kullanıyor.
+2. **`ui/app.py` "Tarla 360" dashboard'una dönüştürüldü:** geçmiş trend grafiği (bu tarlanın önceki gözlemleri), hava durumu bazlı mantar riski, bölgesel kümelenme notu ("Serik'te son 7 günde N çiftçi daha aynı hastalığı bildirdi") ve **kural tabanlı senaryo analizi** ("Mevcut durum" vs "Kültürel önlem" vs "Tekrar kontrol" vs "Uzmana danış", her biri için modellenen risk ve fark). ⚠️ Senaryo tablosu AÇIKÇA "ML tahmini değil, kural tabanlı simülasyon" olarak etiketlendi — sahte kesinlik/overclaiming riskinden kaçınmak için (bkz. Etik notu).
+3. **`notebooks/00_veri_kesfi.py` yazıldı** — veri setini varsayımla değil sayılarla incelemek için: sınıf dağılımı/dengesizliği, görsel boyutu istatistikleri, ve **train/valid arasında perceptual-hash ile sızıntı (data leakage) kontrolü** (bu "Augmented" veri setine literatürde yöneltilen bilinen bir eleştiri — aynı orijinal fotoğrafın augment'lerinin hem train hem valid'e sızması doğrulama doğruluğunu olduğundan iyimser gösterebilir).
+
+Bu, n8n Telegram akışını GECİKTİRMEZ (paralel ilerliyor) — sadece yerel Gradio demosunun ve rapor kalitesinin derinliğini artırıyor.
+
 ---
 
 ## Genel durum
@@ -90,9 +97,9 @@
 - [ ] GitHub'a son push — *Beraber*
 
 ### Bonus — MVP bitmeden BAŞLANMAZ
-- [ ] `agent/weather.py`'yi agent'a bağla (hazır, test edildi)
-- [ ] `bot/db.py`'yi bota bağla — tarla defteri (hazır, test edildi)
-- [ ] n8n bölgesel erken uyarı (cron)
+- [x] ~~`agent/weather.py`'yi agent'a bağla~~ — ✅ MVP'ye çekildi, `ui/app.py`'ye entegre edildi (2026-09-15)
+- [x] ~~`bot/db.py`'yi bota bağla — tarla defteri~~ — ✅ MVP'ye çekildi, `ui/app.py`'ye entegre edildi (2026-09-15)
+- [ ] n8n bölgesel erken uyarı (cron) — hâlâ bonus (Telegram botuna otomatik proaktif bildirim, `db.recent_cluster` zaten hazır)
 - [ ] `SELECTED_CLASSES = None` yapıp 38 sınıfa / çoklu bitkiye genişlet
 - [ ] Düşük güvende "farklı açıdan foto iste"
 - [ ] Öğrenci/çiftçi için farklı ayrıntı seviyesi
@@ -113,6 +120,8 @@
 - **2026-09-15** — `ui/app.py` (Gradio) yazıldı ve test edildi: görsel yükle → inference → rapor, tek ekranda. Bilinen `gradio==4.44.1` + yeni `pydantic` uyumsuzluğu (`TypeError: argument of type 'bool' is not iterable`) `pydantic<2.11` pini ile çözüldü ve `requirements.txt`'e not düşüldü.
 - **2026-09-15** — `n8n/workflow.json` (taslak) yazıldı: Telegram Trigger → dosya indir → `/predict` → Claude Agent (HTTP Request) → JSON ayrıştır (Code node) → Google Sheets + Telegram cevap. Güven-bazlı ek dallanma (IF) ve PDF üretimi bilerek Gün 6-7'ye, n8n arayüzünde canlı geliştirmeye bırakıldı.
 - **2026-09-15** — `requirements.txt` gerçek MVP'ye göre güncellendi: `torch/transformers/safetensors` (kullanılmıyor) ve `langchain*/chromadb/sentence-transformers` (agent n8n'de, RAG bonus aşamasında) çıkarıldı; `tensorflow-cpu` eklendi (model Keras/TensorFlow ile eğitiliyor).
+- **2026-09-15** — `notebooks/01_train_model_colab.py` yazıldı (Kaggle yerine Colab, sıfır yerel kurulum).
+- **2026-09-15** — **"Derinlik" geri bildirimi üzerine kapsam genişletmesi:** `agent/weather.py` + `bot/db.py` bonustan MVP'ye çekildi; `ui/app.py` "Tarla 360" dashboard'una dönüştürüldü (geçmiş trend grafiği, hava durumu riski, bölgesel kümelenme notu, kural-tabanlı senaryo analizi tablosu — ML tahmini değil, açıkça etiketlendi). `notebooks/00_veri_kesfi.py` yazıldı (sınıf dağılımı, görsel boyutu, train/valid data-leakage kontrolü perceptual hash ile). Yerelde uçtan uca test edildi: DB kaydı, hava durumu API çağrısı (Open-Meteo, gerçek ağ isteği), senaryo hesaplaması, trend grafiği — hepsi doğru çalışıyor (✅).
 
 ---
 

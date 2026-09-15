@@ -38,9 +38,9 @@ Bunlar **zorunlu teslimden çıkarıldı** çünkü 10 günde ya entegrasyon ris
 
 | Bileşen | Durum | Not |
 |---|---|---|
-| Hava durumu (Open-Meteo) | `agent/weather.py` yazılı + test edildi, **entegre değil** | Bonus döneminde bota bağlanır |
-| Tarla defteri / zaman içi takip | `bot/db.py` yazılı + test edildi, **entegre değil** | Bonus döneminde bota bağlanır |
-| Bölgesel hastalık uyarısı | Yapılmadı | Gerçek kullanıcı tabanı olmadan demo edilemez; TÜBİTAK aşamasında |
+| Hava durumu (Open-Meteo) | ✅ **MVP'ye alındı (2026-09-15)** — `ui/app.py`'ye entegre | "Derinlik" geri bildirimi üzerine bonustan çıkarıldı, n8n/Telegram akışına da eklenecek |
+| Tarla defteri / zaman içi takip | ✅ **MVP'ye alındı (2026-09-15)** — `ui/app.py`'de trend grafiği olarak kullanılıyor | Aynı şekilde |
+| Bölgesel hastalık uyarısı (proaktif, cron ile otomatik bildirim) | Yapılmadı — `db.recent_cluster` altyapısı hazır, sadece n8n cron/bildirim eksik | Gerçek kullanıcı tabanı olmadan tam demo edilemez; TÜBİTAK aşamasında |
 | Konum tabanlı hastalık haritası | Yapılmadı | TÜBİTAK aşamasında |
 | Gelişmiş RAG (çok kaynaklı) | Yapılmadı | TÜBİTAK aşamasında |
 | 38 sınıf / çoklu bitki | Notebook'ta hazır (`SELECTED_CLASSES = None`) | MVP çalışınca açılır |
@@ -70,6 +70,7 @@ bitki-hastalik-tespiti/
 ├── requirements.txt
 ├── .env.example
 ├── notebooks/
+│   ├── 00_veri_kesfi.py             ✅ Veri seti EDA — sınıf dağılımı, boyut istatistiği, train/valid sızıntı kontrolü
 │   ├── 01_train_model_colab.py      ✅ Google Colab'da model eğitimi (domates 5 sınıf) — ana yol, sıfır kurulum
 │   └── 01_train_model_kaggle.py     Alternatif: Kaggle GPU'da aynı eğitim (kullanmak isteyen için)
 ├── model/                           model.keras + class_names.json (Colab'dan iner)
@@ -79,17 +80,17 @@ bitki-hastalik-tespiti/
 ├── agent/
 │   ├── prompt_taslagi.md            n8n'e yapıştırılacak prompt taslağı (LLM çağrısı n8n'de) [Gün 5-6]
 │   ├── report.py                    ✅ SADECE yerel demo (ui/app.py) için — prompt_taslagi.md ile aynı sistem promptu
-│   ├── weather.py                   BEKLEMEDE — bonus aşamasında entegre edilecek
+│   ├── weather.py                   ✅ MVP'ye alındı (2026-09-15) — ui/app.py'de hava durumu riski için kullanılıyor
 │   └── knowledge/                   RAG kaynak dokümanları (doğrulanmış bilgi)   [Gün 8, bonus]
 ├── rag/
 │   └── build_index.py               Chroma index  [Gün 8, bonus]
 ├── bot/
-│   └── db.py                        BEKLEMEDE — bonus aşamasında entegre edilecek (tarla defteri)
+│   └── db.py                        ✅ MVP'ye alındı (2026-09-15) — ui/app.py'de tarla geçmişi/trend için kullanılıyor
 ├── n8n/
 │   ├── README_N8N.md                ✅ n8n Cloud kurulumu (tünel/deploy seçenekleri, credential'lar)
 │   └── workflow.json                ✅ (taslak) Telegram Trigger → predict → Claude (prompt burada) → Sheets + Telegram reply  [Gün 5-7]
 ├── ui/
-│   └── app.py                       ✅ Gradio — jüriye hızlı gösterim / n8n'siz yerel uçtan uca test [opsiyonel]
+│   └── app.py                       ✅ Gradio "Tarla 360" — CNN + LLM raporu + geçmiş trend + hava durumu riski + senaryo analizi
 └── report/
     ├── kod_notlarim.md              kodun sade açıklaması (mülakat/sunum için)
     └── rapor_taslagi.md             bootcamp raporu + sunum notları              [Gün 9]
@@ -140,6 +141,8 @@ bitki-hastalik-tespiti/
 - **İlaç dozu/bekleme süresi önerilmez** — sadece kültürel/biyolojik önlem + doğrulanmış bilgi + uzmana yönlendirme.
 - Model laboratuvar görselleriyle eğitildi; gerçek tarla fotoğraflarında başarım düşebilir — sınırlılık olarak belirtilecek.
 - MVP sadece domates + 5 sınıf; genellenebilirlik sınırlıdır.
+- Veri seti "Augmented" (çoğaltılmış) — train/valid arasında sızıntı (data leakage) riski var, bkz. `notebooks/00_veri_kesfi.py` çıktısı `sizinti_raporu.txt`.
+- `ui/app.py`'deki **"senaryo analizi" tablosu kural tabanlı bir simülasyondur, eğitilmiş bir ML modelinin çıktısı DEĞİLDİR** — farklı müdahalelerin göreceli etkisini göstermek amaçlı, kalibre edilmemiş sezgisel katsayılar kullanır. Rapora/sunuma bu şekilde, açıkça etiketlenerek girmeli.
 
 ---
 

@@ -15,7 +15,7 @@ numpy
 # DL model yükleme (CPU yeterli — tek görsel tahmini, egitim degil)
 tensorflow-cpu
 
-# Yerel demo agent (SADECE ui/app.py Gradio demosu için — üretim akışı n8n'de)
+# Yerel demo agent (SADECE ui/app.py demosu için — üretim akışı n8n'de)
 anthropic
 
 # RAG — hastalık bilgi tabanı (metin) + görsel benzerlik araması
@@ -23,12 +23,9 @@ chromadb
 sentence-transformers
 
 # Demo arayüzü (opsiyonel, jüri/hızlı test için) — "Tarla 360": trend grafiği + senaryo analizi
-gradio
-matplotlib
-# Not: gradio 4.44.1 + pydantic>=2.11 bilinen bir uyumsuzluk içeriyor
-# (gradio_client TypeError: argument of type 'bool' is not iterable).
-# Python 3.10+ ortamında `pip install -U gradio` ile 5.x'e geçilebilir; 3.9'da bu pin gerekli.
-pydantic<2.11
+# (2026-09-16: Gradio yerine Streamlit — daha native/akıcı görünüm, ozel CSS gerekmiyor)
+streamlit
+pandas
 
 # Yardımcılar
 python-dotenv

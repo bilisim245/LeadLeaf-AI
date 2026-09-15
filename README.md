@@ -72,7 +72,7 @@ bitki-hastalik-tespiti/
 ├── requirements.txt
 ├── .env.example
 ├── notebooks/
-│   ├── 00_veri_kesfi.py             ✅ Veri seti EDA — sınıf dağılımı, boyut istatistiği, train/valid sızıntı kontrolü
+│   ├── 00_veri_kesfi.py             ✅ Veri seti EDA — sınıf dağılımı, boyut istatistiği, bozuk/tekrar eden görsel kontrolü (çıktı: veri_ozeti.json → ui/app.py "Veri Analizi" sekmesi)
 │   ├── 01_train_model_colab.py      ✅ Google Colab'da model eğitimi (domates 5 sınıf) — ana yol, sıfır kurulum
 │   └── 01_train_model_kaggle.py     Alternatif: Kaggle GPU'da aynı eğitim (kullanmak isteyen için)
 ├── model/                           model.keras + class_names.json (Colab'dan iner)
@@ -95,8 +95,9 @@ bitki-hastalik-tespiti/
 │   ├── README_N8N.md                ✅ n8n Cloud kurulumu (tünel/deploy seçenekleri, credential'lar)
 │   └── workflow.json                ✅ (taslak) Telegram Trigger → predict → Claude (prompt burada) → Sheets + Telegram reply  [Gün 5-7]
 ├── ui/
-│   └── app.py                       ✅ Gradio "Tarla 360" — CNN + LLM raporu + geçmiş trend + hava durumu riski + senaryo analizi
+│   └── app.py                       ✅ Streamlit "Tarla 360" — CNN + LLM raporu + geçmiş trend + hava durumu riski + senaryo analizi
 └── report/
+    ├── eda_ciktilari/               00_veri_kesfi.py'nin Colab çıktısı buraya çıkarılır — ui/app.py "Veri Analizi" sekmesi bunu okur
     ├── kod_notlarim.md              kodun sade açıklaması (mülakat/sunum için)
     └── rapor_taslagi.md             bootcamp raporu + sunum notları              [Gün 9]
 ```
@@ -110,7 +111,7 @@ bitki-hastalik-tespiti/
 3. **Anthropic:** console.anthropic.com → API Keys → anahtar oluştur, kaydet.
 4. **Telegram botu:** Telegram'da **@BotFather** → `/newbot` → token'ı kaydet.
 5. **n8n Cloud** hesabı: n8n.io → ücretsiz deneme (Docker Desktop artık GEREKMİYOR — bkz. `n8n/README_N8N.md`).
-6. Python 3.9+ kurulu olsun (yerelde sadece inference + Gradio demo için; eğitim Colab'da).
+6. Python 3.9+ kurulu olsun (yerelde sadece inference + Streamlit demo için; eğitim Colab'da).
 7. Yerel ortam:
    ```powershell
    cd C:\Users\90539\bitki-hastalik-tespiti
@@ -127,7 +128,7 @@ bitki-hastalik-tespiti/
 |----|-------|-------|
 | 1 | Kurulum + veri inceleme + repo | Hesaplar hazır, GitHub repo açık, domates 5 sınıfı görüldü |
 | 2–3 | **Model eğitimi** (`01_train_model_colab.py`, Google Colab, `SELECTED_CLASSES` = domates 5 sınıf) | Doğrulama doğruluğu ≥ %90, confusion matrix; `model.keras` + `class_names.json` + `demo_images/` → `model/` |
-| 4 | Inference servisi | ✅ `POST /predict` görsel → `{hastalik, guven, ilk3}` çalışıyor, test edildi (DEMO MODU + `ui/app.py` Gradio) |
+| 4 | Inference servisi | ✅ `POST /predict` görsel → `{hastalik, guven, ilk3}` çalışıyor, test edildi (DEMO MODU + `ui/app.py` Streamlit) |
 | 5 | n8n Cloud kurulumu + Telegram bağlantısı | `n8n/workflow.json` import edilir; n8n'de Telegram Trigger + Send node'ları bağlı, bota foto atınca ham teşhis dönüyor |
 | 6 | n8n'de LLM-Agent + prompt geliştirme | HTTP Request node → Claude API; `agent/prompt_taslagi.md`'den başlanıp n8n'de test edile edile iyileştirilir; IF ile %70 güven yönlendirmesi |
 | 7 | n8n: kayıt + rapor | Google Sheets kaydı + basit PDF; tüm akış tek workflow'da |
@@ -146,7 +147,7 @@ bitki-hastalik-tespiti/
 - **İlaç dozu/bekleme süresi önerilmez** — sadece kültürel/biyolojik önlem + doğrulanmış bilgi + uzmana yönlendirme.
 - Model laboratuvar görselleriyle eğitildi; gerçek tarla fotoğraflarında başarım düşebilir — sınırlılık olarak belirtilecek.
 - MVP sadece domates + 5 sınıf; genellenebilirlik sınırlıdır.
-- Veri seti "Augmented" (çoğaltılmış) — train/valid arasında sızıntı (data leakage) riski var, bkz. `notebooks/00_veri_kesfi.py` çıktısı `sizinti_raporu.txt`.
+- Train/valid ayrımı 01_train_model_colab.py tarafından tek seferde, rastgele yapılıyor (sızıntı riski yapısal olarak yok); yine de kaynak veri setinde tekrar eden görsel olup olmadığı kontrol ediliyor, bkz. `notebooks/00_veri_kesfi.py` çıktısı `tekrar_raporu.txt`.
 - `ui/app.py`'deki **"senaryo analizi" tablosu kural tabanlı bir simülasyondur, eğitilmiş bir ML modelinin çıktısı DEĞİLDİR** — farklı müdahalelerin göreceli etkisini göstermek amaçlı, kalibre edilmemiş sezgisel katsayılar kullanır. Rapora/sunuma bu şekilde, açıkça etiketlenerek girmeli.
 
 ---

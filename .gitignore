@@ -13,6 +13,10 @@ model/*.h5
 rag/chroma_db/
 rag/image_embeddings.npz
 
+# Colab EDA ciktisi (00_veri_kesfi.py'den iner, buyuk PNG/veri) - .gitkeep haric
+report/eda_ciktilari/*
+!report/eda_ciktilari/.gitkeep
+
 # Veritabani
 *.sqlite
 *.sqlite3

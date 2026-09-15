@@ -11,6 +11,13 @@
 #      Settings > API > "Create New Token" -> kaggle.json iner.
 #      (Kaggle hesabı SADECE veri setini indirmek için gerekiyor, eğitim
 #      burada Colab'ın kendi GPU'sunda çalışacak.)
+#
+#  VERİ SETİ (2026-09-16 güncellemesi): abdallahalidev/plantvillage-dataset
+#  (ham PlantVillage — vipoooool'daki ÖNCEDEN bölünmüş+çoğaltılmış "Augmented"
+#  sürüm DEĞİL). Train/valid ayrımını BİZ yapıyoruz (aşağıda, %80/%20) — bu,
+#  notebooks/00_veri_kesfi.py'de tespit ettiğimiz sızıntı (data leakage)
+#  riskini yapısal olarak ortadan kaldırıyor: aynı görsel asla hem train'de
+#  hem valid'de olamaz, çünkü bölme TEK SEFERDE ve rastgele yapılıyor.
 #   4. Bu dosyanın tamamını Colab'a yapıştır (birden fazla hücreye
 #      "# %%" işaretlerinden bölerek de yapıştırabilirsin) ve Run All.
 #      İlk çalıştırmada kaggle.json yüklemen istenecek (dosya seçme kutusu).
@@ -26,7 +33,7 @@
 #  unutma (son hücre otomatik zip indirtir).
 # =====================================================================
 
-# %% 0) Kaggle veri setini indir (hesap SADECE veri için, eğitim Colab GPU'sunda)
+# %% 0) Kaggle veri setini indir — kagglehub ile (hesap SADECE veri için)
 from google.colab import files
 import os
 
@@ -37,14 +44,19 @@ if not os.path.exists("/root/.kaggle/kaggle.json"):
     for fname in uploaded:
         os.rename(fname, "/root/.kaggle/kaggle.json")
     os.chmod("/root/.kaggle/kaggle.json", 0o600)
+    # kagglehub bazen ~/.kaggle yerine ortam degiskeni bekliyor - ikisini de saglayalim
+    import json as _json
+    with open("/root/.kaggle/kaggle.json") as _f:
+        _cred = _json.load(_f)
+    os.environ["KAGGLE_USERNAME"] = _cred["username"]
+    os.environ["KAGGLE_KEY"] = _cred["key"]
 
-os.system("pip -q install kaggle")
-os.makedirs("/content/data", exist_ok=True)
-os.system(
-    "kaggle datasets download -d vipoooool/new-plant-diseases-dataset "
-    "-p /content/data --unzip"
-)
-print("Veri indirildi: /content/data")
+os.system("pip -q install kagglehub")
+import kagglehub
+
+DATASET_PATH = kagglehub.dataset_download("abdallahalidev/plantvillage-dataset")
+print("Veri indirildi:", DATASET_PATH)
+print("İçerik:", os.listdir(DATASET_PATH))
 
 # %% 1) Importlar + ayarlar
 import json, glob, random, shutil
@@ -80,49 +92,81 @@ SELECTED_CLASSES = [
 
 random.seed(SEED); np.random.seed(SEED); tf.random.set_seed(SEED)
 
-# %% 2) Veri yolları (Kaggle'daki /kaggle/input yerine Colab'da /content/data)
+# %% 2) Veri yolu — HAM PlantVillage (renkli görseller). Mirror'a göre iç klasör
+# adı değişebilir ("color", "PlantVillage/color" vb.) — bu yüzden dinamik arıyoruz.
 CANDIDATES = [
-    "/content/data/New Plant Diseases Dataset(Augmented)/New Plant Diseases Dataset(Augmented)",
-    "/content/data/New Plant Diseases Dataset(Augmented)",
+    os.path.join(DATASET_PATH, "color"),
+    os.path.join(DATASET_PATH, "PlantVillage", "color"),
+    os.path.join(DATASET_PATH, "plantvillage dataset", "color"),
 ]
-DATA_ROOT = next((p for p in CANDIDATES if os.path.isdir(os.path.join(p, "train"))), None)
-assert DATA_ROOT, "Veri seti bulunamadi. Yukaridaki indirme hucresini kontrol et."
+RAW_DIR = next((p for p in CANDIDATES if os.path.isdir(p)), None)
+if RAW_DIR is None:
+    bulunanlar = glob.glob(os.path.join(DATASET_PATH, "**", "color"), recursive=True)
+    RAW_DIR = bulunanlar[0] if bulunanlar else None
+assert RAW_DIR, (
+    f"'color' klasoru otomatik bulunamadi. DATASET_PATH icerigi: {os.listdir(DATASET_PATH)}\n"
+    f"Yukaridaki listeye bakip CANDIDATES listesine dogru yolu elle ekle."
+)
+print("Ham veri (renkli):", RAW_DIR)
+mevcut_siniflar = sorted(os.listdir(RAW_DIR))
+print(f"Veri setindeki toplam sinif sayisi: {len(mevcut_siniflar)}")
 
-TRAIN_DIR = os.path.join(DATA_ROOT, "train")
-VALID_DIR_FULL = os.path.join(DATA_ROOT, "valid")
-print("train (tam):", TRAIN_DIR)
-print("valid (tam):", VALID_DIR_FULL)
-print("veri setindeki toplam sinif sayisi:", len(os.listdir(TRAIN_DIR)))
+# SELECTED_CLASSES'in gercekten var olup olmadigini kontrol et — mirror'a gore
+# klasor adlandirmasi (ayirac, buyuk/kucuk harf) farkli olabilir.
+eksikler = [c for c in (SELECTED_CLASSES or []) if c not in mevcut_siniflar]
+if eksikler:
+    print(f"\nUYARI: su siniflar bulunamadi: {eksikler}")
+    print("Domates ile ilgili gercek klasor adlari:")
+    for c in mevcut_siniflar:
+        if "tomato" in c.lower():
+            print(" -", c)
+    raise AssertionError("SELECTED_CLASSES'i yukaridaki gercek klasor adlarina gore duzelt.")
+
+# %% 3) Domates alt kümesi + KENDİ train/valid bölmemiz (sızıntısız, %80/%20)
+VALID_ORANI = 0.2
 
 
-def _alt_kume_olustur(kaynak_dir: str, hedef_dir: str, siniflar, max_per_class):
-    """SELECTED_CLASSES ve/veya MAX_PER_CLASS'a gore klasoru kucult."""
-    if not siniflar and not max_per_class:
-        return kaynak_dir
-    if os.path.isdir(hedef_dir):
-        return hedef_dir
+def _alt_kume_ve_bol(kaynak_dir: str, hedef_train: str, hedef_valid: str,
+                      siniflar, valid_orani: float, max_per_class, seed: int):
+    """Ham (bolunmemis) veriyi SELECTED_CLASSES'e gore kucultup TEK SEFERDE
+    train/valid'e boler — ayni goruntu asla iki tarafta birden olamaz,
+    boylece vipoooool veri setinde tespit edilen sizinti riski olusmaz."""
+    if os.path.isdir(hedef_train) and os.path.isdir(hedef_valid):
+        return hedef_train, hedef_valid
+
     kaynak_siniflar = siniflar if siniflar else os.listdir(kaynak_dir)
+    rng = random.Random(seed)
     for cls in kaynak_siniflar:
         src = os.path.join(kaynak_dir, cls)
         if not os.path.isdir(src):
             print(f"UYARI: sinif klasoru yok, atlaniyor: {cls}")
             continue
-        dst = os.path.join(hedef_dir, cls)
-        os.makedirs(dst, exist_ok=True)
-        files_ = os.listdir(src)
-        random.shuffle(files_)
+        dosyalar = os.listdir(src)
+        rng.shuffle(dosyalar)
         if max_per_class:
-            files_ = files_[:max_per_class]
-        for f in files_:
+            dosyalar = dosyalar[:max_per_class]
+
+        n_valid = max(1, int(len(dosyalar) * valid_orani))
+        valid_dosyalar = dosyalar[:n_valid]
+        train_dosyalar = dosyalar[n_valid:]
+
+        for f in train_dosyalar:
+            dst = os.path.join(hedef_train, cls)
+            os.makedirs(dst, exist_ok=True)
             shutil.copy(os.path.join(src, f), os.path.join(dst, f))
-    return hedef_dir
+        for f in valid_dosyalar:
+            dst = os.path.join(hedef_valid, cls)
+            os.makedirs(dst, exist_ok=True)
+            shutil.copy(os.path.join(src, f), os.path.join(dst, f))
+        print(f"  {cls}: {len(train_dosyalar)} train, {len(valid_dosyalar)} valid")
+
+    return hedef_train, hedef_valid
 
 
-# %% 3) Domates alt kümesi (+ istenirse sınıf başına görsel sınırı)
-TRAIN_DIR = _alt_kume_olustur(TRAIN_DIR, "/content/_subset/train",
-                              SELECTED_CLASSES, MAX_PER_CLASS)
-VALID_DIR = _alt_kume_olustur(VALID_DIR_FULL, "/content/_subset/valid",
-                              SELECTED_CLASSES, None)
+TRAIN_DIR, VALID_DIR = _alt_kume_ve_bol(
+    RAW_DIR, "/content/_subset/train", "/content/_subset/valid",
+    SELECTED_CLASSES, VALID_ORANI, MAX_PER_CLASS, SEED,
+)
 print("kullanilan train:", TRAIN_DIR)
 print("kullanilan valid:", VALID_DIR)
 print("kullanilan sinif sayisi:", len(os.listdir(TRAIN_DIR)))

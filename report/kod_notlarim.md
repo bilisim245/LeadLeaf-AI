@@ -196,6 +196,26 @@ cm = confusion_matrix(y_true, y_pred)
 
 ---
 
+## "Zaman serisi için ayrı bir veri seti gerekir mi?" — HAYIR
+
+Bootcamp'in "İleri seviye" hedefi "geçmiş raporlarla trend analizi" istiyor. Bunun için
+DIŞARIDAN bir zaman serisi veri setine ihtiyaç YOK — zaman serisi, sistemin KENDİ
+kullanımından doğal olarak birikiyor: her analiz `bot/db.py`'ye bir gözlem (tarih +
+hastalık + güven) olarak kaydediliyor; aynı çiftçi/tarla tekrar fotoğraf attıkça bu
+kayıtlar birikip `ui/app.py`'deki "📈 Geçmiş trend" grafiğini oluşturuyor. Yani zaman
+serisi verisi = ürünün kendi telemetrisi, ayrı bir Kaggle veri seti değil.
+
+## "Veri Analizi" sekmesi — bootcamp'in istediği EDA nerede?
+
+`notebooks/00_veri_kesfi.py` Colab'da çalışıp şunları üretiyor: sınıf dağılımı/dengesizliği,
+görsel boyutu istatistiği, **bozuk/açılamayan görsel** kontrolü ("boş veri" karşılığı —
+tablo verisinde NaN'a denk gelen şey, görsel veride 0 byte'lık veya PIL'in açamadığı
+dosyalardır), ve **tekrar eden (duplicate) görsel** kontrolü (train/valid'e ayrı ayrı
+düşüp yapay sızıntı yaratabilecek neredeyse-aynı fotoğraflar). Bu, indirilen
+`eda_ciktilari.zip` içeriği `report/eda_ciktilari/` klasörüne çıkarılınca `ui/app.py`'nin
+**"📊 Veri Analizi"** sekmesinde otomatik olarak grafiklere/tablolara dökülüyor — Colab
+çıktısını statik bir PNG olarak rapora yapıştırmak yerine, canlı ve gezilebilir.
+
 ## "Senaryo analizi" tablosu neden ML modeli DEĞİL (dürüstlük notu)
 
 `ui/app.py`'deki tablo ("Mevcut durum" / "Kültürel önlem" / "Tekrar kontrol" / "Uzmana

@@ -1,5 +1,5 @@
 # =====================================================================
-#  VERİ SETİ KEŞFİ (EDA) — "New Plant Diseases Dataset" (vipoooool)
+#  VERİ SETİ KEŞFİ (EDA) — "PlantVillage Dataset" (abdallahalidev, Kaggle)
 #  Google Colab
 # =====================================================================
 #
@@ -7,22 +7,29 @@
 #  varsayımla değil, sayılarla. Rapora/sunuma girecek 3 kritik çıktı:
 #    1. Sınıf dengesizliği (bazı hastalıklar diğerlerinden çok daha az mı?)
 #    2. Görsel kalitesi (lab arka planlı mı, gerçek tarla foto mu, boyutlar tutarlı mı?)
-#    3. TRAIN/VALID SIZINTISI (data leakage) riski — bu veri seti "Augmented"
-#       yani orijinal fotoğraflar döndürme/aynalama ile çoğaltılmış. Eğer
-#       aynı orijinal fotoğrafın farklı augment'leri hem train'de hem valid'de
-#       varsa, doğrulama doğruluğu OLDUĞUNDAN YÜKSEK görünür (literatürde
-#       PlantVillage tabanlı veri setlerine yöneltilen bilinen bir eleştiri).
-#       Bu script perceptual hash ile TRAIN/VALID arasında yakın-kopya arar.
+#    3. TEKRAR EDEN (duplicate) GÖRSEL kontrolü — bu veri seti HAM (vipoooool'daki
+#       gibi önceden train/valid'e bölünmüş+çoğaltılmış DEĞİL). Train/valid ayrımını
+#       01_train_model_colab.py kendisi, TEK SEFERDE rastgele yaparak oluşturuyor —
+#       bu yüzden "train/valid sızıntısı" riski yapısal olarak yok. Yine de kontrol
+#       etmeye değer olan şey: kaynak veri setinde AYNI görselin birden fazla kopyası
+#       var mı (bazı Kaggle mirror'larında rastlanan bilinen bir durum) — varsa split
+#       sırasında biri train'e biri valid'e düşüp aynı sızıntıyı yaratabilir.
 #
 #  NASIL ÇALIŞTIRILIR: 01_train_model_colab.py'deki "veri indirme" hücresini
-#  önce çalıştır (aynı /content/data yolu kullanılıyor), sonra bunu çalıştır.
+#  önce çalıştır (aynı DATASET_PATH / RAW_DIR mantığı kullanılıyor), sonra bunu
+#  çalıştır (train/valid'e BÖLMEDEN ÖNCE, ham veri üzerinde analiz yapar).
 #
 #  ÇIKTI (/content/eda_ciktilari):
-#   - sinif_dagilimi.png         her sınıfta kaç görsel var (train + valid)
+#   - sinif_dagilimi.png         her sınıfta kaç görsel var (ham veri, tüm 38 sınıf)
 #   - ornek_gorseller_izgara.png her sınıftan örnek görseller
 #   - boyut_dagilimi.png         görsel genişlik/yükseklik histogramı
-#   - sizinti_raporu.txt         train/valid arasında bulunan yakın-kopya sayısı
+#   - tekrar_raporu.txt          sınıf içi/arası tekrar eden (duplicate) görsel sayısı
 #   - veri_ozeti.txt             tüm sayısal özet (rapora kopyala-yapıştır)
+#   - veri_ozeti.json            aynı özet, yapılandırılmış — Streamlit "Veri Analizi"
+#                                 sekmesi bunu okuyup grafikler çiziyor
+#
+#  İNDİRİLEN eda_ciktilari.zip'İ NEREYE KOYMALI: proje kökündeki
+#  report/eda_ciktilari/ klasörüne çıkart — Streamlit arayüzü (ui/app.py) oradan okur.
 # =====================================================================
 
 # %% 0) Kurulum + veri yolu (01_train_model_colab.py'deki indirme hücresi çalıştırılmış olmalı)
@@ -30,14 +37,20 @@ import os, json, random
 os.system("pip -q install imagehash")
 
 CANDIDATES = [
-    "/content/data/New Plant Diseases Dataset(Augmented)/New Plant Diseases Dataset(Augmented)",
-    "/content/data/New Plant Diseases Dataset(Augmented)",
+    os.path.join(DATASET_PATH, "color"),
+    os.path.join(DATASET_PATH, "PlantVillage", "color"),
+    os.path.join(DATASET_PATH, "plantvillage dataset", "color"),
 ]
-DATA_ROOT = next((p for p in CANDIDATES if os.path.isdir(os.path.join(p, "train"))), None)
-assert DATA_ROOT, "Veri seti bulunamadi — once 01_train_model_colab.py'deki indirme hucresini calistir."
+RAW_DIR = next((p for p in CANDIDATES if os.path.isdir(p)), None)
+if RAW_DIR is None:
+    import glob as _glob
+    bulunanlar = _glob.glob(os.path.join(DATASET_PATH, "**", "color"), recursive=True)
+    RAW_DIR = bulunanlar[0] if bulunanlar else None
+assert RAW_DIR, (
+    "Veri seti bulunamadi — once 01_train_model_colab.py'deki indirme hucresini "
+    "calistir (DATASET_PATH degiskeni tanimli olmali)."
+)
 
-TRAIN_DIR = os.path.join(DATA_ROOT, "train")
-VALID_DIR = os.path.join(DATA_ROOT, "valid")
 OUT = "/content/eda_ciktilari"
 os.makedirs(OUT, exist_ok=True)
 
@@ -49,42 +62,40 @@ SELECTED_CLASSES = [
     "Tomato___Septoria_leaf_spot",
 ]
 
-# %% 1) Sınıf dağılımı — TÜM 38 sınıf + domates alt kümesi ayrı ayrı
+# %% 1) Sınıf dağılımı — TÜM sınıflar (ham veri, henüz train/valid'e bölünmemiş)
 import matplotlib.pyplot as plt
 
 def sinif_sayilari(klasor):
     return {c: len(os.listdir(os.path.join(klasor, c)))
             for c in sorted(os.listdir(klasor)) if os.path.isdir(os.path.join(klasor, c))}
 
-train_counts_all = sinif_sayilari(TRAIN_DIR)
-valid_counts_all = sinif_sayilari(VALID_DIR)
-
-toplam_train = sum(train_counts_all.values())
-toplam_valid = sum(valid_counts_all.values())
-print(f"TÜM VERİ SETİ — {len(train_counts_all)} sınıf")
-print(f"  train: {toplam_train} görsel, valid: {toplam_valid} görsel")
+tum_sayilar = sinif_sayilari(RAW_DIR)
+toplam_gorsel = sum(tum_sayilar.values())
+print(f"TÜM VERİ SETİ (ham) — {len(tum_sayilar)} sınıf, {toplam_gorsel} görsel")
 
 # Domates alt kümesi
-tomato_train = {k: v for k, v in train_counts_all.items() if k in SELECTED_CLASSES}
-tomato_valid = {k: v for k, v in valid_counts_all.items() if k in SELECTED_CLASSES}
-print(f"\nDOMATES ALT KÜMESİ (MVP) — {len(tomato_train)} sınıf")
+tomato_sayilar = {k: v for k, v in tum_sayilar.items() if k in SELECTED_CLASSES}
+print(f"\nDOMATES ALT KÜMESİ (MVP) — {len(tomato_sayilar)} sınıf")
 for c in SELECTED_CLASSES:
-    print(f"  {c:35s} train={tomato_train.get(c,0):5d}  valid={tomato_valid.get(c,0):5d}")
+    print(f"  {c:35s} {tomato_sayilar.get(c, 0):5d} görsel")
 
 # Dengesizlik oranı (en büyük / en küçük sınıf)
-if tomato_train:
-    max_c, min_c = max(tomato_train.values()), min(tomato_train.values())
-    print(f"\nDengesizlik oranı (domates alt kümesi, train): {max_c/min_c:.2f}x "
+if tomato_sayilar:
+    max_c, min_c = max(tomato_sayilar.values()), min(tomato_sayilar.values())
+    print(f"\nDengesizlik oranı (domates alt kümesi): {max_c/min_c:.2f}x "
           f"(en çok: {max_c}, en az: {min_c})")
+    print(f"%80 train / %20 valid ile bölününce yaklaşık: "
+          f"train={int(min_c*0.8)}-{int(max_c*0.8)}, valid={int(min_c*0.2)}-{int(max_c*0.2)} "
+          f"görsel/sınıf aralığında olacak.")
 
-# Grafik: tüm 38 sınıf (domates olanlar vurgulu)
+# Grafik: tüm sınıflar (domates olanlar vurgulu)
 fig, ax = plt.subplots(figsize=(14, 10))
-siniflar = list(train_counts_all.keys())
-degerler = [train_counts_all[c] for c in siniflar]
+siniflar = list(tum_sayilar.keys())
+degerler = [tum_sayilar[c] for c in siniflar]
 renkler = ["#e74c3c" if c in SELECTED_CLASSES else "#3498db" for c in siniflar]
 ax.barh(siniflar, degerler, color=renkler)
-ax.set_xlabel("Train görsel sayısı")
-ax.set_title("Sınıf dağılımı — tüm 38 sınıf (KIRMIZI = MVP'de kullanılan domates alt kümesi)")
+ax.set_xlabel("Görsel sayısı (ham veri)")
+ax.set_title("Sınıf dağılımı — tüm sınıflar (KIRMIZI = MVP'de kullanılan domates alt kümesi)")
 plt.tight_layout(); plt.savefig(f"{OUT}/sinif_dagilimi.png", dpi=120); plt.show()
 
 # %% 2) Örnek görseller — domates 5 sınıftan birer izgara
@@ -92,7 +103,7 @@ from PIL import Image
 
 fig, axes = plt.subplots(1, len(SELECTED_CLASSES), figsize=(4 * len(SELECTED_CLASSES), 4))
 for ax, cls in zip(axes, SELECTED_CLASSES):
-    klasor = os.path.join(TRAIN_DIR, cls)
+    klasor = os.path.join(RAW_DIR, cls)
     dosya = random.choice(os.listdir(klasor))
     img = Image.open(os.path.join(klasor, dosya))
     ax.imshow(img)
@@ -104,7 +115,7 @@ plt.tight_layout(); plt.savefig(f"{OUT}/ornek_gorseller_izgara.png", dpi=120); p
 genislikler, yukseklikler = [], []
 ornek_havuzu = []
 for cls in SELECTED_CLASSES:
-    klasor = os.path.join(TRAIN_DIR, cls)
+    klasor = os.path.join(RAW_DIR, cls)
     dosyalar = os.listdir(klasor)
     ornek_havuzu += [os.path.join(klasor, f) for f in random.sample(dosyalar, min(60, len(dosyalar)))]
 
@@ -124,11 +135,39 @@ plt.hist(yukseklikler, bins=20, alpha=0.6, label="yükseklik")
 plt.legend(); plt.title("Görsel boyutu dağılımı (piksel, örneklem)")
 plt.tight_layout(); plt.savefig(f"{OUT}/boyut_dagilimi.png", dpi=120); plt.show()
 
-# %% 4) TRAIN/VALID SIZINTISI (data leakage) kontrolü — perceptual hash
-# "Augmented" veri setinde ayni orijinal fotografin dondurulmus/aynalanmis
-# kopyalari hem train'de hem valid'de olabilir. Bunu perceptual hash (pHash)
-# ile yakalamaya calisiyoruz: hash'ler cok yakinsa (Hamming mesafesi kucuk),
-# muhtemelen ayni fotografin varyasyonu.
+# %% 3.5) BOZUK / AÇILAMAYAN GÖRSEL kontrolü ("boş veri" kontrolü)
+# Görsel veri setlerinde "eksik deger" tablo verisindeki gibi olmaz — bunun
+# karsiligi: 0 byte'lik, bozuk veya PIL'in acamadigi dosyalardir. Her sinifin
+# TAMAMINI (orneklem degil) kontrol ediyoruz - sadece ac/dogrula oldugu icin hizli.
+bozuk_rapor = {}
+for cls in SELECTED_CLASSES:
+    klasor = os.path.join(RAW_DIR, cls)
+    dosyalar = os.listdir(klasor)
+    bozuk = []
+    for f in dosyalar:
+        yol = os.path.join(klasor, f)
+        try:
+            if os.path.getsize(yol) == 0:
+                bozuk.append(f)
+                continue
+            with Image.open(yol) as im:
+                im.verify()
+        except Exception:
+            bozuk.append(f)
+    bozuk_rapor[cls] = {"toplam": len(dosyalar), "bozuk": len(bozuk), "bozuk_dosyalar": bozuk[:20]}
+    print(f"{cls:35s} toplam={len(dosyalar):5d}  bozuk/acilamayan={len(bozuk)}")
+
+toplam_bozuk = sum(v["bozuk"] for v in bozuk_rapor.values())
+if toplam_bozuk:
+    print(f"\nUYARI: {toplam_bozuk} bozuk/acilamayan gorsel bulundu — bunlar egitimde "
+          f"hataya sebep olabilir, split'ten once temizlenmesi onerilir.")
+else:
+    print("\nOK — bozuk/acilamayan gorsel bulunamadi.")
+
+# %% 4) TEKRAR EDEN (duplicate) GÖRSEL kontrolü — perceptual hash
+# Split'ten ÖNCE, ham veri havuzunda ayni/cok benzer goruntu var mi kontrol
+# ediyoruz. Varsa, 01_train_model_colab.py'nin rastgele train/valid bolmesi
+# bu ikiliyi ayirip yapay bir sizinti yaratabilir — bunu bilerek rapora yaziyoruz.
 import imagehash
 
 def hashle(klasor, sinif, adet=150):
@@ -143,53 +182,72 @@ def hashle(klasor, sinif, adet=150):
             pass
     return out
 
-sizinti_rapor = []
+tekrar_rapor = []
 for cls in SELECTED_CLASSES:
-    train_hash = hashle(TRAIN_DIR, cls, adet=150)
-    valid_hash = hashle(VALID_DIR, cls, adet=150)
-    yakin_kopya = 0
-    for vh in valid_hash.values():
-        for th in train_hash.values():
-            if (vh - th) <= 4:  # Hamming mesafesi esigi — kucuk = cok benzer
-                yakin_kopya += 1
-                break
-    oran = yakin_kopya / len(valid_hash) if valid_hash else 0
-    sizinti_rapor.append((cls, len(train_hash), len(valid_hash), yakin_kopya, oran))
-    print(f"{cls:35s} örneklenen train={len(train_hash):3d} valid={len(valid_hash):3d} "
-          f"-> valid'deki YAKIN KOPYA: {yakin_kopya} (%{oran*100:.1f})")
+    hashler = hashle(RAW_DIR, cls, adet=200)
+    isimler = list(hashler.keys())
+    degerler_h = list(hashler.values())
+    tekrar_sayisi = 0
+    for i in range(len(degerler_h)):
+        for j in range(i + 1, len(degerler_h)):
+            if (degerler_h[i] - degerler_h[j]) <= 4:  # Hamming mesafesi esigi
+                tekrar_sayisi += 1
+    oran = tekrar_sayisi / len(isimler) if isimler else 0
+    tekrar_rapor.append((cls, len(isimler), tekrar_sayisi, oran))
+    print(f"{cls:35s} örneklenen={len(isimler):3d} -> tekrar eden CIFT sayisi: "
+          f"{tekrar_sayisi} (%{oran*100:.1f})")
 
-with open(f"{OUT}/sizinti_raporu.txt", "w", encoding="utf-8") as f:
-    f.write("TRAIN/VALID SIZINTISI (data leakage) — orneklem bazli perceptual hash kontrolu\n")
+with open(f"{OUT}/tekrar_raporu.txt", "w", encoding="utf-8") as f:
+    f.write("TEKRAR EDEN (duplicate) GORSEL kontrolu — orneklem bazli perceptual hash\n")
     f.write("Not: Bu KESIN degil, orneklem uzerinden bir tahmindir. Oran yuksekse\n")
-    f.write("(ör. >%10) dogrulama dogrulugu OLDUGUNDAN YUKSEK gorunuyor olabilir —\n")
-    f.write("rapora/sunuma bu SINIRLILIK olarak eklenmeli.\n\n")
-    for cls, ntr, nva, yk, oran in sizinti_rapor:
-        f.write(f"{cls}: train_ornek={ntr} valid_ornek={nva} yakin_kopya={yk} oran=%{oran*100:.1f}\n")
+    f.write("(ör. >%5) split oncesi tekilleştirme (deduplication) dusunulmeli —\n")
+    f.write("aksi halde ayni fotografin iki kopyasi train/valid'e ayri ayri dusebilir.\n\n")
+    for cls, n, tk, oran in tekrar_rapor:
+        f.write(f"{cls}: orneklenen={n} tekrar_cift={tk} oran=%{oran*100:.1f}\n")
 
-# %% 5) Özet dosyası (rapora kopyala-yapıştır)
-ozet = f"""VERİ SETİ ÖZETİ — New Plant Diseases Dataset (vipoooool, Kaggle)
+# %% 5) Özet dosyası (rapora kopyala-yapıştır) + Streamlit için JSON
+ozet = f"""VERİ SETİ ÖZETİ — PlantVillage Dataset (abdallahalidev, Kaggle, HAM veri)
 
-TÜM VERİ SETİ: {len(train_counts_all)} sınıf, {toplam_train} train + {toplam_valid} valid görsel
+TÜM VERİ SETİ: {len(tum_sayilar)} sınıf, {toplam_gorsel} görsel (henüz bölünmemiş)
 DOMATES ALT KÜMESİ (MVP, {len(SELECTED_CLASSES)} sınıf):
-""" + "\n".join(f"  - {c}: train={tomato_train.get(c,0)}, valid={tomato_valid.get(c,0)}"
+""" + "\n".join(f"  - {c}: {tomato_sayilar.get(c, 0)} görsel"
                  for c in SELECTED_CLASSES) + f"""
 
-Dengesizlik oranı (train, en çok/en az): {max(tomato_train.values())/min(tomato_train.values()):.2f}x
+Dengesizlik oranı (en çok/en az): {max(tomato_sayilar.values())/min(tomato_sayilar.values()):.2f}x
 Görsel boyutu: {'sabit ' + str(genislikler[0]) + 'x' + str(yukseklikler[0]) + 'px' if tekboyut else 'değişken'}
+Bozuk/açılamayan görsel: {toplam_bozuk} adet (bkz. yukarıdaki sınıf bazlı döküm)
+Train/valid bölmesi: 01_train_model_colab.py tarafından %80/%20, TEK SEFERDE ve
+  sabit seed (42) ile rastgele yapılıyor — bu yüzden vipoooool veri setindeki gibi
+  bir "önceden çoğaltılmış" kaynaklı sızıntı riski YOK.
 
 SINIRLILIKLAR (rapora eklenecek):
 1. Görseller laboratuvar/kontrollü arka planda çekilmiş (PlantVillage kökenli),
    gerçek tarla fotoğrafları DEĞİL — gerçek koşullarda başarım düşebilir.
-2. Veri seti "Augmented" (döndürme/aynalama ile çoğaltılmış). Örneklem bazlı
-   perceptual hash kontrolünde train/valid arasında yakın-kopya oranı sınıf
-   bazında sizinti_raporu.txt'de listelendi — yüksekse doğrulama doğruluğu
-   olduğundan iyimser görünüyor olabilir.
-3. Sınıf dengesizliği {max(tomato_train.values())/min(tomato_train.values()):.1f}x — eğitimde
+2. Ham veri havuzunda tespit edilen tekrar eden (duplicate) görsel oranı
+   tekrar_raporu.txt'de listelendi — yüksekse (>%5) split öncesi tekilleştirme
+   düşünülmeli, aksi halde train/valid arasında dolaylı bir sızıntı oluşabilir.
+3. Sınıf dengesizliği {max(tomato_sayilar.values())/min(tomato_sayilar.values()):.1f}x — eğitimde
    class_weight veya daha fazla augmentation ile dengelenmesi düşünülebilir.
+4. {"Bozuk/açılamayan " + str(toplam_bozuk) + " görsel bulundu — split öncesi temizlenmeli." if toplam_bozuk else "Bozuk/açılamayan görsel bulunamadı."}
 """
 with open(f"{OUT}/veri_ozeti.txt", "w", encoding="utf-8") as f:
     f.write(ozet)
 print("\n" + ozet)
+
+# Streamlit'in "Veri Analizi" sekmesinin okuyacağı yapılandırılmış özet.
+json_ozet = {
+    "toplam_sinif": len(tum_sayilar),
+    "toplam_gorsel": toplam_gorsel,
+    "domates_sayilar": tomato_sayilar,
+    "dengesizlik_orani": round(max(tomato_sayilar.values()) / min(tomato_sayilar.values()), 2),
+    "gorsel_boyutu": {"sabit": tekboyut, "genislik": genislikler[0], "yukseklik": yukseklikler[0]}
+                      if tekboyut else {"sabit": False},
+    "bozuk_gorsel": {"toplam": toplam_bozuk, "sinif_bazli": {c: v["bozuk"] for c, v in bozuk_rapor.items()}},
+    "tekrar_eden": {c: {"orneklenen": n, "tekrar_cift": tk, "oran_yuzde": round(oran * 100, 1)}
+                    for c, n, tk, oran in tekrar_rapor},
+}
+with open(f"{OUT}/veri_ozeti.json", "w", encoding="utf-8") as f:
+    json.dump(json_ozet, f, ensure_ascii=False, indent=2)
 
 # %% 6) İndir
 import shutil

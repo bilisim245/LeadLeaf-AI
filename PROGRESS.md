@@ -1,7 +1,7 @@
 # İLERLEME — LeadLeaf AI (Bitki Hastalığı Ön Değerlendirme Sistemi)
 
-**Son güncelleme:** 2026-09-15
-**Aktif aşama:** Gün 4 tamamlandı (inference + yerel Gradio demo çalışıyor) — Gün 5 (n8n Cloud) sırada
+**Son güncelleme:** 2026-09-16
+**Aktif aşama:** Gün 4 tamamlandı (inference + yerel Streamlit demo çalışıyor) — Gün 5 (n8n Cloud) sırada
 **Kimler:** Sen = hesap/çalıştırma/test · Ben = tüm kod + rapor taslağı · Beraber = entegrasyon
 
 **ÖNEMLİ KAPSAM KARARI (2026-09-11):** 10 günlük teslim MVP'dir. Hava durumu, tarla defteri, bölgesel uyarı, konum haritası, 38 sınıf → TÜBİTAK/TEKNOFEST "Sonraki Aşama"sına bırakıldı (ayrıntı: README.md). İlaç dozu/bekleme süresi LLM'e yazdırılmaz — güvenlik riski.
@@ -17,7 +17,16 @@
 2. **`ui/app.py` "Tarla 360" dashboard'una dönüştürüldü:** geçmiş trend grafiği (bu tarlanın önceki gözlemleri), hava durumu bazlı mantar riski, bölgesel kümelenme notu ("Serik'te son 7 günde N çiftçi daha aynı hastalığı bildirdi") ve **kural tabanlı senaryo analizi** ("Mevcut durum" vs "Kültürel önlem" vs "Tekrar kontrol" vs "Uzmana danış", her biri için modellenen risk ve fark). ⚠️ Senaryo tablosu AÇIKÇA "ML tahmini değil, kural tabanlı simülasyon" olarak etiketlendi — sahte kesinlik/overclaiming riskinden kaçınmak için (bkz. Etik notu).
 3. **`notebooks/00_veri_kesfi.py` yazıldı** — veri setini varsayımla değil sayılarla incelemek için: sınıf dağılımı/dengesizliği, görsel boyutu istatistikleri, ve **train/valid arasında perceptual-hash ile sızıntı (data leakage) kontrolü** (bu "Augmented" veri setine literatürde yöneltilen bilinen bir eleştiri — aynı orijinal fotoğrafın augment'lerinin hem train hem valid'e sızması doğrulama doğruluğunu olduğundan iyimser gösterebilir).
 
-Bu, n8n Telegram akışını GECİKTİRMEZ (paralel ilerliyor) — sadece yerel Gradio demosunun ve rapor kalitesinin derinliğini artırıyor.
+Bu, n8n Telegram akışını GECİKTİRMEZ (paralel ilerliyor) — sadece yerel demonun ve rapor kalitesinin derinliğini artırıyor.
+
+**KARAR (2026-09-16) — Arayüz: Gradio'dan Streamlit'e geçildi.** Geri bildirim: Gradio'da kart görünümü için kullanılan özel HTML/CSS istenen akışı vermedi ("çok kötüydü"). `ui/app.py` Streamlit ile YENİDEN YAZILDI — aynı işlevsellik (trend, hava durumu, senaryo tablosu, benzer görsel galerisi, RAG notu) artık Streamlit'in native bileşenleriyle (st.metric, st.success/warning/error, st.line_chart, st.dataframe) CSS'siz, sidebar + üstten-alta doğal akışla sunuluyor. `requirements.txt`'ten `gradio`/`matplotlib`/`pydantic<2.11` pini çıkarıldı, `streamlit`+`pandas` eklendi.
+
+**KAPSAM GÜNCELLEMESİ (2026-09-16) — Veri analizi Streamlit'e taşındı + zaman serisi netleştirmesi:**
+1. **Zaman serisi için ayrı veri seti GEREKMİYOR** — trend, `bot/db.py`'nin kendi kaydettiği geçmiş gözlemlerden geliyor (ürünün kendi kullanım telemetrisi). Netleştirme: `report/kod_notlarim.md`.
+2. **`notebooks/00_veri_kesfi.py`'ye bozuk/açılamayan görsel kontrolü eklendi** ("boş veri" karşılığı — görsel veride NaN yerine 0-byte/açılamayan dosya kontrolü) + tüm sayısal sonuçlar artık `veri_ozeti.json` olarak da kaydediliyor.
+3. **`ui/app.py`'ye "📊 Veri Analizi" sekmesi eklendi** — Colab'dan inen `eda_ciktilari.zip`, `report/eda_ciktilari/` klasörüne çıkarılınca sınıf dağılımı, dengesizlik, bozuk görsel, tekrar eden görsel kontrolü otomatik olarak grafik/tablo halinde gösteriliyor.
+
+**KARAR (2026-09-16) — Veri seti: vipoooool yerine abdallahalidev/plantvillage-dataset.** Kullanıcı tarafından önerildi. Bu, HAM (önceden bölünmemiş/çoğaltılmamış) PlantVillage verisi — `notebooks/01_train_model_colab.py` artık `kagglehub.dataset_download("abdallahalidev/plantvillage-dataset")` ile indirip **kendi train/valid bölmesini** (%80/%20, tek seferde, sabit seed) yapıyor. Bu, önceki veri setinde (`vipoooool`, "Augmented") tespit ettiğimiz train/valid sızıntı riskini YAPISAL olarak ortadan kaldırıyor (aynı görsel iki tarafta birden asla olamaz). `notebooks/00_veri_kesfi.py` da yeni veri kaynağına göre güncellendi — artık ham veri üzerinde sınıf dağılımı + görsel kalitesi + **tekrar eden (duplicate) görsel** kontrolü yapıyor (train/valid ayrımı script tarafından yapıldığı için "sızıntı" değil "tekrar" kontrolü daha doğru çerçeve). `01_train_model_kaggle.py` (Kaggle ortamı, eski veri seti) artık güncel değil — kullanılmıyor, referans olarak duruyor.
 
 **KAPSAM GÜNCELLEMESİ (2026-09-15) — RAG (metin + görsel) + açıklanabilirlik:**
 1. **Metin RAG:** `agent/knowledge/*.md` (5 hastalık dokümanı, elle yazılmış/doğrulanmış — etken, belirtiler, karıştırılabilecek hastalıklar, kültürel/biyolojik önlem) → `rag/build_index.py` ile Chroma vektör DB'ye indexleniyor (çok dilli embedding modeli, Türkçe için). `agent/rag.py`'deki `retrieve_context()` bunu `agent/report.py`'ye (yerel demo) bağladı — LLM artık ezberden değil kaynağa dayalı yazıyor.
@@ -57,7 +66,7 @@ requirements.txt'e `chromadb` + `sentence-transformers` geri eklendi (RAG için 
 - [ ] `.env.example` → `.env`, anahtarları doldur — *Sen*
 
 ### Gün 1 — Veri inceleme + repo
-- [ ] Kaggle'da "New Plant Diseases Dataset" (vipoooool) sayfasına gir, veri yapısını gör (indirme Colab'da API ile otomatik olacak) — *Sen*
+- [ ] Kaggle'da "PlantVillage Dataset" (abdallahalidev) sayfasına gir, veri yapısını gör (indirme Colab'da kagglehub ile otomatik olacak) — *Sen*
 - [ ] Projeyi GitHub'a ilk push — *Beraber*
 - [ ] `.gitignore` (venv, .env, *.sqlite, model dosyaları) — *Ben*
 
@@ -137,7 +146,7 @@ requirements.txt'e `chromadb` + `sentence-transformers` geri eklendi (RAG için 
 
 - **Proje adı:** LeadLeaf AI — Derin Öğrenme ve Yapay Zekâ Ajanı Destekli Bitki Hastalığı Ön Değerlendirme Sistemi.
 - **Domain / MVP sınıfları:** Domates — `healthy, Early_blight, Late_blight, Bacterial_spot, Septoria_leaf_spot` (5 sınıf).
-- **DL:** Keras + MobileNetV2 transfer learning. Veri: "New Plant Diseases Dataset" (vipoooool).
+- **DL:** Keras + MobileNetV2 transfer learning. Veri: "PlantVillage Dataset" (abdallahalidev, Kaggle — ham veri, train/valid'i biz bölüyoruz).
 - **Agent:** Anthropic Claude (`claude-sonnet-5`), **n8n'in içinden** (HTTP Request node) çağrılır. **Doz/bekleme süresi ÜRETMEZ.**
 - **Kullanıcı arayüzü + bot:** Telegram, **n8n Telegram Trigger/Send node'ları** ile (Python bot yok).
 - **MVP (zorunlu):** FastAPI (`/predict`, tek Python parçası) + n8n (Telegram + Agent/prompt + Sheets + PDF).

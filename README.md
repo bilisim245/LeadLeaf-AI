@@ -12,6 +12,8 @@
 
 **MİMARİ GÜNCELLEMESİ:** LLM-Agent adımı ve Telegram botu artık **n8n'in içinde** ("prompt geliştirme n8n'de" isteniyor). Python tarafında sadece CNN'i sunan FastAPI servisi kalıyor; bot, prompt, LLM çağrısı, kayıt ve cevap — hepsi n8n workflow'unda.
 
+**MİMARİ GÜNCELLEMESİ (2026-09-15):** n8n artık **local Docker değil, n8n Cloud**. Detay ve tünel/deploy seçenekleri: `n8n/README_N8N.md`.
+
 ```
 Telegram (n8n Telegram Trigger — foto alır)
    → n8n: HTTP Request → FastAPI /predict (MobileNetV2, 5 sınıf: domates saglikli + 4 hastalik)
@@ -71,9 +73,11 @@ bitki-hastalik-tespiti/
 │   └── 01_train_model_kaggle.py     Kaggle GPU'da model eğitimi (domates 5 sınıf)
 ├── model/                           model.keras + class_names.json (Kaggle'dan iner)
 ├── inference/
-│   └── app.py                       FastAPI: görsel → {hastalik, guven, ilk3}   [Gün 4] — TEK Python parçası
+│   └── app.py                       ✅ FastAPI: görsel → {hastalik, guven, ilk3}   [Gün 4] — TEK Python parçası
+│                                     (model yoksa DEMO MODU: rastgele ama tutarlı sonuç döner)
 ├── agent/
 │   ├── prompt_taslagi.md            n8n'e yapıştırılacak prompt taslağı (LLM çağrısı n8n'de) [Gün 5-6]
+│   ├── report.py                    ✅ SADECE yerel demo (ui/app.py) için — prompt_taslagi.md ile aynı sistem promptu
 │   ├── weather.py                   BEKLEMEDE — bonus aşamasında entegre edilecek
 │   └── knowledge/                   RAG kaynak dokümanları (doğrulanmış bilgi)   [Gün 8, bonus]
 ├── rag/
@@ -81,10 +85,10 @@ bitki-hastalik-tespiti/
 ├── bot/
 │   └── db.py                        BEKLEMEDE — bonus aşamasında entegre edilecek (tarla defteri)
 ├── n8n/
-│   ├── docker-compose.yml
-│   └── workflow.json                Telegram Trigger → predict → IF → Claude (prompt burada) → Sheets/PDF → Telegram reply  [Gün 5-7]
+│   ├── README_N8N.md                ✅ n8n Cloud kurulumu (tünel/deploy seçenekleri, credential'lar)
+│   └── workflow.json                ✅ (taslak) Telegram Trigger → predict → Claude (prompt burada) → Sheets + Telegram reply  [Gün 5-7]
 ├── ui/
-│   └── app.py                       Gradio — jüriye hızlı gösterim / n8n yedeği [opsiyonel]
+│   └── app.py                       ✅ Gradio — jüriye hızlı gösterim / n8n'siz yerel uçtan uca test [opsiyonel]
 └── report/
     ├── kod_notlarim.md              kodun sade açıklaması (mülakat/sunum için)
     └── rapor_taslagi.md             bootcamp raporu + sunum notları              [Gün 9]

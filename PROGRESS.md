@@ -1,22 +1,24 @@
 # İLERLEME — LeadLeaf AI (Bitki Hastalığı Ön Değerlendirme Sistemi)
 
-**Son güncelleme:** 2026-09-11
-**Aktif aşama:** Gün 0 — Kurulum
+**Son güncelleme:** 2026-09-15
+**Aktif aşama:** Gün 4 tamamlandı (inference + yerel Gradio demo çalışıyor) — Gün 5 (n8n Cloud) sırada
 **Kimler:** Sen = hesap/çalıştırma/test · Ben = tüm kod + rapor taslağı · Beraber = entegrasyon
 
 **ÖNEMLİ KAPSAM KARARI (2026-09-11):** 10 günlük teslim MVP'dir. Hava durumu, tarla defteri, bölgesel uyarı, konum haritası, 38 sınıf → TÜBİTAK/TEKNOFEST "Sonraki Aşama"sına bırakıldı (ayrıntı: README.md). İlaç dozu/bekleme süresi LLM'e yazdırılmaz — güvenlik riski.
 
 **MİMARİ KARARI (2026-09-11):** Bootcamp "prompt geliştirme n8n'de" istiyor. LLM-Agent çağrısı ve Telegram botu Python'dan **n8n'in içine** taşındı (n8n Telegram Trigger/Send + HTTP Request → Claude API, prompt n8n node'unda). Python'da sadece FastAPI `/predict` (CNN) kalıyor. `agent/agent.py` ve `bot/telegram_bot.py` planları iptal edildi (henüz yazılmamışlardı); yerine `agent/prompt_taslagi.md` (n8n'e yapıştırılacak prompt) geldi.
 
+**MİMARİ KARARI (2026-09-15):** n8n artık **local Docker değil, n8n Cloud** (kurulum hızı için). Detay: `n8n/README_N8N.md`. Ayrıca Kaggle eğitimi bitmeden uçtan uca görselleştirme yapabilmek için `inference/app.py`'ye **DEMO MODU** eklendi (model dosyası yoksa rastgele ama tutarlı sonuç döner, model gelince otomatik gerçek moda geçer) ve `ui/app.py` (Gradio) + `agent/report.py` (sadece bu yerel demo için, prompt_taslagi.md ile aynı sistem promptu) yazıldı.
+
 ---
 
 ## Genel durum
 
-- [ ] **Gün 0** — Kurulum (hesaplar + ortam)
-- [ ] **Gün 1** — Veri inceleme + GitHub repo
-- [ ] **Gün 2–3** — Model eğitimi (domates, 5 sınıf)
-- [ ] **Gün 4** — Inference servisi (FastAPI) — tek Python parçası
-- [ ] **Gün 5** — n8n kurulumu + Telegram Trigger/Send bağlantısı
+- [x] **Gün 0** — Kurulum (hesaplar + ortam) — venv + `pip install -r requirements.txt` yapıldı; hesaplar hâlâ *Sen*'de bekliyor
+- [ ] **Gün 1** — Veri inceleme + GitHub repo (repo zaten bağlı, Kaggle veri incelemesi bekliyor)
+- [ ] **Gün 2–3** — Model eğitimi (domates, 5 sınıf) — **Kaggle GPU gerektirir, bu ortamda yapılamaz**
+- [x] **Gün 4** — Inference servisi (FastAPI) — tek Python parçası — ✅ yazıldı + test edildi (DEMO MODU'nda `/health` ve `/predict` çalışıyor)
+- [ ] **Gün 5** — n8n Cloud kurulumu + Telegram Trigger/Send bağlantısı (workflow.json taslağı hazır, `n8n/README_N8N.md`)
 - [ ] **Gün 6** — n8n'de LLM-Agent + prompt geliştirme (HTTP Request → Claude)
 - [ ] **Gün 7** — n8n: Sheets kaydı + PDF
 - [ ] **Gün 8** — Uçtan uca test + uç durumlar
@@ -48,13 +50,16 @@
 - [ ] `model.keras`, `class_names.json`, `metrics.txt`, `confusion_matrix.png`, `demo_images/` indir → `model/`, `demo_images/` — *Sen*
 
 ### Gün 4 — Inference servisi
-- [ ] `inference/app.py` — FastAPI `POST /predict` — *Ben*
-- [ ] `uvicorn` ile çalıştır, demo görselle test — *Sen*
+- [x] `inference/app.py` — FastAPI `POST /predict` — *Ben* ✅ (DEMO MODU ile, model gelmeden test edilebiliyor)
+- [x] `uvicorn` ile çalıştır, demo görselle test — ✅ bu ortamda test edildi (`/health`, `/predict` doğru dönüyor)
+- [x] `ui/app.py` (Gradio) — yerel uçtan uca görselleştirme — *Ben* ✅ çalışıyor (`agent/report.py` ile rapor üretimi de dahil)
+- [ ] Gerçek `model.keras` gelince (Gün 2-3 sonrası) `model/` klasörüne koy, servisi yeniden başlat, DEMO MODU otomatik kapanır — *Sen*
 
-### Gün 5 — n8n kurulumu + Telegram
-- [ ] `n8n/docker-compose.yml` — *Ben*
-- [ ] `docker compose up`, n8n arayüzü açılıyor (localhost:5678) — *Sen*
-- [ ] n8n'de Telegram credential (BotFather token) bağlanıyor, Telegram Trigger + Send node'ları kuruluyor — *Ben verir, Sen bağlar*
+### Gün 5 — n8n Cloud kurulumu + Telegram
+- [x] `n8n/workflow.json` (taslak) + `n8n/README_N8N.md` — *Ben* ✅ yazıldı
+- [ ] n8n.io Cloud hesabı aç, workflow.json'ı import et — *Sen*
+- [ ] Inference servisini n8n Cloud'un görebilmesi için tünel (ngrok) aç veya cloud'a deploy et — *Sen* (adımlar: `n8n/README_N8N.md`)
+- [ ] n8n'de Telegram credential (BotFather token) bağlanıyor — *Sen*
 - [ ] Trigger → HTTP Request (`/predict`) bağlanıyor; foto atınca ham teşhis dönüyor — *Beraber*
 
 ### Gün 6 — n8n'de LLM-Agent + prompt geliştirme
@@ -99,6 +104,12 @@
 - **2026-09-11** — **Kapsam kararı:** proje adı LeadLeaf AI; 38 sınıf yerine domates + 4 hastalık (5 sınıf) ile MVP; hava durumu/tarla defteri/bölgesel uyarı/konum haritası TÜBİTAK-TEKNOFEST aşamasına alındı; RAG'in rolü ilaç dozu değil doğrulanmış bilgi + kültürel-biyolojik önlem + uzmana yönlendirme olarak değiştirildi. `01_train_model_kaggle.py` domates alt kümesi filtresiyle güncellendi.
 - **2026-09-11** — **Mimari kararı:** "prompt geliştirme n8n'de" isteği üzerine LLM-Agent ve Telegram botu n8n'e taşındı; Python'da sadece FastAPI `/predict` kalıyor. `agent/prompt_taslagi.md` yazıldı (n8n HTTP Request node'una yapıştırılacak sistem promptu + kullanıcı promptu + node ayarları).
 - **2026-09-11** — GitHub reposu bağlandı ve ilk push yapıldı: https://github.com/bilisim245/LeadLeaf-AI
+- **2026-09-15** — **Mimari kararı:** n8n Cloud'a geçildi (local Docker yerine); `n8n/README_N8N.md` yazıldı (tünel/deploy seçenekleri, credential listesi).
+- **2026-09-15** — `inference/app.py` yazıldı (Gün 4): FastAPI `/health` + `/predict`; model dosyaları yoksa **DEMO MODU** (rastgele ama tutarlı sonuç) — Kaggle eğitimi bitmeden uçtan uca test/görselleştirme mümkün. Yerel venv (Python 3.9) kuruldu, `pip install -r requirements.txt` yapıldı, `/health` ve `/predict` test görseliyle doğrulandı (✅ çalışıyor).
+- **2026-09-15** — `agent/report.py` yazıldı: SADECE `ui/app.py` yerel demosu için, `agent/prompt_taslagi.md` ile birebir aynı sistem promptuyla Claude'a rapor ürettirir; `ANTHROPIC_API_KEY` yoksa şablon rapora düşer (demo çökmez).
+- **2026-09-15** — `ui/app.py` (Gradio) yazıldı ve test edildi: görsel yükle → inference → rapor, tek ekranda. Bilinen `gradio==4.44.1` + yeni `pydantic` uyumsuzluğu (`TypeError: argument of type 'bool' is not iterable`) `pydantic<2.11` pini ile çözüldü ve `requirements.txt`'e not düşüldü.
+- **2026-09-15** — `n8n/workflow.json` (taslak) yazıldı: Telegram Trigger → dosya indir → `/predict` → Claude Agent (HTTP Request) → JSON ayrıştır (Code node) → Google Sheets + Telegram cevap. Güven-bazlı ek dallanma (IF) ve PDF üretimi bilerek Gün 6-7'ye, n8n arayüzünde canlı geliştirmeye bırakıldı.
+- **2026-09-15** — `requirements.txt` gerçek MVP'ye göre güncellendi: `torch/transformers/safetensors` (kullanılmıyor) ve `langchain*/chromadb/sentence-transformers` (agent n8n'de, RAG bonus aşamasında) çıkarıldı; `tensorflow-cpu` eklendi (model Keras/TensorFlow ile eğitiliyor).
 
 ---
 

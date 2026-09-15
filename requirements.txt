@@ -1,33 +1,30 @@
-# --- Yerel (inference + agent + rag + ui) ---
-# NOT: Model EĞİTİMİ Kaggle'da yapılır, bu paketler eğitim için değil.
+# --- Yerel (inference + ui + yerel demo agent) ---
+# NOT: Model EĞİTİMİ Kaggle'da yapılır (bkz. notebooks/), bu dosya eğitim için değil.
+# NOT (2026-09-15 güncelleme): Model Keras/TensorFlow (MobileNetV2) ile eğitiliyor —
+# bu yüzden torch/transformers değil, tensorflow-cpu kullanılıyor. LLM-Agent üretimde
+# n8n'in içinde çağrılır (bkz. agent/prompt_taslagi.md); langchain/chroma bu yüzden
+# MVP'de gerekmiyor — RAG bonus aşamasında ayrıca eklenecek.
 
-# Inference servisi
+# Inference servisi (Gün 4)
 fastapi
 uvicorn[standard]
 python-multipart
 pillow
 numpy
 
-# DL model yükleme (CPU yeterli — tek görsel tahmini)
-torch            # sorun olursa: pip install torch --index-url https://download.pytorch.org/whl/cpu
-transformers
-safetensors
+# DL model yükleme (CPU yeterli — tek görsel tahmini, egitim degil)
+tensorflow-cpu
 
-# LLM Agent
+# Yerel demo agent (SADECE ui/app.py Gradio demosu için — üretim akışı n8n'de)
 anthropic
-langchain
-langchain-anthropic
-langchain-community
 
-# RAG
-langchain-chroma
-chromadb
-sentence-transformers
-
-# Demo arayüzü
+# Demo arayüzü (opsiyonel, jüri/hızlı test için)
 gradio
+# Not: gradio 4.44.1 + pydantic>=2.11 bilinen bir uyumsuzluk içeriyor
+# (gradio_client TypeError: argument of type 'bool' is not iterable).
+# Python 3.10+ ortamında `pip install -U gradio` ile 5.x'e geçilebilir; 3.9'da bu pin gerekli.
+pydantic<2.11
 
 # Yardımcılar
 python-dotenv
 requests
-jinja2

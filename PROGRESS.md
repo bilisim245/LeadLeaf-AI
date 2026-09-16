@@ -1,6 +1,30 @@
 # İLERLEME — LeadLeaf AI (Bitki Hastalığı Ön Değerlendirme Sistemi)
 
 **Son güncelleme:** 2026-09-16
+
+**MİMARİ KARARI (2026-09-16) — TÜBİTAK araştırma düzenine geçiş: tek model yerine 3 model karşılaştırması.**
+`notebooks/01_train_model_colab.py` baştan yazıldı: veri artık TEK SEFERDE, sınıf bazında stratified
+%70/%15/%15 train/valid/test'e bölünüyor (`split_manifest.json`'a hangi dosyanın nereye düştüğü kaydediliyor —
+tekrarlanabilirlik + sızıntı denetimi). Aynı split üzerinde MobileNetV2, MobileNetV3Small, EfficientNetB0
+AYRI AYRI ama AYNI koşullarla (aynı augmentation, aynı epoch/early-stopping, aynı fine-tune oranı — son %25
+katman) eğitiliyor. Her model KENDİ preprocess_input'unu kullanıyor — MobileNetV3Small ve EfficientNetB0'ın
+preprocess_input'u Keras kaynağında pass-through (rescaling zaten modelin içinde), MobileNetV2'ninki gerçekten
+[-1,1]'e ölçekliyor; bu ayrım "çift normalizasyon" hatasından KASITLI olarak kaçınıyor. Değerlendirme SADECE
+bağımsız test setinde (val değil) yapılıyor: accuracy, macro precision/recall/F1, model boyutu (MB), görüntü
+başına ortalama inference süresi (ms) — hepsi `model_comparison.csv`'ye yazılıyor, her model için ayrı confusion
+matrix + öğrenme eğrisi PNG'si üretiliyor. Çıktı `leadleaf_tubitak_models.zip` (3× `.keras` + `class_names.json`
++ `split_manifest.json` + `model_comparison.csv` + grafikler + `demo_images/`).
+
+`inference/app.py`'ye YENİ ve AYRI bir `/predict_compare` endpoint'i eklendi (üretim `/predict`'i etkilemiyor —
+o hâlâ tek model + n8n/Telegram akışı için). `/predict_compare` `model/tubitak/` klasöründeki 3 modeli (varsa)
+yükleyip aynı fotoğrafı üçüne birden veriyor; eksik model varsa SADECE o model tek başına DEMO MODU'na düşüyor
+(servis çökmez, proje genelindeki DEMO MODU felsefesiyle tutarlı). Yanıt, model uzlaşması (tam/kısmi/yok —
+kural tabanlı, ML tahmini DEĞİL) ve %70 güven eşiğini birleştiren açıklanabilir bir tavsiye içeriyor.
+
+`ui/app.py`'ye üçüncü sekme eklendi: **"🔬 Model Karşılaştırma"** — tek fotoğrafı `/predict_compare`'e gönderip
+3 modelin sonucunu tablo halinde, uzlaşma durumunu ve eşik uyarısını gösteriyor. `.env.example`'a
+`TUBITAK_MODEL_DIR=./model/tubitak` eklendi. Eski tek-modelli `01_train_model_colab.py` akışı (MVP'nin üretim
+tarafı, n8n/Telegram) DEĞİŞMEDİ — bu TÜBİTAK karşılaştırması onun ÜZERİNE eklenen ayrı bir araştırma katmanı.
 **Aktif aşama:** Gün 4 tamamlandı (inference + yerel Streamlit demo çalışıyor) — Gün 5 (n8n Cloud) sırada
 **Kimler:** Sen = hesap/çalıştırma/test · Ben = tüm kod + rapor taslağı · Beraber = entegrasyon
 

@@ -103,7 +103,9 @@ st.set_page_config(page_title="LeadLeaf AI — Tarla 360", page_icon="🍅", lay
 
 st.title("🍅 LeadLeaf AI — Tarla 360")
 
-tab_analiz, tab_veri = st.tabs(["🔎 Analiz", "📊 Veri Analizi"])
+tab_analiz, tab_veri, tab_karsilastirma = st.tabs(
+    ["🔎 Analiz", "📊 Veri Analizi", "🔬 Model Karşılaştırma"]
+)
 
 # =====================================================================
 # SEKME 1 — ANALİZ (asıl akış)
@@ -354,3 +356,94 @@ with tab_veri:
             if os.path.exists(txt_yolu):
                 with open(txt_yolu, "r", encoding="utf-8") as f:
                     st.text(f.read())
+
+# =====================================================================
+# SEKME 3 — MODEL KARŞILAŞTIRMA (TÜBİTAK: MobileNetV2 vs MobileNetV3Small vs EfficientNetB0)
+# =====================================================================
+with tab_karsilastirma:
+    st.caption(
+        "Aynı fotoğraf `/predict_compare` üzerinden üç modele birden (MobileNetV2, "
+        "MobileNetV3Small, EfficientNetB0 — `notebooks/01_train_model_colab.py`'nin "
+        "TÜBİTAK sürümünde aynı split/koşullarla eğitilir) gönderilir. Model "
+        "uzlaşması ve %70 güven eşiği **kural tabanlı** yorumlanır — bu bir ML "
+        "tahmini değil, üç sonucu birleştiren açıklanabilir bir karardır."
+    )
+
+    karsilastirma_foto = st.file_uploader(
+        "Yaprak fotoğrafı yükle", type=["jpg", "jpeg", "png"], key="karsilastirma_uploader"
+    )
+    if karsilastirma_foto:
+        st.image(karsilastirma_foto, caption="Yüklenen fotoğraf", width=220)
+
+    karsilastir_tiklandi = st.button(
+        "🔬 Üç Modelle Karşılaştır", type="primary", disabled=karsilastirma_foto is None
+    )
+
+    if karsilastir_tiklandi and karsilastirma_foto is not None:
+        with st.spinner("Üç model de çalıştırılıyor..."):
+            try:
+                img = Image.open(karsilastirma_foto)
+                buf = io.BytesIO()
+                img.convert("RGB").save(buf, format="JPEG")
+                buf.seek(0)
+                r = requests.post(
+                    f"{INFERENCE_URL}/predict_compare",
+                    files={"file": ("yaprak.jpg", buf, "image/jpeg")},
+                    timeout=60,
+                )
+                r.raise_for_status()
+                karsilastirma = r.json()
+            except requests.exceptions.ConnectionError:
+                st.error(
+                    f"❌ Inference servisine ulaşılamadı ({INFERENCE_URL}).\n\n"
+                    "Önce şunu ayrı bir terminalde çalıştır:\n"
+                    "`.venv\\Scripts\\python.exe -m uvicorn inference.app:app --port 8000`"
+                )
+                st.stop()
+            except Exception as e:
+                st.error(f"❌ Hata: {e}")
+                st.stop()
+
+        sonuclar = karsilastirma["sonuclar"]
+        uzlasma = karsilastirma["uzlasma"]
+
+        if any(s["demo_mode"] for s in sonuclar):
+            eksikler = [s["model"] for s in sonuclar if s["demo_mode"]]
+            st.warning(
+                f"⚠️ **DEMO MODU:** şu modeller henüz `model/tubitak/` içinde yok, "
+                f"sonuçları RASTGELE üretildi: {', '.join(eksikler)}. TÜBİTAK notebook'u "
+                f"çalıştırılıp çıktı oraya kopyalanınca gerçek sonuca döner."
+            )
+
+        st.divider()
+        st.subheader("📊 Üç modelin sonucu")
+        df_karsilastirma = pd.DataFrame([
+            {
+                "Model": s["model"],
+                "Tahmin": s["hastalik_tr"],
+                "Güven (%)": s["guven"],
+                "Eşik (%70) durumu": "⚠️ Altında" if s["uzmana_yonlendir"] else "✅ Üstünde",
+                "Mod": "Demo" if s["demo_mode"] else "Gerçek",
+            }
+            for s in sonuclar
+        ])
+        st.dataframe(df_karsilastirma, use_container_width=True, hide_index=True)
+
+        st.subheader("🤝 Model uzlaşması")
+        durum_etiket = {"tam": "Tam uzlaşma", "kismi": "Kısmi uzlaşma", "yok": "Uzlaşma yok"}
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Uzlaşma durumu", durum_etiket.get(uzlasma["durum"], uzlasma["durum"]))
+        c2.metric("Çoğunluk tahmini", f"{uzlasma['cogunluk_sinif_tr']} ({uzlasma['cogunluk_adet']}/{uzlasma['toplam_model']})")
+        c3.metric("En düşük güven", f"%{uzlasma['en_dusuk_guven']}")
+
+        if uzlasma["durum"] == "tam" and uzlasma["en_dusuk_guven"] >= uzlasma["esik_yuzde"]:
+            st.success(f"✅ {uzlasma['tavsiye']}")
+        elif uzlasma["durum"] == "yok":
+            st.error(f"❌ {uzlasma['tavsiye']}")
+        else:
+            st.warning(f"⚠️ {uzlasma['tavsiye']}")
+
+        with st.expander("🔧 Ham API çıktısı (debug)"):
+            st.json(karsilastirma)
+    elif not karsilastirma_foto:
+        st.info("👆 Başlamak için bir yaprak fotoğrafı yükle.")

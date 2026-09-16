@@ -73,12 +73,17 @@ bitki-hastalik-tespiti/
 ├── .env.example
 ├── notebooks/
 │   ├── 00_veri_kesfi.py             ✅ Veri seti EDA — sınıf dağılımı, boyut istatistiği, bozuk/tekrar eden görsel kontrolü (çıktı: veri_ozeti.json → ui/app.py "Veri Analizi" sekmesi)
-│   ├── 01_train_model_colab.py      ✅ Google Colab'da model eğitimi (domates 5 sınıf) — ana yol, sıfır kurulum
-│   └── 01_train_model_kaggle.py     Alternatif: Kaggle GPU'da aynı eğitim (kullanmak isteyen için)
-├── model/                           model.keras + class_names.json (Colab'dan iner)
+│   ├── 01_train_model_colab.py      ✅ Google Colab'da eğitim (domates 5 sınıf) — TÜBİTAK sürümü: %70/%15/%15
+│   │                                 stratified split (sızıntısız) + MobileNetV2/MobileNetV3Small/EfficientNetB0
+│   │                                 3'ü de aynı koşullarla eğitilip bağımsız test setinde karşılaştırılıyor
+│   └── 01_train_model_kaggle.py     Alternatif: Kaggle GPU'da aynı eğitim (kullanmak isteyen için, eski tek-model sürümü)
+├── model/                           model.keras + class_names.json (Colab'dan iner — üretim/MVP tek model)
+│   └── tubitak/                     3× model_<Ad>.keras + class_names.json + split_manifest.json +
+│                                     model_comparison.csv (leadleaf_tubitak_models.zip içeriği)
 ├── inference/
 │   └── app.py                       ✅ FastAPI: görsel → {hastalik, guven, ilk3}   [Gün 4] — TEK Python parçası
 │                                     (model yoksa DEMO MODU: rastgele ama tutarlı sonuç döner)
+│                                     + /predict_compare: aynı görseli 3 TÜBİTAK modeline birden verir
 ├── agent/
 │   ├── prompt_taslagi.md            n8n'e yapıştırılacak prompt taslağı (LLM çağrısı n8n'de) [Gün 5-6]
 │   ├── report.py                    ✅ SADECE yerel demo (ui/app.py) için — prompt_taslagi.md ile aynı sistem promptu, artık RAG bağlamı ekliyor
@@ -96,6 +101,7 @@ bitki-hastalik-tespiti/
 │   └── workflow.json                ✅ (taslak) Telegram Trigger → predict → Claude (prompt burada) → Sheets + Telegram reply  [Gün 5-7]
 ├── ui/
 │   └── app.py                       ✅ Streamlit "Tarla 360" — CNN + LLM raporu + geçmiş trend + hava durumu riski + senaryo analizi
+│                                     + "Model Karşılaştırma" sekmesi (3 TÜBİTAK modeli, uzlaşma + %70 eşik)
 └── report/
     ├── eda_ciktilari/               00_veri_kesfi.py'nin Colab çıktısı buraya çıkarılır — ui/app.py "Veri Analizi" sekmesi bunu okur
     ├── kod_notlarim.md              kodun sade açıklaması (mülakat/sunum için)

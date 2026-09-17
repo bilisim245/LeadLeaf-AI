@@ -44,13 +44,22 @@
 #      sürümün ~3 katı (T4'te tahmini 30-60 dk, veri boyutuna göre değişir).
 #
 #  ÇIKTI (sol panel > Dosyalar > /content/outputs, hepsi zip içinde de iner):
-#   - model_MobileNetV2.keras, model_MobileNetV3Small.keras,
-#     model_EfficientNetB0.keras
+#   - model_MobileNetV2.keras, model_MobileNetV3Small.keras, model_EfficientNetB0.keras
+#   - model.keras + model_meta.json  -> ÜÇÜ ARASINDAN OTOMATİK SEÇİLEN en iyi model
+#                                        (üretim /predict'i tek model bekliyor; model_meta.json
+#                                        hangi mimari olduğunu söyler, inference/app.py buna göre
+#                                        DOĞRU preprocess_input'u seçer — yanlış modele yanlış
+#                                        preprocessing uygulanmasın diye)
 #   - class_names.json            -> sınıf isimleri (3 model de aynı sınıfları kullanır)
 #   - split_manifest.json         -> train/valid/test'e hangi dosyanın düştüğü + seed/oranlar
 #   - model_comparison.csv        -> 3 modelin karşılaştırma tablosu
 #   - confusion_matrix_<model>.png, ogrenme_egrisi_<model>.png  (her model için)
 #   - demo_images/                -> Streamlit demosu için örnek yaprak görselleri
+#
+#  Zip açılınca dosyalar İKİ yere dağıtılır: model.keras + model_meta.json + class_names.json
+#  + demo_images/ -> model/ (üretim); geri kalan 3 model + split_manifest.json +
+#  model_comparison.csv + class_names.json -> model/tubitak/ (Streamlit karşılaştırma sekmesi).
+#  Son hücrede bu dağıtım tekrar hatırlatılıyor.
 #
 #  Not: Colab oturumu kapanınca /content silinir — leadleaf_tubitak_models.zip
 #  otomatik iner, kaybolmadan hemen indir.
@@ -436,6 +445,19 @@ print("\nmodel_comparison.csv:")
 for satir in karsilastirma_satirlari:
     print(satir)
 
+# %% 8b) Üretim (tek-model) akışı için en iyi modeli seç ve model.keras olarak kopyala
+# inference/app.py'nin n8n/Telegram'a bakan /predict'i TEK model bekliyor. Hangi mimari
+# kazanırsa kazansın (MobileNetV2 olması ŞART değil) — bu yüzden hangi mimari olduğunu
+# model_meta.json'a da yazıyoruz; inference/app.py bunu okuyup DOĞRU preprocess_input'u
+# seçiyor. Bunu atlarsak üretimde yanlış modele yanlış preprocessing uygulanır
+# (tam da kaçınmaya çalıştığımız "çift/yanlış normalizasyon" hatası, ama üretimde).
+en_iyi = max(karsilastirma_satirlari, key=lambda s: s["dogruluk"])
+print(f"\nÜretim (tek-model) akışı için seçilen model: {en_iyi['model']} "
+      f"(doğruluk={en_iyi['dogruluk']}, macro_f1={en_iyi['macro_f1']})")
+shutil.copy(f"{OUT_DIR}/model_{en_iyi['model']}.keras", f"{OUT_DIR}/model.keras")
+with open(f"{OUT_DIR}/model_meta.json", "w", encoding="utf-8") as f:
+    json.dump({"mimari": en_iyi["model"]}, f, ensure_ascii=False, indent=2)
+
 # %% 9) Demo görselleri (Streamlit karşılaştırma sekmesi için) — test setinden örnek
 os.makedirs(f"{OUT_DIR}/demo_images", exist_ok=True)
 for cls in random.sample(class_names, min(8, len(class_names))):
@@ -448,6 +470,22 @@ print("demo_images/ hazir.")
 # %% 10) Hepsini ziple ve indir (Colab oturumu kapanınca /content silinir!)
 shutil.make_archive("/content/leadleaf_tubitak_models", "zip", OUT_DIR)
 files.download("/content/leadleaf_tubitak_models.zip")
-print("\nBİTTİ. leadleaf_tubitak_models.zip indi -> aç, içindekileri projede "
-      "model/tubitak/ klasörüne koy (3 model + class_names.json + "
-      "split_manifest.json + model_comparison.csv + grafikler + demo_images/).")
+print(f"""
+BİTTİ. leadleaf_tubitak_models.zip indi -> aç, içindekileri İKİ AYRI yere dağıt:
+
+  1) model/  (ÜRETİM — n8n/Telegram akışı ve Streamlit "Analiz" sekmesi bunu kullanır)
+       - model.keras        (otomatik seçilen en iyi model: {en_iyi['model']})
+       - model_meta.json    (inference/app.py bunu okuyup doğru preprocess'i seçer)
+       - class_names.json
+       - demo_images/
+
+  2) model/tubitak/  (Streamlit "Model Karşılaştırma" sekmesi)
+       - model_MobileNetV2.keras
+       - model_MobileNetV3Small.keras
+       - model_EfficientNetB0.keras
+       - class_names.json
+       - split_manifest.json
+       - model_comparison.csv
+
+class_names.json ikisine de aynı şekilde kopyalanabilir (3 model de aynı sınıfları kullanıyor).
+""")

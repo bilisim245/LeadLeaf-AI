@@ -39,6 +39,7 @@ load_dotenv()
 
 MODEL_PATH = os.getenv("MODEL_PATH", "./model/model.keras")
 CLASS_NAMES_PATH = os.getenv("CLASS_NAMES_PATH", "./model/class_names.json")
+MODEL_META_PATH = os.getenv("MODEL_META_PATH", "./model/model_meta.json")
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.70"))
 IMG_SIZE = 224
 
@@ -74,6 +75,10 @@ _model = None
 _embedding_model = None  # gorsel RAG icin - modelin son katmandan onceki (GAP) ciktisi
 _class_names: list[str] = []
 DEMO_MODE = True
+# model.keras hangi mimariden geldiyse (TÜBİTAK notebook'u model_meta.json'a yazıyor) —
+# doğru preprocess_input'u seçebilmek için. model_meta.json yoksa (eski, TÜBİTAK-öncesi
+# tek-model akışı) MobileNetV2 varsayılıyor — geriye dönük uyumluluk.
+_model_mimari = "MobileNetV2"
 
 _tubitak_models: dict = {}  # ad -> yüklü keras.Model (sadece dosyası bulunanlar)
 _tubitak_class_names: list[str] = []
@@ -81,7 +86,7 @@ _tubitak_class_names: list[str] = []
 
 def _load_model_if_available() -> None:
     """Model dosyaları varsa yükler; yoksa DEMO_MODE'da kalır (servis çökmez)."""
-    global _model, _embedding_model, _class_names, DEMO_MODE
+    global _model, _embedding_model, _class_names, DEMO_MODE, _model_mimari
 
     if not (os.path.exists(MODEL_PATH) and os.path.exists(CLASS_NAMES_PATH)):
         print(f"[UYARI] Model bulunamadı ({MODEL_PATH}). DEMO MODU aktif — "
@@ -97,7 +102,11 @@ def _load_model_if_available() -> None:
     with open(CLASS_NAMES_PATH, "r", encoding="utf-8") as f:
         _class_names = json.load(f)
     DEMO_MODE = False
-    print(f"[OK] Model yüklendi: {MODEL_PATH} ({len(_class_names)} sınıf)")
+
+    if os.path.exists(MODEL_META_PATH):
+        with open(MODEL_META_PATH, "r", encoding="utf-8") as f:
+            _model_mimari = json.load(f).get("mimari", "MobileNetV2")
+    print(f"[OK] Model yüklendi: {MODEL_PATH} ({len(_class_names)} sınıf, mimari={_model_mimari})")
 
     # Görsel RAG için: son Dense (softmax) katmanından ÖNCEKİ (GAP) çıktısını veren
     # ikinci bir model — ayrı bir CLIP modeli indirmeden, sınıflandırıcının kendi
@@ -172,11 +181,9 @@ def _demo_predict() -> tuple[str, np.ndarray]:
 
 
 def _gercek_predict(img: Image.Image) -> np.ndarray:
-    from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-
     img = img.resize((IMG_SIZE, IMG_SIZE))
     arr = np.array(img).astype("float32")
-    arr = preprocess_input(arr)
+    arr = _tubitak_on_isle_fonksiyonu(_model_mimari)(arr)
     arr = np.expand_dims(arr, axis=0)
     probs = _model.predict(arr, verbose=0)[0]
     return probs
@@ -213,8 +220,7 @@ async def predict(file: UploadFile = File(...)) -> dict:
     if not DEMO_MODE and _embedding_model is not None:
         try:
             arr = np.array(img.resize((IMG_SIZE, IMG_SIZE))).astype("float32")
-            from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-            arr = np.expand_dims(preprocess_input(arr), axis=0)
+            arr = np.expand_dims(_tubitak_on_isle_fonksiyonu(_model_mimari)(arr), axis=0)
             emb = _embedding_model.predict(arr, verbose=0)[0]
             benzer_gorseller = find_similar(emb, k=3)
         except Exception as e:

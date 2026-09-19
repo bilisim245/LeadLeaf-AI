@@ -84,8 +84,53 @@ _tubitak_models: dict = {}  # ad -> yüklü keras.Model (sadece dosyası bulunan
 _tubitak_class_names: list[str] = []
 
 
+def _strip_quantization_config(yol: str) -> None:
+    """Colab'daki Keras, local'den daha yeni olursa .keras'ın config.json'una
+    Dense (vb.) katmanlara local'in TANIMADIĞI bir 'quantization_config' alanı
+    yazabiliyor ('Unrecognized keyword arguments' hatasıyla yüklemeyi
+    çökertiyor). Bu alan sadece quantization-aware eğitim için var, bizde
+    None/boş — kaldırmak model ağırlıklarını/davranışını DEĞİŞTİRMEZ, sadece
+    eski Keras'in anlamadığı bir serileştirme farkını giderir."""
+    import zipfile
+
+    def _temizle(obj):
+        if isinstance(obj, dict):
+            obj.pop("quantization_config", None)
+            for v in obj.values():
+                _temizle(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                _temizle(item)
+
+    with zipfile.ZipFile(yol, "r") as z:
+        isimler = z.namelist()
+        config = json.loads(z.read("config.json"))
+        digerleri = {n: z.read(n) for n in isimler if n != "config.json"}
+
+    _temizle(config)
+
+    with zipfile.ZipFile(yol, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("config.json", json.dumps(config))
+        for n, veri in digerleri.items():
+            z.writestr(n, veri)
+
+
+def _keras_uyumlu_yukle(tf_modul, yol: str):
+    """tf.keras.models.load_model'i dener; Keras sürüm uyuşmazlığından
+    (quantization_config vb.) patlarsa dosyayı bir kez onarıp tekrar dener."""
+    try:
+        return tf_modul.keras.models.load_model(yol)
+    except TypeError as e:
+        if "quantization_config" not in str(e) and "Unrecognized keyword" not in str(e):
+            raise
+        print(f"[UYARI] {yol}: Keras sürüm uyuşmazlığı tespit edildi, dosya onarılıp tekrar deneniyor...")
+        _strip_quantization_config(yol)
+        return tf_modul.keras.models.load_model(yol)
+
+
 def _load_model_if_available() -> None:
-    """Model dosyaları varsa yükler; yoksa DEMO_MODE'da kalır (servis çökmez)."""
+    """Model dosyaları varsa yükler; yoksa (veya yükleme başarısız olursa)
+    DEMO_MODE'da kalır (servis çökmez)."""
     global _model, _embedding_model, _class_names, DEMO_MODE, _model_mimari
 
     if not (os.path.exists(MODEL_PATH) and os.path.exists(CLASS_NAMES_PATH)):
@@ -98,7 +143,14 @@ def _load_model_if_available() -> None:
     # TensorFlow'u sadece gerçekten gerekince import ediyoruz (demo modda hızlı açılış için)
     import tensorflow as tf
 
-    _model = tf.keras.models.load_model(MODEL_PATH)
+    try:
+        _model = _keras_uyumlu_yukle(tf, MODEL_PATH)
+    except Exception as e:
+        print(f"[UYARI] Model yüklenemedi ({MODEL_PATH}): {e}. DEMO MODU aktif.")
+        _class_names = DEMO_CLASS_NAMES
+        DEMO_MODE = True
+        return
+
     with open(CLASS_NAMES_PATH, "r", encoding="utf-8") as f:
         _class_names = json.load(f)
     DEMO_MODE = False
@@ -143,7 +195,7 @@ def _load_tubitak_models_if_available() -> None:
         yol = os.path.join(TUBITAK_MODEL_DIR, tanim["dosya"])
         if os.path.exists(yol):
             try:
-                _tubitak_models[tanim["ad"]] = tf.keras.models.load_model(yol)
+                _tubitak_models[tanim["ad"]] = _keras_uyumlu_yukle(tf, yol)
                 print(f"[OK] TÜBİTAK modeli yüklendi: {tanim['ad']}")
             except Exception as e:
                 print(f"[UYARI] TÜBİTAK modeli yüklenemedi ({tanim['ad']}): {e}")

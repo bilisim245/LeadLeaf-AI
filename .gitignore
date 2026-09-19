@@ -5,9 +5,11 @@ venv/
 __pycache__/
 *.pyc
 
-# Model dosyalari (buyuk, Kaggle/Colab'dan elle indirilip eklenir)
-model/*.keras
-model/*.h5
+# Model dosyalari (buyuk, Kaggle/Colab'dan elle indirilip eklenir) - model/tubitak/
+# dahil, alt klasorlerdekiler de kapsansin diye ** kullaniliyor
+model/**/*.keras
+model/**/*.h5
+model/**/*.keras.bak
 
 # RAG index'leri (uretilen dosyalar - build script'leriyle yeniden olusturulur)
 rag/chroma_db/

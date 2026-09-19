@@ -45,6 +45,7 @@ INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:8000")
 PROJE_KOKU = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEMO_IMAGES_DIR = os.path.join(PROJE_KOKU, "model", "demo_images")
 EDA_DIR = os.path.join(PROJE_KOKU, "report", "eda_ciktilari")
+TUBITAK_DIR = os.path.join(PROJE_KOKU, "model", "tubitak")
 
 RISK_CARPANI = {"dusuk": 0.9, "orta": 1.0, "yuksek": 1.15, "bilinmiyor": 1.0}
 
@@ -369,6 +370,27 @@ with tab_karsilastirma:
         "tahmini değil, üç sonucu birleştiren açıklanabilir bir karardır."
     )
 
+    karsilastirma_csv = os.path.join(TUBITAK_DIR, "model_comparison.csv")
+    if os.path.exists(karsilastirma_csv):
+        st.subheader("📈 Test seti doğruluğu — 3 model (Colab çıktısı)")
+        df_test_sonuc = pd.read_csv(karsilastirma_csv)
+        st.bar_chart(df_test_sonuc.set_index("model")[["dogruluk", "macro_f1", "macro_auc"]])
+        st.dataframe(
+            df_test_sonuc[["model", "dogruluk", "macro_precision", "macro_recall",
+                            "macro_f1", "macro_auc", "model_boyutu_mb", "ort_inference_ms"]],
+            use_container_width=True, hide_index=True,
+        )
+        grafik_yolu = os.path.join(TUBITAK_DIR, "model_karsilastirma_dogruluk.png")
+        if os.path.exists(grafik_yolu):
+            st.image(grafik_yolu, use_container_width=True)
+        st.divider()
+    else:
+        st.info(
+            "📈 Test seti doğruluk karşılaştırması henüz yok — Colab notebook'u "
+            "çalışıp `model_comparison.csv` `model/tubitak/`'a konunca burada otomatik görünür."
+        )
+
+    st.subheader("🖼️ Tek fotoğrafla canlı karşılaştırma")
     karsilastirma_foto = st.file_uploader(
         "Yaprak fotoğrafı yükle", type=["jpg", "jpeg", "png"], key="karsilastirma_uploader"
     )

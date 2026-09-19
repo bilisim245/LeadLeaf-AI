@@ -53,6 +53,7 @@
 #   - class_names.json            -> sınıf isimleri (3 model de aynı sınıfları kullanır)
 #   - split_manifest.json         -> train/valid/test'e hangi dosyanın düştüğü + seed/oranlar
 #   - model_comparison.csv        -> 3 modelin karşılaştırma tablosu
+#   - model_karsilastirma_dogruluk.png -> 3 modelin doğruluk/macro-F1 çubuk grafiği
 #   - confusion_matrix_<model>.png, ogrenme_egrisi_<model>.png  (her model için)
 #   - demo_images/                -> Streamlit demosu için örnek yaprak görselleri
 #
@@ -107,6 +108,7 @@ from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
     precision_recall_fscore_support,
+    roc_auc_score,
 )
 
 print("TensorFlow:", tf.__version__)
@@ -186,6 +188,15 @@ if eksikler:
         if "tomato" in c.lower():
             print(" -", c)
     raise AssertionError("SELECTED_CLASSES'i yukaridaki gercek klasor adlarina gore duzelt.")
+
+# Veri analizi — split'ten ÖNCE, ham hâliyle sınıf başına görüntü sayısı (dengesizlik kontrolü)
+print("\nSeçilen 5 sınıfın görüntü sayıları (split öncesi, ham veri):")
+toplam_goruntu = 0
+for cls in (SELECTED_CLASSES or mevcut_siniflar):
+    n = len(os.listdir(os.path.join(RAW_DIR, cls)))
+    toplam_goruntu += n
+    print(f"  {cls:32s} {n:5d}")
+print(f"  {'TOPLAM':32s} {toplam_goruntu:5d}")
 
 # %% 3) TEK SEFERLİK stratified train/valid/test bölmesi (%70/%15/%15) + manifest
 SPLIT_DIR = "/content/_split"
@@ -315,7 +326,7 @@ def model_kur(fabrika, on_isle_fn, num_classes):
     base.trainable = False
     x = base(x, training=False)
     x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dropout(0.3)(x)
+    x = layers.Dropout(0.2)(x)  # az tutuluyor — küçük veri setinde 0.3+ eksik öğrenmeye (underfit) yol açabiliyor
     outputs = layers.Dense(num_classes, activation="softmax")(x)
     return keras.Model(inputs, outputs), base
 
@@ -330,6 +341,12 @@ def modeli_degerlendir(model, test_ds, y_true):
     precision, recall, f1, _ = precision_recall_fscore_support(
         y_true, y_pred, average="macro", zero_division=0,
     )
+    # macro AUC (one-vs-rest) — accuracy tek başına dengesiz sınıflarda yanıltıcı olabildiği
+    # için modelin sınıfları ne kadar iyi AYIRT ettiğini de ölçüyoruz
+    try:
+        macro_auc = float(roc_auc_score(y_true, y_prob, multi_class="ovr", average="macro"))
+    except ValueError:
+        macro_auc = float("nan")  # test setinde bir sınıf hiç örnek içermiyorsa
     cm = confusion_matrix(y_true, y_pred)
 
     # Görüntü başına ortalama inference süresi — tek tek, gerçek sunum senaryosuna
@@ -349,6 +366,7 @@ def modeli_degerlendir(model, test_ds, y_true):
         "macro_precision": float(precision),
         "macro_recall": float(recall),
         "macro_f1": float(f1),
+        "macro_auc": macro_auc,
         "confusion_matrix": cm,
         "ort_inference_ms": ort_ms,
     }
@@ -367,15 +385,34 @@ def grafik_kaydet_confusion(cm, ad, class_names):
     plt.close()
 
 
+def parametre_ozeti(model, etiket):
+    """Açıklanabilirlik için: bu anda kaç parametre eğitilebilir, kaçı donuk.
+    Referans ders defterindeki (cnn2_ders.ipynb, 11.3) aynı isimli fonksiyonun
+    karşılığı — hangi aşamada ne kadarının açık olduğunu somut sayıyla gösterir."""
+    egitilebilir = sum(int(np.prod(w.shape)) for w in model.trainable_weights)
+    donuk = sum(int(np.prod(w.shape)) for w in model.non_trainable_weights)
+    print(f"  {etiket:38s} eğitilebilir: {egitilebilir:>10,}   donuk: {donuk:>10,}")
+    return egitilebilir, donuk
+
+
 def grafik_kaydet_ogrenme_egrisi(h1, h2, ad):
     acc = h1.history["accuracy"] + h2.history["accuracy"]
     vacc = h1.history["val_accuracy"] + h2.history["val_accuracy"]
-    plt.figure(figsize=(7, 4))
-    plt.plot(acc, label="eğitim"); plt.plot(vacc, label="doğrulama")
-    plt.axvline(len(h1.history["accuracy"]) - 0.5, color="gray", linestyle="--",
-                label="fine-tuning başlangıcı")
-    plt.xlabel("epoch"); plt.ylabel("doğruluk"); plt.legend()
-    plt.title(f"Öğrenme eğrisi — {ad}")
+    kayip = h1.history["loss"] + h2.history["loss"]
+    vkayip = h1.history["val_loss"] + h2.history["val_loss"]
+    sinir = len(h1.history["accuracy"]) - 0.5
+
+    sekil, (sol, sag) = plt.subplots(1, 2, figsize=(13, 4.4))
+    sol.plot(acc, label="eğitim"); sol.plot(vacc, label="doğrulama")
+    sol.axvline(sinir, color="gray", linestyle="--", label="fine-tuning başlangıcı")
+    sol.set_xlabel("epoch"); sol.set_ylabel("doğruluk"); sol.legend()
+    sol.set_title(f"{ad} — Doğruluk")
+
+    sag.plot(kayip, label="eğitim"); sag.plot(vkayip, label="doğrulama")
+    sag.axvline(sinir, color="gray", linestyle="--", label="fine-tuning başlangıcı")
+    sag.set_xlabel("epoch"); sag.set_ylabel("kayıp (loss)"); sag.legend()
+    sag.set_title(f"{ad} — Kayıp")
+
     plt.tight_layout()
     plt.savefig(f"{OUT_DIR}/ogrenme_egrisi_{ad}.png", dpi=120)
     plt.close()
@@ -393,6 +430,9 @@ for tanim in MODEL_TANIMLARI:
                   loss="sparse_categorical_crossentropy",
                   metrics=["accuracy"])
 
+    print(f"  Gövde toplam katman: {len(base.layers)}   toplam parametre: {base.count_params():,}")
+    egit_1, donuk_1 = parametre_ozeti(model, "1. aşama (base tamamen donuk)")
+
     # 1. aşama — üst katmanı eğit (base dondurulmuş)
     h1 = model.fit(train_ds_ham, validation_data=val_ds_ham, epochs=EPOCHS_HEAD,
                     callbacks=[yeni_early_stopping()])
@@ -407,12 +447,14 @@ for tanim in MODEL_TANIMLARI:
     model.compile(optimizer=keras.optimizers.Adam(1e-5),
                   loss="sparse_categorical_crossentropy",
                   metrics=["accuracy"])
+    egit_2, donuk_2 = parametre_ozeti(model, f"2. aşama (son %{int(UNFREEZE_ORANI * 100)} açık)")
+
     h2 = model.fit(train_ds_ham, validation_data=val_ds_ham, epochs=EPOCHS_FINE,
                     callbacks=[yeni_early_stopping()])
 
     sonuc = modeli_degerlendir(model, test_ds_ham, y_true_test)
     print(f"{ad} — test doğruluğu: {sonuc['dogruluk']:.4f}, macro F1: {sonuc['macro_f1']:.4f}, "
-          f"ort. inference: {sonuc['ort_inference_ms']:.1f} ms/görüntü")
+          f"macro AUC: {sonuc['macro_auc']:.4f}, ort. inference: {sonuc['ort_inference_ms']:.1f} ms/görüntü")
 
     model_dosya = f"{OUT_DIR}/model_{ad}.keras"
     model.save(model_dosya)
@@ -427,8 +469,14 @@ for tanim in MODEL_TANIMLARI:
         "macro_precision": round(sonuc["macro_precision"], 4),
         "macro_recall": round(sonuc["macro_recall"], 4),
         "macro_f1": round(sonuc["macro_f1"], 4),
+        "macro_auc": round(sonuc["macro_auc"], 4),
         "model_boyutu_mb": model_boyutu_mb,
         "ort_inference_ms": round(sonuc["ort_inference_ms"], 2),
+        # açıklanabilirlik: her aşamada kaç parametre gerçekten güncellendi
+        "egitilebilir_parametre_1_asama": egit_1,
+        "donuk_parametre_1_asama": donuk_1,
+        "egitilebilir_parametre_2_asama": egit_2,
+        "donuk_parametre_2_asama": donuk_2,
     })
 
     # bellek temizliği — 3 model art arda eğitilirken Colab GPU RAM'i şişmesin
@@ -444,6 +492,29 @@ with open(f"{OUT_DIR}/model_comparison.csv", "w", newline="", encoding="utf-8") 
 print("\nmodel_comparison.csv:")
 for satir in karsilastirma_satirlari:
     print(satir)
+
+# %% 8a) Doğruluk karşılaştırma grafiği (3 model yan yana) — Streamlit ve rapor için
+isimler = [s["model"] for s in karsilastirma_satirlari]
+dogruluklar = [s["dogruluk"] for s in karsilastirma_satirlari]
+f1ler = [s["macro_f1"] for s in karsilastirma_satirlari]
+
+x = np.arange(len(isimler))
+genislik = 0.35
+plt.figure(figsize=(7, 5))
+plt.bar(x - genislik / 2, dogruluklar, genislik, label="doğruluk", color="#346cb0")
+plt.bar(x + genislik / 2, f1ler, genislik, label="macro F1", color="#4e8a6b")
+for i, (d, f1) in enumerate(zip(dogruluklar, f1ler)):
+    plt.text(i - genislik / 2, d + 0.01, f"{d:.3f}", ha="center", fontsize=9)
+    plt.text(i + genislik / 2, f1 + 0.01, f"{f1:.3f}", ha="center", fontsize=9)
+plt.xticks(x, isimler)
+plt.ylabel("skor (bağımsız test seti)")
+plt.ylim(0, 1.08)
+plt.title("Model karşılaştırması — doğruluk ve macro F1")
+plt.legend()
+plt.tight_layout()
+plt.savefig(f"{OUT_DIR}/model_karsilastirma_dogruluk.png", dpi=120)
+plt.close()
+print("model_karsilastirma_dogruluk.png kaydedildi.")
 
 # %% 8b) Üretim (tek-model) akışı için en iyi modeli seç ve model.keras olarak kopyala
 # inference/app.py'nin n8n/Telegram'a bakan /predict'i TEK model bekliyor. Hangi mimari
@@ -486,6 +557,7 @@ BİTTİ. leadleaf_tubitak_models.zip indi -> aç, içindekileri İKİ AYRI yere 
        - class_names.json
        - split_manifest.json
        - model_comparison.csv
+       - model_karsilastirma_dogruluk.png   (Streamlit'te otomatik gösterilir)
 
 class_names.json ikisine de aynı şekilde kopyalanabilir (3 model de aynı sınıfları kullanıyor).
 """)

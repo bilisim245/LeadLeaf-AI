@@ -188,12 +188,17 @@ def veri_seti_yukle(dizin, batch_size, shuffle):
     )
 
 
-train_ds_ham = veri_seti_yukle(TRAIN_DIR, BATCH, shuffle=True).prefetch(tf.data.AUTOTUNE)
-val_ds_ham = veri_seti_yukle(VALID_DIR, BATCH, shuffle=False).prefetch(tf.data.AUTOTUNE)
+train_ds_ham = veri_seti_yukle(TRAIN_DIR, BATCH, shuffle=True)
+val_ds_ham = veri_seti_yukle(VALID_DIR, BATCH, shuffle=False)
 test_ds_ham = veri_seti_yukle(TEST_DIR, 1, shuffle=False)
 
+# class_names, .prefetch() UYGULANMADAN ÖNCE okunmalı — prefetch() döndürdüğü
+# _PrefetchDataset nesnesi bu özniteliği taşımıyor (AttributeError verir).
 class_names = train_ds_ham.class_names
 print(len(class_names), "sinif:", class_names)
+
+train_ds_ham = train_ds_ham.prefetch(tf.data.AUTOTUNE)
+val_ds_ham = val_ds_ham.prefetch(tf.data.AUTOTUNE)
 y_true_test = np.concatenate([y.numpy() for _, y in test_ds_ham])
 
 # %% 5) Model kurma (01_train_model_colab.py'deki model_kur ile AYNI iskelet)

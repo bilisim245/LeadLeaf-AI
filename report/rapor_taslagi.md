@@ -261,11 +261,11 @@ dışında, TÜBİTAK/TEKNOFEST takip aşamasına bırakıldı.
   sayıya değil, eğitim sürecinin sağlıklı işlediği modele de dayanıyor.
 - Boyut farkı (36.76 MB) üretim ortamımızda (FastAPI + n8n Cloud, mobil/edge kısıtı yok) önemsiz.
 
-### 3.6 Gelişmiş Fine-Tuning Denemesi (Sadece EfficientNetB0)
+### 3.6 Gelişmiş Fine-Tuning Denemesi (Sadece EfficientNetB0) — SONUÇ: BAŞARILI
 
-> **Durum (2026-09-19):** Bu bölüm henüz sonuç İÇERMİYOR — deneyin kendisi ayrı bir Colab
-> çalıştırmasını bekliyor (`notebooks/02_efficientnetb0_gelismis_egitim.py`). Aşağıda SADECE
-> yöntem/gerekçe var; sonuçlar gelince tablo ve grafik eklenecek.
+> **Durum (2026-09-19):** Deney çalıştırıldı, sonuç geldi ve **üretim modeli bununla
+> değiştirildi** (`model/model.keras` artık bu, aşağıdaki gelişmiş sonuç). `model_meta.json`
+> hâlâ `"EfficientNetB0"` yazıyor çünkü mimari/preprocess değişmedi, sadece fine-tuning tarifi.
 
 3.4'teki bulgu şunu gösterdi: 3 mimariye uygulanan **aynı** fine-tuning tarifi (son %25 açık, sabit
 `Adam(1e-5)`, 5 epoch) EfficientNetB0'a **fayda sağladı** (doğrulama %92→%93.5). Soru: bu mimariye
@@ -295,9 +295,183 @@ karşılaştırma raporu 3.1-3.5 zaten tamamlandı, bu ayrı, hedefli bir ek den
 satırıyla **doğrudan ve adil şekilde** kıyaslanabilir (farklı bir test setinde ölçülmüş "sahte"
 bir iyileşme riski yok).
 
-**Beklenen çıktı:** `leadleaf_efficientnetb0_gelismis.zip` içinde
-`efficientnetb0_onceki_vs_gelismis.png` (5 metrikte önceki tarif vs gelişmiş tarif bar chart'ı) +
-`karsilastirma_gelismis.csv` + yeni confusion matrix/öğrenme eğrisi. Colab çalıştırılıp sonuç
-gelince bu bölüm güncellenecek: iyileşme varsa üretim modeli bununla değiştirilecek, yoksa (veya
-marjinal ise) 3.2'deki orijinal sonuç korunup bu deneme "denendi, anlamlı fark yaratmadı" şeklinde
-dürüstçe not düşülecek — her iki durumda da bilimsel olarak değerli bir sonuç.
+### 3.6.1 Sonuç Tablosu — Önceki Tarif vs Gelişmiş Tarif
+
+| Metrik | Önceki tarif (son %25, sabit LR) | Gelişmiş tarif (kademeli %15→%40, azalan LR) | Fark |
+|---|---|---|---|
+| Doğruluk | 0.9468 | **0.9762** | **+0.0294** |
+| Macro Precision | 0.9454 | **0.9748** | +0.0294 |
+| Macro Recall | 0.937 | **0.9693** | +0.0323 |
+| Macro F1 | 0.940 | **0.9716** | +0.0316 |
+| Macro AUC | 0.9958 | **0.9993** | +0.0035 |
+| Model boyutu (MB) | 36.76 | 31.16 | −5.6 |
+| Inference (ms) | 91.28 | 89.8 | −1.5 |
+
+![EfficientNetB0 — önceki tarif vs gelişmiş tarif](../model/tubitak/efficientnetb0_onceki_vs_gelismis.png)
+
+**Sonuç: 4 değişikliğin hepsi birlikte gerçek, anlamlı bir iyileşme sağladı** (+2.94 puan doğruluk,
++3.16 puan macro F1) — hem de daha küçük ve daha hızlı bir modelle (checkpoint'in `restore_best_weights`
+ile farklı bir epoch'ta alınmış olması boyut/hız farkının nedeni, mimari birebir aynı).
+
+![EfficientNetB0 (gelişmiş) — öğrenme eğrisi](../model/tubitak/ogrenme_egrisi_EfficientNetB0_gelismis.png)
+
+Öğrenme eğrisi, kademeli açmanın (3 kesikli çizgi = %15/%30/%40 geçişleri) tam olarak umulduğu gibi
+çalıştığını gösteriyor: her geçişte küçük, kontrollü bir sıçrama var ama eğitim/doğrulama eğrileri
+birbirinden hiç ayrışmıyor (overfitting yok) ve doğrulama doğruluğu 3 aşama boyunca da **istikrarlı
+şekilde yükseliyor** (~%92'den ~%97'ye) — 3.4'teki "tek tarif her mimariye uymayabilir" bulgusunun
+tersine, burada EfficientNetB0'a özel olarak "daha sabırlı + daha kademeli" bir tarifin gerçekten
+işe yaradığı görülüyor.
+
+![EfficientNetB0 (gelişmiş) — confusion matrix](../model/tubitak/confusion_matrix_EfficientNetB0_gelismis.png)
+
+Confusion matrix'te de önceki en zayıf nokta (Early_blight ↔ diğer sınıflar karışması) belirgin
+şekilde azalmış.
+
+**Uygulanan değişiklik:** `model/model.keras` bu gelişmiş modelle değiştirildi (`model_meta.json`
+hâlâ `"EfficientNetB0"` — mimari aynı, sadece eğitim tarifi değişti). **Önceki (temel tarif)
+EfficientNetB0 modeli kaybolmadı** — `model/tubitak/model_EfficientNetB0.keras` olarak, 3-model
+karşılaştırmasının bir parçası şeklinde ayrı bir dosyada duruyor; ikisi farklı checksum'lara sahip,
+üretim modelinin üzerine yazılması diğerini etkilemedi.
+
+---
+
+## 4. Süreç Günlüğü — Sırayla Ne Yaptık, Neden Yaptık
+
+> Bu bölümün amacı: yukarıdaki sonuçların ARKASINDAKİ karar zincirini, hiç bilmeyen biri de
+> okuyunca anlayacak şekilde, adım adım anlatmak. Jüri "neden bunu yaptın, alternatifi neydi"
+> diye sorduğunda cevap burada; ayrıca ileride kod veya rapor üzerinden geçerken **kendi
+> mantığımızı yeniden hatırlamak** için de bu bölüm var.
+
+### Adım 1 — Veri setini seçme: neden "ham" veri, neden bu Kaggle kaynağı
+
+Kaggle'da PlantVillage için birden fazla versiyon var. Bazıları önceden train/valid'e **bölünmüş
+ve çoğaltılmış (augmented)** hâlde geliyor. Biz bunun yerine **ham** (bölünmemiş, çoğaltılmamış)
+veriyi (`abdallahalidev/plantvillage-dataset`) tercih ettik. **Neden:** çoğaltılmış veri setlerinde,
+aynı orijinal fotoğrafın döndürülmüş/kırpılmış kopyaları hem train'e hem valid'e düşebiliyor — bu
+"veri sızıntısı" (data leakage), doğrulama doğruluğunu OLDUĞUNDAN İYİMSER gösterir (model aslında
+"ezberlediği" bir görüntünün varyasyonunu görüyor, gerçek genelleme yeteneğini değil). Ham veriyi
+KENDİMİZ bölerek, bu riski **yapısal olarak imkânsız** hâle getirdik (bkz. Adım 4).
+
+### Adım 2 — Kapsamı daraltma: 38 sınıf yerine 5 sınıf
+
+PlantVillage veri seti onlarca bitki ve hastalık içeriyor. Biz sadece **domates + 4 yaygın
+hastalığı + sağlıklı** (5 sınıf) seçtik. **Neden:** proje 10 günlük bir bootcamp teslimi (bkz.
+`PROGRESS.md`, 2026-09-11 kapsam kararı) — 38 sınıfı aynı kalitede eğitip değerlendirmek çok daha
+fazla veri/süre/hesap gerektirir. Domates seçimi keyfi değil: yaygın bir sebze, hastalıkları görsel
+olarak ayırt edilebilir düzeyde farklı, ve MVP'nin "gerçek bir çiftçi problemini uçtan uca çözme"
+hedefine yetiyor. 38 sınıfa genişletme, `SELECTED_CLASSES = None` yaparak tek satırlık bir
+değişiklik — bilerek TÜBİTAK/TEKNOFEST sonraki aşamasına bırakıldı.
+
+### Adım 3 — Hangi 3 mimariyi karşılaştıracağımıza karar verme
+
+Sıfırdan bir mimari tasarlamak yerine (bkz. Bölüm 2.4, transfer learning gerekçesi), hazır
+mimarilerden hangilerini deneyeceğimize karar vermemiz gerekiyordu. Rastgele seçmek yerine önce
+**literatür/Kaggle taraması** yaptık: PlantVillage/domates hastalığı sınıflandırmasında hangi
+mimariler kullanılmış, hangileri iyi sonuç vermiş? Bulgu: **EfficientNetB0** genelde en yüksek
+doğruluğu (~%97 civarı) veriyor, **MobileNetV2/V3** ailesi daha düşük ama çok daha küçük/hızlı
+sonuçlar veriyor — yani bir "doğruluk vs hafiflik" dengesi var. Bu üç mimariyi seçtik ki hem bu
+dengeyi kendi verimizde SOMUT olarak gösterebilelim hem de üçü de bizim kısıtlı
+veri/hesap/süre bütçemize uygun, modern (2018 sonrası), az parametreli mimariler olsun — 2012'nin
+AlexNet'i ya da 2014'ün VGG'si gibi 60-140 milyon parametreli devasa modeller değil.
+
+### Adım 4 — Veriyi train/valid/test'e bölme kararı ve sızıntı önleme
+
+Veriyi TEK SEFERDE, sınıf bazında **stratified** biçimde %70/%15/%15 böldük ve **hangi dosyanın
+nereye düştüğünü** `split_manifest.json`'a kaydettik. **Neden stratified:** her sınıfın kendi
+oranında bölünmesi, az örnekli bir sınıfın testte hiç kalmaması riskini ortadan kaldırır. **Neden
+tek seferlik + kayıtlı:** üç modeli de AYNI train/valid/test üzerinde eğitip test etmek, aralarındaki
+karşılaştırmayı adil kılar (biri "daha kolay" bir test setine denk gelmiş olmaz); manifest kaydı da
+bunu istenildiğinde denetlenebilir/tekrarlanabilir kılar.
+
+### Adım 5 — Model mimarisini kurma: gövde + kafa
+
+Her üç model için de aynı iskeleti kullandık (`model_kur()`): `include_top=False` ile SADECE
+gövdeyi (ImageNet ağırlıklarıyla) getirdik, üstüne kendi kafamızı (`GlobalAveragePooling2D →
+Dropout(0.2) → Dense(5, softmax)`) ekledik. Ayrıntılı gerekçe Bölüm 2.5'te.
+
+### Adım 6 — İki aşamalı eğitim tarifini tasarlama
+
+Kafa önce donuk gövdeyle eğitildi (`Adam(1e-3)`), sonra gövdenin son %25'i açılıp çok daha düşük
+öğrenme oranıyla (`Adam(1e-5)`) ince ayar yapıldı. Bu sırayı ve öğrenme oranı farkını NEDEN böyle
+seçtiğimiz Bölüm 2.7'de detaylı anlatılıyor — kısacası: yanlış sırada (önce gövde) ya da yüksek
+öğrenme oranıyla ince ayar yaparsak, ImageNet'ten gelen değerli ağırlıkları ilk birkaç adımda
+siliyoruz.
+
+### Adım 7 — BatchNormalization'ı koruma altına alma
+
+Bu, kolayca atlanabilecek ama modeli sessizce bozabilecek bir ayrıntıydı (Bölüm 2.8). Referans
+aldığımız ders materyalinde iki çözüm öneriliyordu; biz `base(x, training=False)` çağrısını
+seçtik çünkü tek bir yerde, kalıcı ve unutulma riski olmayan bir çözüm.
+
+### Adım 8 — Değerlendirme protokolünü belirleme
+
+Her model için SADECE bağımsız test setinde (valid'de değil) accuracy, macro precision/recall/F1
+ve macro AUC hesapladık — bunların ne anlama geldiği ve neden "macro" ortalama seçtiğimiz Bölüm
+2.11'de. Ayrıca model boyutu (MB) ve görüntü başına ortalama inference süresini (ms) de ölçtük —
+çünkü üretimde (n8n/Telegram → FastAPI) sadece doğruluk değil, "makul sürede cevap verebiliyor mu"
+sorusu da önemli.
+
+### Adım 9 — Açıklanabilirlik katmanı ekleme
+
+`parametre_ozeti()` fonksiyonuyla her eğitim aşamasında kaç parametrenin eğitilebilir, kaçının
+donuk olduğunu somut sayıyla yazdırdık ve `model_comparison.csv`'ye kaydettik. **Neden:** "black
+box" bir eğitim yerine, her aşamada gerçekte ne kadarının değiştiğini göstermek — hem şeffaflık
+hem de ileride "neden bu model böyle davrandı" sorularına (bkz. Adım 10) somut veriyle cevap
+verebilmek için.
+
+### Adım 10 — İlk sonuçları değerlendirme ve beklenmedik bir bulgu
+
+Üç modeli eğitip test ettikten sonra (Bölüm 3.2), sonuçlar literatür taramasıyla örtüştü:
+EfficientNetB0 en iyi, MobileNetV3Small en küçük ama en düşük doğruluklu. Ama sadece SAYILARA
+bakmakla yetinmedik — **öğrenme eğrilerini de tek tek inceledik** (Bölüm 3.4) ve şunu fark ettik:
+aynı fine-tuning tarifi EfficientNetB0'a fayda sağlarken, MobileNetV3Small'a (en küçük/en az
+kapasiteli model) ZARAR vermiş. Bu, "sayılara bakmak yetmez, EĞİTİM SÜRECİNİ de incelemek gerekir"
+şeklinde önemli bir metodolojik ders — ve doğrudan bir sonraki adımı (Adım 11) tetikledi.
+
+### Adım 11 — Bu bulguya dayanarak hedefli bir ek deney tasarlama
+
+EfficientNetB0 fine-tuning'den zaten fayda gördüğüne göre, ona ÖZEL, daha "iddialı" bir tarifle
+daha da iyi sonuç alınabilir mi diye sorduk. Diğer iki modele DOKUNMADIK — çünkü onların
+karşılaştırma raporu (adil, aynı koşullarda) zaten tamamlanmıştı; bu ayrı, hedefli bir deneydi.
+4 değişikliği (daha uzun eğitim, daha fazla katman, kademeli açma, azalan öğrenme oranı) NEDEN
+seçtiğimiz Bölüm 3.6'da tek tek gerekçelendirildi. Bunun için AYRI bir dosya
+(`notebooks/02_efficientnetb0_gelismis_egitim.py`) yazdık — orijinal 3-model karşılaştırma
+script'ine karışmasın, ikisi de bağımsız çalışabilsin diye.
+
+### Adım 12 — Deneyi çalıştırırken çıkan iki teknik hata ve nasıl çözüldüğü
+
+Bu adım, kodun "ilk seferde mükemmel çalışmadığını", ama hataların nasıl teşhis edilip
+düzeltildiğini gösteriyor — jüri sorarsa dürüstçe anlatılabilecek gerçek bir mühendislik süreci:
+
+1. **Keras sürüm uyumsuzluğu:** Colab'daki Keras, yerel bilgisayardaki Keras'tan (3.10.0) daha
+   yeni olduğu için, kaydedilen `.keras` dosyalarının içinde yerel Keras'ın TANIMADIĞI bir
+   `quantization_config` alanı vardı. Yerel `inference/app.py` bu dosyayı yüklemeye çalışınca
+   `TypeError: Unrecognized keyword arguments` hatasıyla TÜM servis çöküyordu — bu da "eksik model
+   demo moda düşer, servis çökmez" felsefesiyle çelişiyordu. **Çözüm:** `.keras` dosyasının aslında
+   bir zip arşivi olduğunu kullanarak (`config.json` + `model.weights.h5` içeriyor), içindeki
+   `config.json`'dan sadece bu fazladan alanı silen küçük bir onarım fonksiyonu
+   (`_strip_quantization_config`) yazdık; bu, model ağırlıklarına ya da davranışına DOKUNMUYOR,
+   sadece eski Keras'ın anlamadığı bir metadata alanını temizliyor. Ayrıca `inference/app.py`'nin
+   model yükleme kısmını, hata durumunda servisi çökertmek yerine DEMO MODU'na düşecek şekilde
+   daha dayanıklı hâle getirdik.
+2. **`class_names` özniteliği kayboldu:** Yeni script'te, veri setini `.prefetch()` ile
+   sarmaladıktan SONRA `class_names` özniteliğini okumaya çalıştık — ama `.prefetch()`'in
+   döndürdüğü nesne (`_PrefetchDataset`) bu özniteliği taşımıyor, `AttributeError` verdi. **Çözüm:**
+   sırayı değiştirip `class_names`'i HAM veri setinden (prefetch uygulanmadan önce) okuduk, prefetch'i
+   ondan SONRA uyguladık. Orijinal `01_train_model_colab.py`'de bu sıra zaten doğruydu (bu yüzden
+   orada hiç hata çıkmamıştı) — yeni dosyayı yazarken bu ayrıntı gözden kaçmıştı, ilk çalıştırmada
+   yakalanıp düzeltildi.
+
+### Adım 13 — Sonuçları değerlendirme ve üretim modelini güncelleme
+
+Gelişmiş tarif gerçekten işe yaradı (+2.94 puan doğruluk, overfitting belirtisi yok, öğrenme eğrisi
+sağlıklı) — bu yüzden `model/model.keras`'ı bu yeni ağırlıklarla değiştirdik. **Eski model silinmedi**,
+`model/tubitak/model_EfficientNetB0.keras` olarak (3-model karşılaştırmasının parçası olarak zaten
+ayrı bir dosyadaydı) korunuyor — ikisinin karşılaştırması (Bölüm 3.6.1) raporun kalıcı bir parçası.
+
+### Adım 14 — Sırada ne var
+
+Bu deneme MVP'nin ZORUNLU kapsamının dışında, bilerek yapılan bir "daha iyisini deneyelim" adımıydı
+— asıl kritik yol (Gün 5: n8n Cloud + Telegram entegrasyonu) hâlâ bekliyor. Güncel durum ve kalan
+görevler için her zaman `PROGRESS.md`'ye bakılmalı — bu rapor dosyası sonuçları/gerekçeleri
+belgeliyor, güncel iş takibini değil.

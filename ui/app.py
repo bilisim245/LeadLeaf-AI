@@ -383,6 +383,41 @@ with tab_karsilastirma:
         grafik_yolu = os.path.join(TUBITAK_DIR, "model_karsilastirma_dogruluk.png")
         if os.path.exists(grafik_yolu):
             st.image(grafik_yolu, use_container_width=True)
+
+        st.subheader("🔍 Model bazında detaylı grafikler")
+        MODEL_GRAFIK_SECENEKLERI = {
+            "MobileNetV2": "MobileNetV2",
+            "MobileNetV3Small": "MobileNetV3Small",
+            "EfficientNetB0 (temel tarif)": "EfficientNetB0",
+            "EfficientNetB0 (gelişmiş fine-tuning — üretimde kullanılan)": "EfficientNetB0_gelismis",
+        }
+        secilen_etiket = st.selectbox(
+            "Hangi modelin confusion matrix'ini ve öğrenme eğrisini görmek istersin?",
+            list(MODEL_GRAFIK_SECENEKLERI.keys()),
+            key="model_grafik_secimi",
+        )
+        secilen_dosya_eki = MODEL_GRAFIK_SECENEKLERI[secilen_etiket]
+
+        col_cm, col_egri = st.columns(2)
+        cm_yolu = os.path.join(TUBITAK_DIR, f"confusion_matrix_{secilen_dosya_eki}.png")
+        egri_yolu = os.path.join(TUBITAK_DIR, f"ogrenme_egrisi_{secilen_dosya_eki}.png")
+        with col_cm:
+            if os.path.exists(cm_yolu):
+                st.image(cm_yolu, caption="Confusion Matrix (bağımsız test seti)", use_container_width=True)
+            else:
+                st.info("Bu model için confusion matrix henüz yok.")
+        with col_egri:
+            if os.path.exists(egri_yolu):
+                st.image(egri_yolu, caption="Öğrenme Eğrisi (doğruluk + kayıp)", use_container_width=True)
+            else:
+                st.info("Bu model için öğrenme eğrisi henüz yok.")
+
+        if secilen_dosya_eki == "EfficientNetB0_gelismis":
+            onceki_gelismis_yolu = os.path.join(TUBITAK_DIR, "efficientnetb0_onceki_vs_gelismis.png")
+            if os.path.exists(onceki_gelismis_yolu):
+                st.image(onceki_gelismis_yolu, caption="Önceki tarif vs Gelişmiş tarif (5 metrik)",
+                          use_container_width=True)
+
         st.divider()
     else:
         st.info(

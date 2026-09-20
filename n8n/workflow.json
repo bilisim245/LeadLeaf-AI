@@ -109,6 +109,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "tarih": "={{ $now.toISO() }}",
+            "sinif": "={{ $('HTTP Request - Predict CNN').item.json.hastalik }}",
             "hastalik": "={{ $json.hastalik }}",
             "guven": "={{ $json.guven }}",
             "onlem": "={{ $json.onlem }}",

@@ -585,7 +585,42 @@ Bizimki, tek bir sabit görev için çağrılan, deterministik bir **LLM entegra
 overclaim olurdu. Jüriye bu ayrımı net kurmak, hem daha dürüst hem daha savunulabilir bir
 sunum sağlıyor.
 
-### Adım 19 — Sırada ne var
+### Adım 19 — API maliyeti: abonelik ≠ API, gerçek maliyet hesabı
+
+Bir tıkanma noktası: "Ben zaten ChatGPT Pro'ya/Claude'a para ödüyorum, neden API için ayrıca
+ödeyeyim?" **Cevap:** bunlar iki ayrı ürün, ayrı faturalandırma:
+
+- **Sohbet aboneliği (Claude.ai Pro/Max, ChatGPT Plus/Pro):** bir İNSANIN web sitesinde/uygulamada
+  sohbet etmesi için sabit aylık ücret. İnsan kullanımının doğal bir hız tavanı var (elle
+  yazma hızı), bu yüzden sabit ücret sürdürülebilir.
+- **API (console.anthropic.com, platform.openai.com):** KOD'un (bizim n8n workflow'umuzun)
+  programatik olarak çağırması için, kullanım miktarına göre (token başına) ücretlendirilen,
+  tamamen ayrı bir hesap/bakiye. Otomatik sistemlerin doğal bir hız tavanı olmadığı için
+  (teorik olarak saniyede binlerce çağrı), sabit ücretli bir abonelik modeli burada
+  sürdürülemez — bu yüzden metrik (kullanım kadar öde) fiyatlandırma var.
+
+**Yeni hesapta ücretsiz kredi karşılaştırması (doğrulanmış):**
+
+| Sağlayıcı | Ücretsiz kredi | Kart gerekiyor mu? | Not |
+|---|---|---|---|
+| **Anthropic (seçilen)** | $5 (tek seferlik) | Hayır, sadece telefon/SMS doğrulama | Sürtünmesiz |
+| OpenAI | $15 (tek seferlik, 30 gün) | Evet — ilk çağrı için en az $5 ön ödeme şart | "Ücretsiz" ama kart + ön ödeme istiyor |
+
+**Bizim projemiz için gerçek maliyet hesabı** (Claude Sonnet 5: input $2/milyon token,
+output $10/milyon token — `agent/prompt_taslagi.md`'deki gerçek promptu baz alarak):
+
+| Kısım | Tahmini token |
+|---|---|
+| Sistem promptu (7 kural + JSON şablonu) | ~450 |
+| Kullanıcı mesajı (CNN sonucu) | ~40 |
+| Claude'un ürettiği rapor | ~200 |
+
+Tek bir Telegram fotoğrafı işleme maliyeti: (500/1M × $2) + (200/1M × $10) = **~$0.003**
+(yaklaşık 0.3 cent). **$5 kredi ≈ ~1.600 sorgu** demek — 7 günlük test/demo sürecinde
+muhtemelen 20-50 fotoğraf denenir, yani kredinin **%3'ünden azı** harcanır. Bu proje, gerçek
+anlamda hiç para ödemeden tamamlanabiliyor.
+
+### Adım 20 — Sırada ne var
 
 n8n workflow'u artık local n8n'de duruyor, doğrulandı, Telegram credential'ı çalışıyor. Kalan
 adımlar: Anthropic ve Google Sheets credential'larını bağlamak ve Telegram'dan gerçek bir

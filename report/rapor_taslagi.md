@@ -620,7 +620,36 @@ Tek bir Telegram fotoğrafı işleme maliyeti: (500/1M × $2) + (200/1M × $10) 
 muhtemelen 20-50 fotoğraf denenir, yani kredinin **%3'ünden azı** harcanır. Bu proje, gerçek
 anlamda hiç para ödemeden tamamlanabiliyor.
 
-### Adım 20 — Sırada ne var
+### Adım 20 — n8n'de kimlik doğrulama seçenekleri: neden "Header Auth"
+
+n8n'in HTTP Request node'unda "Authentication" alanı iki üst menü sunuyor:
+
+- **"Predefined Credential Type":** n8n'in tanıdığı ~400+ servis (Slack, GitHub, Notion...)
+  + birkaç **genel** mekanizma (Header Auth, Basic Auth, OAuth2, Query Auth) aynı listede.
+  Anthropic için n8n'in özel/hazır bir entegrasyonu yok, bu yüzden listenin içindeki genel
+  "Header Auth" seçeneği kullanılıyor.
+- **"Generic Credential Type":** aynı genel mekanizmaların (Header Auth dahil), servis
+  listesi olmadan, sade bir menüde sunulduğu ayrı bir yol.
+
+**Önemli:** İkisi de "Header Auth"a çıkıyor ve **fonksiyonel olarak aynı sonucu üretiyor** —
+hangi menüden seçilirse seçilsin, aynı Name/Value formu dolduruluyor, çalışma zamanında
+aynı HTTP header gönderiliyor. Tek fark, workflow'un dışa aktarılan JSON'unda hangi menüden
+geldiğinin kaydedilmesi (`predefinedCredentialType` + `nodeCredentialType` vs
+`genericCredentialType` + `genericAuthType`) — davranışta fark yok.
+
+**"Header Auth" neden diğer seçenekler değil:**
+
+| Seçenek | Ne yapar | Neden uymuyor |
+|---|---|---|
+| Query Auth | Anahtarı URL'e parametre olarak ekler | Anthropic `x-api-key`'in bir HEADER olmasını şart koşuyor |
+| Basic Auth | Kullanıcı adı/şifreyi base64'leyip header'a koyar | Anthropic API key bir kullanıcı adı/şifre çifti değil |
+| OAuth2 | Token alma/yenileme akışı yönetir | Anthropic API key sabit bir anahtar, OAuth token değil — gereksiz karmaşıklık |
+| Custom Auth | Elle JSON yazarak header/parametre eklersin | Header Auth zaten aynı sonucu hazır bir formla, daha az hata riskiyle veriyor |
+
+Header Auth, "sabit bir anahtarı, sabit bir header adıyla gönder" ihtiyacına birebir uyan,
+en basit ve en az hataya açık seçenek olduğu için tercih edildi.
+
+### Adım 21 — Sırada ne var
 
 n8n workflow'u artık local n8n'de duruyor, doğrulandı, Telegram credential'ı çalışıyor. Kalan
 adımlar: Anthropic ve Google Sheets credential'larını bağlamak ve Telegram'dan gerçek bir

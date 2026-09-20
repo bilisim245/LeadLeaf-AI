@@ -1,40 +1,72 @@
-# n8n Cloud Kurulumu (local docker yerine)
+# n8n Kurulumu — Local (Node.js ile, Docker'sız, Cloud'suz)
 
-**Mimari karar güncellemesi (2026-09-15):** n8n artık local Docker yerine **n8n Cloud**
-üzerinde çalışacak. Neden: kurulum daha hızlı, Telegram/Sheets credential bağlama aynı,
-Docker Desktop bağımlılığı ortadan kalkıyor. Bedeli: n8n Cloud, bilgisayarındaki
-`localhost:8000` inference servisine DOĞRUDAN ulaşamaz — bir **tünel** ya da **public URL**
-gerekiyor (aşağıda).
+**Mimari karar güncellemesi (2026-09-20) — n8n Cloud'dan vazgeçildi:** 2026-09-15'te
+"local Docker yerine n8n Cloud" kararı alınmıştı, o sırada n8n Cloud'un kalıcı ücretsiz bir
+planı olduğu varsayılmıştı. **Bu varsayım yanlış çıktı** — n8n Cloud artık sadece **14 günlük
+ücretsiz deneme** sunuyor, sonrasında en ucuz plan bile $20/ay. Kullanıcı ücret ödemek
+istemediği için bu karardan vazgeçildi.
 
-## 1) n8n Cloud hesabı
-
-1. https://n8n.io/cloud/ → ücretsiz deneme/hesap oluştur.
-2. Yeni workflow → sağ üstten **Import from File** → bu klasördeki `workflow.json`'ı yükle.
-
-## 2) Inference servisini n8n Cloud'un görebileceği hale getir
-
-İki seçenekten biri:
-
-### Seçenek A — Tünel (MVP için en hızlı, ücretsiz)
+**Yeni karar: n8n'i kendi bilgisayarında, Docker'sız çalıştır.** n8n aslında bir Node.js
+uygulaması (npm paketi) — Docker'a hiç gerek yok, sadece Node.js yeterli:
 
 ```powershell
-# ngrok kur: https://ngrok.com/download (ücretsiz hesap yeterli)
-ngrok http 8000
+npx n8n start
 ```
 
-Çıktıdaki `https://xxxx.ngrok-free.app` adresini kopyala → n8n'deki
-**"HTTP Request - Predict CNN"** node'unun URL alanına yapıştır (sonuna `/predict` ekle).
+`npx`, Node.js ile birlikte gelen bir araç: "bu paketi (n8n) indir (daha önce indirilmediyse)
+ve çalıştır" demek. Ayrı bir "installer" indirip kurmuyorsun — ilk çalıştırmada npm'in resmi
+paket deposundan indirilip anında başlıyor (ilk seferinde ~1 dakika sürebilir, sonraki
+çalıştırmalarda paket diskte olduğu için çok daha hızlı açılır). Node.js'in kendisi
+https://nodejs.org 'dan (ya da `winget install OpenJS.NodeJS.LTS`) kurulur.
 
-⚠️ Ücretsiz ngrok URL'i her yeniden başlatmada değişir — değiştikçe n8n node'unu güncelle.
-Demo/sunum günü tünelin **açık** olması gerekir (bilgisayar kapanırsa bot çalışmaz).
+n8n varsayılan olarak `http://localhost:5678` adresinde açılır — tarayıcıdan girip
+kullanıyorsun, hesap/kayıt gerekmiyor (self-hosted community edition'da ilk girişte
+kendi owner hesabını sen oluşturuyorsun, dışarıya kayıt yok).
 
-### Seçenek B — Inference'ı küçük bir cloud'a deploy et (daha kalıcı, teslim öncesi önerilir)
+## Neden Docker değil?
 
-Render.com / Railway.app gibi ücretsiz katmanlı bir servise `inference/` klasörünü
-deploy et (Dockerfile veya doğrudan `uvicorn inference.app:app` start command'ı ile).
-Böylece sabit bir public URL olur, bilgisayarın kapalı olsa bile bot çalışır.
+Docker, n8n'i izole bir "konteyner" içinde çalıştırmak için ayrı bir sanallaştırma programı
+(Docker Desktop) kurmanı ister — Windows'ta bazen WSL2 ayarı gerektirir. n8n zaten bir Node.js
+programı olduğu için, Node.js kuruluysa doğrudan çalıştırılabilir — ekstra bir katman
+gerekmiyor. Bkz. `PROGRESS.md`'deki 2026-09-20 kaydı.
 
-## 3) Credential'lar (n8n Cloud > Credentials)
+## Mimari — tek tünel yeterli
+
+Local n8n + local FastAPI inference **aynı bilgisayarda** çalıştığı için aralarında tünele
+gerek YOK — n8n, `HTTP Request - Predict CNN` node'unda doğrudan `http://localhost:8000/predict`
+adresini çağırabilir. **Tek gereken tünel:** Telegram'ın n8n'in webhook'una ulaşabilmesi için.
+
+```
+Telegram → (ngrok tüneli) → local n8n (localhost:5678) → local FastAPI (localhost:8000) → Claude API → Telegram cevabı
+```
+
+## 1) n8n'i başlat
+
+```powershell
+$env:WEBHOOK_URL = "https://SENIN-SABIT-NGROK-DOMAININ/"
+npx n8n start
+```
+
+`WEBHOOK_URL` önemli: n8n, Telegram Trigger node'unu aktif ettiğinde Telegram'a "webhook'umu
+şu adrese gönder" diye bu URL'i bildiriyor — bu yüzden n8n'i başlatmadan ÖNCE bu ortam
+değişkenini ayarlamak gerekiyor.
+
+## 2) ngrok tünelini n8n'in portuna (5678) yönlendir
+
+```powershell
+ngrok http --url=SENIN-SABIT-NGROK-DOMAININ 5678
+```
+
+(Not: inference servisi için AYRI bir tünele gerek yok — n8n ona `localhost:8000` üzerinden
+zaten ulaşıyor.)
+
+## 3) Tarayıcıdan n8n'e gir, workflow'u import et
+
+`http://localhost:5678` → ilk girişte kendi owner hesabını oluştur (email/şifre, sadece
+kendi bilgisayarında saklanıyor) → yeni workflow → sağ üstten **Import from File** → bu
+klasördeki `workflow.json`'ı yükle.
+
+## 4) Credential'lar (n8n arayüzü > Credentials)
 
 | Credential | Tür | Not |
 |---|---|---|
@@ -45,15 +77,18 @@ Böylece sabit bir public URL olur, bilgisayarın kapalı olsa bile bot çalış
 Import edilen workflow'daki her node'da credential alanı `REPLACE_ME` — n8n arayüzünden
 gerçek credential'ını seçmen yeterli (id otomatik güncellenir).
 
-## 4) Test
+## 5) Test
 
-Telegram botuna bir domates yaprağı fotoğrafı gönder → n8n execution log'unda adım adım
-akışı izle → Sheets'e satır düştüğünü ve Telegram'a cevap geldiğini doğrula.
+Telegram botuna bir domates yaprağı fotoğrafı gönder → n8n'in **Executions** sekmesinde
+adım adım akışı izle → Sheets'e satır düştüğünü ve Telegram'a cevap geldiğini doğrula.
 
-## 5) RAG'i n8n'e taşımak (opsiyonel, ileri seviye — sunumda "yol haritası" olarak anlatılabilir)
+⚠️ Bilgisayarın kapanırsa (veya `npx n8n start` / `ngrok` terminalleri kapanırsa) bot
+çalışmayı durdurur — demo/sunum sırasında ikisinin de açık olduğundan emin ol.
 
-Yerel demoda (`ui/app.py`) RAG zaten çalışıyor (`agent/rag.py` + Chroma). n8n Cloud'da
-AYNI seviyeye çıkmak için iki yol var:
+## 6) RAG'i n8n'e taşımak (opsiyonel, ileri seviye — sunumda "yol haritası" olarak anlatılabilir)
+
+Yerel demoda (`ui/app.py`) RAG zaten çalışıyor (`agent/rag.py` + Chroma). n8n'de AYNI
+seviyeye çıkmak için iki yol var:
 
 - **Basit:** `HTTP Request - Claude Agent` node'undan ÖNCE bir HTTP Request ile
   `agent/rag.py`'nin mantığını saran küçük bir endpoint'e (`inference/app.py`'ye
@@ -66,7 +101,7 @@ Bu MVP'nin zorunlu kapsamında DEĞİL — şu an prompt (`agent/prompt_taslagi.
 metinle çalışıyor. Sunumda "RAG'i şu an yerelde gösteriyoruz, n8n'e taşımak yol
 haritasında" demek yeterli ve dürüst bir çerçeve.
 
-## 6) Prompt geliştirme ("prompt geliştirme n8n'de")
+## 7) Prompt geliştirme ("prompt geliştirme n8n'de")
 
 `HTTP Request - Claude Agent` node'unun `jsonBody` alanındaki `system` metnini n8n
 arayüzünden doğrudan düzenleyip test edebilirsin (execution'ı tekrar çalıştır, sonucu

@@ -519,11 +519,77 @@ kurulu varsayılan uygulamalar gibi etkenlerle) farklı çalışabilir — plan 
 plan B'ye (burada: dosya diyaloğu yerine kopyala-yapıştır, otomatik tuş yerine gerçek tuş)
 geçmek, "neden çalışmadı"yı anlamadan tekrar tekrar aynı şeyi denemekten daha hızlı sonuç verdi.
 
-### Adım 16 — Sırada ne var
+### Adım 16 — Telegram credential bağlama ve "Couldn't connect" teşhisi
 
-n8n workflow'u artık local n8n'de duruyor, doğrulandı. Kalan adımlar: 3 credential'ı
-(Telegram/Anthropic/Google Sheets) bağlamak ve Telegram'dan gerçek bir fotoğrafla uçtan uca
-test etmek (Gün 5'in geri kalanı), sonra Gün 6 (prompt geliştirme), Gün 7 (Sheets + PDF), Gün 8
-(uç durum testleri), Gün 9-10 (rapor/sunum). Güncel durum ve kalan görevler için her zaman
-`PROGRESS.md`'ye bakılmalı — bu rapor dosyası sonuçları/gerekçeleri belgeliyor, güncel iş
-takibini değil.
+BotFather'dan alınan bot token'ı n8n'e girilip kaydedildiğinde, n8n'in otomatik bağlantı testi
+**"Couldn't connect with these settings"** hatası verdi. İlk bakışta "token yanlış" gibi
+görünüyordu, ama **"More details"**'e bakınca gerçek neden ortaya çıktı: **`ETIMEDOUT`** — yani
+bir kimlik doğrulama (401) hatası değil, **ağ bağlantısı zaman aşımı**.
+
+**Teşhis süreci (adım adım elenerek):**
+1. `curl https://api.telegram.org` → hızlı cevap (0.6 saniye) — yani genel bir ağ engeli yok.
+2. Node.js ile doğrudan `getMe` API'sini çağırmak → **başarılı**, ~3 saniyede token'ın
+   gerçekten geçerli olduğunu ve botun var olduğunu (`"first_name":"LeafyAI Bot"`) doğruladı.
+3. Sonuç: token %100 doğru, sorun sadece n8n'in dahili bağlantı testinin (muhtemelen 1-2
+   saniyelik) kısa bir zaman aşımı kullanması, Türkiye'den Telegram'a erişimin bazen
+   3 saniyeye kadar sürebilmesiyle çakışıyor.
+
+**Yan etki:** Bu süreçte, her "kaydet dene" turunda yanlışlıkla **2 ayrı Telegram credential**
+oluşmuş, ve workflow'un iki Telegram node'u (Trigger + Cevap Gönder) farklı credential'ları
+kullanıyordu. Bu, node'ların her biri tek tek kontrol edilip AYNI (doğrulanmış) credential'a
+bağlanarak ve fazladan olan silinerek düzeltildi.
+
+**Ders:** Bir arayüzün gösterdiği hata mesajı ("Couldn't connect") her zaman kök nedeni
+anlatmaz — "More details"e bakmak ve bağımsız bir araçla (burada: düz bir Node.js scripti)
+aynı işlemi tekrarlamak, gerçek nedeni (yanlış token mı, yavaş ağ mı, kimlik doğrulama
+sorunu mu) kesin olarak ayırt etmenin en hızlı yolu oldu.
+
+### Adım 17 — LLM sağlayıcı seçimi: neden Anthropic/Claude, alternatifler
+
+Mimari, hiçbir LLM sağlayıcısına kilitli değil — `"HTTP Request - Claude Agent"` node'u
+aslında genel bir HTTP çağrısı, sadece Anthropic'in adresini çağırıyor olması onu özel
+yapmıyor. ChatGPT'ye (OpenAI) geçilseydi değişecek olanlar:
+
+| Şey | Anthropic (seçilen) | OpenAI olsaydı |
+|---|---|---|
+| URL | `api.anthropic.com/v1/messages` | `api.openai.com/v1/chat/completions` |
+| Auth header | `x-api-key` | `Authorization: Bearer` |
+| İstek şeması | `system` ayrı alan | `messages` içinde `role:"system"` |
+| Cevap yolu | `content[0].text` | `choices[0].message.content` |
+
+Sistem promptu (kurallar, güvenlik notu, JSON şablonu) neredeyse **hiç değişmezdi** — bu,
+LLM sağlayıcısından bağımsız, bizim iş mantığımız. Anthropic seçimi teknik bir zorunluluktan
+değil, tercihten kaynaklanıyor.
+
+**Model seçimi — neden Sonnet 5, neden Opus 5 değil:** Görev (CNN sonucunu sabit kurallara
+göre sabit bir JSON şablonuna dönüştürmek) derin/nüanslı akıl yürütme gerektirmiyor —
+"kuralları takip et, formatı koru" türünden bir iş. Opus, daha karmaşık/açık uçlu akıl
+yürütme gerektiren görevlerde (örn. birden fazla kaynağı karşılaştırıp kendi çıkarımını
+yapmak) fark yaratır; bizim akışımızda böyle bir ihtiyaç yok. Sonnet 5 hem yeterli hem daha
+hızlı hem daha ucuz — maliyet bilinçli bir bootcamp projesinde daha doğru seçim.
+
+### Adım 18 — "Agent" kavramı: otonom agent mi, LLM entegrasyonu mu?
+
+Workflow'daki node'un adı "Claude **Agent**" olsa da, bu isimlendirme literal değil.
+Otonom bir agent ile bizim yaptığımız arasındaki fark net:
+
+| Özellik | Otonom agent | LeadLeaf'teki Claude çağrısı |
+|---|---|---|
+| Araç (tool) kullanımı | Kendi seçer, kendi çağırır | Yok — sadece metin üretiyor |
+| Çok adımlı planlama | Kendi karar verir, sırayı kendi kurar | Yok — n8n sırayı belirliyor |
+| Hafıza/durum | Var | Yok — her çağrı bağımsız |
+| Kendi hatasını görüp düzeltme | Var | Yok |
+
+Bizimki, tek bir sabit görev için çağrılan, deterministik bir **LLM entegrasyonu** — bootcamp'in
+"prompt geliştirme n8n'de" gereksinimiyle tam örtüşüyor, ama "otonom agent kurduk" demek
+overclaim olurdu. Jüriye bu ayrımı net kurmak, hem daha dürüst hem daha savunulabilir bir
+sunum sağlıyor.
+
+### Adım 19 — Sırada ne var
+
+n8n workflow'u artık local n8n'de duruyor, doğrulandı, Telegram credential'ı çalışıyor. Kalan
+adımlar: Anthropic ve Google Sheets credential'larını bağlamak ve Telegram'dan gerçek bir
+fotoğrafla uçtan uca test etmek (Gün 5'in geri kalanı), sonra Gün 6 (prompt geliştirme), Gün 7
+(Sheets + PDF), Gün 8 (uç durum testleri), Gün 9-10 (rapor/sunum). Güncel durum ve kalan
+görevler için her zaman `PROGRESS.md`'ye bakılmalı — bu rapor dosyası sonuçları/gerekçeleri
+belgeliyor, güncel iş takibini değil.

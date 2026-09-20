@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## LeadLeaf AI — n8n akışı (TASLAK)\n\nBu workflow n8n Cloud'a (veya local n8n'e) IMPORT edilecek bir BAŞLANGIÇ noktasıdır — prompt_taslagi.md gibi, n8n içinde test ede ede geliştirilir.\n\n**Import etmeden önce mutlaka değiştir:**\n1. `HTTP Request - Predict CNN` node'unda URL: `https://YOUR-NGROK-URL.ngrok-free.app/predict` → gerçek public inference URL'in\n2. 3 credential oluştur (n8n Cloud > Credentials): Telegram Bot API, Anthropic (HTTP Header Auth: `x-api-key`), Google Sheets OAuth2\n3. Google Sheets node'unda hedef sheet/tab seç\n\n**Gün 6-7 TODO (canlıda n8n içinde eklenecek, bilerek taslakta yok):**\n- Güven %70 altı için ayrı bir IF dalı / admin bildirimi\n- PDF üretimi (HTML→PDF node)\n\nBkz. PROGRESS.md ve agent/prompt_taslagi.md.",
+        "content": "## LeadLeaf AI — n8n akışı (TASLAK)\n\nBu workflow n8n Cloud'a IMPORT edilecek bir BAŞLANGIÇ noktasıdır — prompt_taslagi.md gibi, n8n içinde test ede ede geliştirilir.\n\n**`HTTP Request - Predict CNN` URL'i zaten dolu** (2026-09-20): `https://enclose-afterglow-sappiness.ngrok-free.dev/predict` — bu, ngrok hesabına kalıcı atanmış sabit domain, bilgisayarda `ngrok http 8000 --url https://enclose-afterglow-sappiness.ngrok-free.dev` çalışıyor olmalı.\n\n**Import ettikten sonra hâlâ yapman gerekenler:**\n1. 3 credential oluştur (n8n Cloud > Credentials): Telegram Bot API, Anthropic (HTTP Header Auth: `x-api-key`), Google Sheets OAuth2 — sonra her node'da `REPLACE_ME` yerine gerçek credential'ı seç\n2. Google Sheets node'unda hedef sheet/tab seç\n\n**Gün 6-7 TODO (canlıda n8n içinde eklenecek, bilerek taslakta yok):**\n- Güven %70 altı için ayrı bir IF dalı / admin bildirimi\n- PDF üretimi (HTML→PDF node)\n\nBkz. PROGRESS.md ve agent/prompt_taslagi.md.",
         "height": 420,
         "width": 460
       },
@@ -49,7 +49,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://YOUR-NGROK-URL.ngrok-free.app/predict",
+        "url": "https://enclose-afterglow-sappiness.ngrok-free.dev/predict",
         "sendBinaryData": true,
         "binaryPropertyName": "data",
         "contentType": "multipart-form-data",

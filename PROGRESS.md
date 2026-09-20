@@ -167,6 +167,7 @@ requirements.txt'e `chromadb` + `sentence-transformers` geri eklendi (RAG için 
 
 ## Yapıldı (log)
 
+- **2026-09-20** — 3 credential'dan 2'si tamam: **Telegram** (ETIMEDOUT görünse de token doğrulandı, iki node da aynı credential'a bağlandı, fazlalık silindi) ve **Anthropic** (yeni hesap, kartsız $5 kredi, `x-api-key` Header Auth, `api.anthropic.com`'a domain kısıtlaması eklendi). Yanlışlıkla Anthropic credential'ı "HTTP Request - Predict CNN" (kendi FastAPI'miz) node'una da bağlanmıştı — bu node Authentication: None'a düzeltildi (zaten kimlik doğrulama istemiyor), "HTTP Request - Claude Agent" node'undaki doğru bağlantı korundu. Sırada: Google Sheets credential'ı, sonra ilk uçtan uca Telegram testi.
 - **2026-09-11** — Proje iskeleti: klasör yapısı, `README.md`, `requirements.txt`, `.env.example`, `notebooks/01_train_model_kaggle.py`, `PROGRESS.md`.
 - **2026-09-11** — `bot/db.py` yazıldı ve test edildi (SQLite tarla defteri + `recent_cluster`). ✅ çalışıyor, **bonus aşamasına kadar entegre edilmeyecek**.
 - **2026-09-11** — `agent/weather.py` yazıldı; Open-Meteo API yanıt yapısı doğrulandı. ✅ kod hazır, **bonus aşamasına kadar entegre edilmeyecek**.

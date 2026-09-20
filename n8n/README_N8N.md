@@ -62,9 +62,26 @@ zaten ulaşıyor.)
 
 ## 3) Tarayıcıdan n8n'e gir, workflow'u import et
 
-`http://localhost:5678` → ilk girişte kendi owner hesabını oluştur (email/şifre, sadece
-kendi bilgisayarında saklanıyor) → yeni workflow → sağ üstten **Import from File** → bu
-klasördeki `workflow.json`'ı yükle.
+**Adım adım (2026-09-20'de gerçekten denenip doğrulanan yol):**
+
+1. `http://localhost:5678` adresine git → ilk girişte kendi owner hesabını oluştur
+   (email/şifre — bu sadece kendi bilgisayarında saklanıyor, n8n.io'ya kayıt DEĞİL).
+2. Sol üstteki **"+"** ikonuna (ya da "Personal" altındaki "+ Add workflow"a) tıkla →
+   **"New workflow"** → boş bir canvas açılır.
+3. Canvas'ın sağ üst köşesindeki **"..."** (üç nokta) menüsüne tıkla → **Import** →
+   **From file**.
+4. ⚠️ **Bilinen sorun:** Bu adımda açılması gereken native "Aç" penceresi bazı
+   sistemlerde beklendiği gibi davranmayabilir (ör. dosyayı seçmek yerine varsayılan
+   uygulamayla — Kod editörü gibi — açabilir). Bu olursa **alternatif yöntem**: dosyanın
+   TAMAMINI kopyala (VS Code'da aç → Ctrl+A → Ctrl+C, ya da PowerShell'de
+   `Get-Content -Raw n8n\workflow.json | Set-Clipboard`), sonra n8n canvas'ının BOŞ bir
+   yerine tıkla ve klavyeden **Ctrl+V** yapıştır — n8n panodaki JSON'u otomatik tanıyıp
+   tüm node'ları canvas'a çizer. (Not: bu yapıştırmayı bir OTOMASYON aracının sentetik
+   tuş basışıyla yapmaya çalışmak çalışmayabilir — tarayıcının pano izni gerçek bir
+   kullanıcı tuşuna basmasını isteyebiliyor; gerçek elle Ctrl+V basmak güvenilir yol.)
+5. Import doğru gittiyse, sekme başlığı ve canvas'taki node isimleri
+   `workflow.json`'daki isimlerle (Telegram Trigger, Fotoğrafı İndir, HTTP Request -
+   Predict CNN, ...) birebir eşleşir — toplam 6 node + 1 sticky note (talimat notu).
 
 ## 4) Credential'lar (n8n arayüzü > Credentials)
 
@@ -74,8 +91,21 @@ klasördeki `workflow.json`'ı yükle.
 | Anthropic API Key | HTTP Header Auth | Header adı: `x-api-key`, değer: senin Anthropic API key'in |
 | Google Sheets (LeadLeaf) | Google Sheets OAuth2 | Google hesabınla yetkilendir |
 
-Import edilen workflow'daki her node'da credential alanı `REPLACE_ME` — n8n arayüzünden
-gerçek credential'ını seçmen yeterli (id otomatik güncellenir).
+**Nasıl bağlanır (her node için aynı akış):**
+
+1. Canvas'ta o node'a (örn. "Telegram Trigger") **çift tıkla** — sağda ayar paneli açılır.
+2. "Credential to connect with" (ya da "Authentication") alanındaki açılır menüden
+   **"Create new credential"** seç.
+3. Açılan formu doldur (Telegram için sadece bot token'ı; Anthropic için Header Auth →
+   isim `x-api-key`, değer kendi API key'in; Google Sheets için "Sign in with Google"
+   butonuna basıp tarayıcıda hesabını seçmen yeterli).
+4. **Save** — bundan sonra o credential, aynı türdeki (Telegram/Anthropic/Sheets)
+   TÜM node'larda açılır menüden seçilebilir hâle gelir; yani 3 credential'ı bir kere
+   oluşturman, workflow'daki tüm ilgili node'lar için yeterli (her node'a tek tek
+   yeniden girmene gerek yok, sadece açılır menüden mevcut credential'ı seçersin).
+
+Import edilen workflow'daki her node'da credential alanı `REPLACE_ME` — yukarıdaki
+adımla gerçek credential'ını seçmen yeterli (id otomatik güncellenir).
 
 ## 5) Test
 

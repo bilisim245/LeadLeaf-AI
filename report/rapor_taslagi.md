@@ -469,9 +469,61 @@ sağlıklı) — bu yüzden `model/model.keras`'ı bu yeni ağırlıklarla deği
 `model/tubitak/model_EfficientNetB0.keras` olarak (3-model karşılaştırmasının parçası olarak zaten
 ayrı bir dosyadaydı) korunuyor — ikisinin karşılaştırması (Bölüm 3.6.1) raporun kalıcı bir parçası.
 
-### Adım 14 — Sırada ne var
+### Adım 14 — n8n Cloud'dan vazgeçip local n8n'e geçiş (ücretlendirme keşfi)
 
-Bu deneme MVP'nin ZORUNLU kapsamının dışında, bilerek yapılan bir "daha iyisini deneyelim" adımıydı
-— asıl kritik yol (Gün 5: n8n Cloud + Telegram entegrasyonu) hâlâ bekliyor. Güncel durum ve kalan
-görevler için her zaman `PROGRESS.md`'ye bakılmalı — bu rapor dosyası sonuçları/gerekçeleri
-belgeliyor, güncel iş takibini değil.
+Gün 5'e (n8n + Telegram entegrasyonu) başlarken, n8n.io'nun kayıt ekranında "Start free 14 days
+trial" ibaresi çıktı — bu, n8n Cloud'un kalıcı bir ücretsiz planı olduğu (2026-09-15'te alınan
+mimari kararın dayandığı varsayım) yanlış olduğu anlamına geliyordu. Araştırıldı: n8n Cloud artık
+sadece 14 günlük deneme sunuyor, sonrasında en az $20/ay. **Ders:** hızlı değişen SaaS
+fiyatlandırma sayfalarında "ücretsiz" varsayımını, güncel kaynaktan doğrulamadan karar
+mimarisine temel yapmamak gerekiyor — aynı hata, hemen ardından Hugging Face Spaces (Docker SDK'nın
+kişisel hesapta PRO plan gerektirdiği fark edilmeden önce) için de tekrarlandı ve orada da
+düzeltildi.
+
+**Karar:** n8n'i **local'de, Docker'sız** çalıştırmaya geçildi — `npx n8n start` (Node.js
+üzerinden). Bunun getirdiği mimari basitleşme: n8n ve FastAPI aynı bilgisayarda olduğu için
+aralarında (n8n'in FastAPI'yi çağırdığı hop için) tünele gerek kalmadı, sadece n8n'in kendisi
+(Telegram webhook'u ulaşabilsin diye) ngrok'un ücretsiz sabit domain'i üzerinden tünelleniyor.
+Node.js LTS ve ngrok, `winget` ile kuruldu (kullanıcının kendi ngrok kurulum denemesi başarısız
+olunca Claude tarafından kuruldu).
+
+### Adım 15 — workflow.json'ı n8n'e aktarma (bir kod yolu, bir de gerçek deneyim)
+
+Bu adım, "planla → dene → planın çalışmadığı yeri düzelt" döngüsünün somut bir örneği:
+
+1. **Beklenen yol:** n8n canvas'ında "..." → Import → "From file" → native dosya seçme
+   penceresinden `n8n/workflow.json`'ı seç.
+2. **Gerçekte olan:** Bu pencere beklenmedik davrandı — dosyaya tıklamak, onu seçip
+   tarayıcıya geri döndürmek yerine varsayılan uygulamayla (VS Code) AÇTI. Bu, otomasyon
+   araçlarının native (işletim sistemi seviyesi) pencerelerle her zaman güvenilir
+   çalışamayabileceğinin bir örneği — native dosya diyalogları web sayfasının DOM'unun
+   dışında olduğu için, bir web sayfasını kontrol eden araçlar bu pencereleri göremez/
+   kontrol edemez.
+3. **Çözüm — alternatif bir n8n özelliği kullanmak:** n8n, canvas'a JSON yapıştırıldığında
+   (Ctrl+V) bunu otomatik olarak node'lara dönüştürebiliyor. `workflow.json`'ın tüm
+   içeriği PowerShell'de `Get-Content -Raw | Set-Clipboard` ile panoya alındı.
+4. **İkinci engel:** Panoya kopyalanan içeriği canvas'a YAPIŞTIRMAK için önce
+   otomasyon aracıyla (programatik) Ctrl+V denendi — çalışmadı. Tarayıcıların pano
+   okuma izni, güvenlik nedeniyle genelde GERÇEK bir kullanıcı jestine (trusted event)
+   bağlıdır; sentetik/programatik bir tuş basışı bazı durumlarda bu izni tetiklemez.
+   **Çözüm:** kullanıcının kendi eliyle, gerçek bir Ctrl+V basması istendi — bu çalıştı.
+5. **Doğrulama:** İçe aktarılan workflow'un URL'i (`localhost:5678/workflow/SuklzMNlxzUJN6xQ`)
+   açılıp sayfa içeriği okunarak tüm 7 node'un (Telegram Trigger, Fotoğrafı İndir, HTTP
+   Request - Predict CNN → doğru `localhost:8000/predict` URL'iyle, HTTP Request - Claude
+   Agent, Rapor JSON'unu Ayrıştır, Google Sheets - Kaydet, Telegram - Cevap Gönder)
+   eksiksiz geldiği doğrulandı.
+
+**Genel ders (bu iki adımdan):** Bir aracın/platformun "böyle çalışması gerekir" diye
+varsayılan davranışı, gerçek ortamda (işletim sistemi sürümü, tarayıcı güvenlik politikası,
+kurulu varsayılan uygulamalar gibi etkenlerle) farklı çalışabilir — plan A çalışmayınca
+plan B'ye (burada: dosya diyaloğu yerine kopyala-yapıştır, otomatik tuş yerine gerçek tuş)
+geçmek, "neden çalışmadı"yı anlamadan tekrar tekrar aynı şeyi denemekten daha hızlı sonuç verdi.
+
+### Adım 16 — Sırada ne var
+
+n8n workflow'u artık local n8n'de duruyor, doğrulandı. Kalan adımlar: 3 credential'ı
+(Telegram/Anthropic/Google Sheets) bağlamak ve Telegram'dan gerçek bir fotoğrafla uçtan uca
+test etmek (Gün 5'in geri kalanı), sonra Gün 6 (prompt geliştirme), Gün 7 (Sheets + PDF), Gün 8
+(uç durum testleri), Gün 9-10 (rapor/sunum). Güncel durum ve kalan görevler için her zaman
+`PROGRESS.md`'ye bakılmalı — bu rapor dosyası sonuçları/gerekçeleri belgeliyor, güncel iş
+takibini değil.

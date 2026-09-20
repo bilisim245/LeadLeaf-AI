@@ -649,7 +649,37 @@ geldiğinin kaydedilmesi (`predefinedCredentialType` + `nodeCredentialType` vs
 Header Auth, "sabit bir anahtarı, sabit bir header adıyla gönder" ihtiyacına birebir uyan,
 en basit ve en az hataya açık seçenek olduğu için tercih edildi.
 
-### Adım 21 — Sırada ne var
+### Adım 21 — Neden `x-api-key`, `Authorization: Bearer` değil
+
+Her API sağlayıcısı kimlik doğrulama için kendi header adını seçer — evrensel, tek bir zorunlu
+standart yok:
+
+- **`Authorization: Bearer <token>`** — OAuth'tan gelen yaygın bir kalıp, "bu bir oturum
+  token'ı, süresi dolabilir/yenilenebilir" anlamı taşır. OpenAI bunu kullanıyor.
+- **`x-api-key: <key>`** (Anthropic'in seçimi) — daha basit, "bu sabit/uzun ömürlü bir
+  anahtar, OAuth token değil" anlamına gelen özel bir header adı.
+
+Anthropic'in API key'leri gerçek anlamda OAuth token değil — kullanıcının oluşturduğu, uzun
+ömürlü, sabit bir anahtar; `x-api-key` gibi özel bir isim kullanmak bunu netleştiriyor.
+Bu bilgi tahmin değil, Anthropic'in kendi API dokümantasyonundan geliyor. n8n'in "Header
+Auth" mekanizmasının genel/esnek tasarlanmasının nedeni de bu — her sağlayıcı farklı bir
+header adı seçebildiği için, n8n hangi adı/değeri kullanacağını serbest bırakıyor.
+
+### Adım 22 — Ekstra güvenlik: credential'ı tek domain'e kilitleme
+
+n8n'in Header Auth credential formunda **"Allowed HTTP Request Domains"** diye bir alan var,
+varsayılan **"All"** — yani bu credential (Anthropic key'i), workflow'daki HANGİ node hangi
+URL'e istek atarsa atsın kullanılabilir. Bu, workflow'a yanlışlıkla (ya da art niyetle)
+başka bir domain'e istek atan bir node eklenirse, key'in oraya da gönderilebileceği anlamına
+geliyor.
+
+**Uygulanan önlem:** Bu alan **"Specific domain(s)"** yapılıp `api.anthropic.com` ile
+sınırlandı — key artık SADECE Anthropic'in kendi adresine giden isteklerde kullanılabiliyor.
+İşlevsellik kaybı yok (zaten key'i sadece Claude'a istek atmak için kullanıyoruz), ama
+yanlışlıkla/art niyetle başka bir yere sızma riski ortadan kalktı. Küçük ama düşük maliyetli,
+savunma amaçlı (defense-in-depth) bir güvenlik pratiği.
+
+### Adım 23 — Sırada ne var
 
 n8n workflow'u artık local n8n'de duruyor, doğrulandı, Telegram credential'ı çalışıyor. Kalan
 adımlar: Anthropic ve Google Sheets credential'larını bağlamak ve Telegram'dan gerçek bir

@@ -159,6 +159,7 @@ requirements.txt'e `chromadb` + `sentence-transformers` geri eklendi (RAG için 
 - [x] ~~`agent/weather.py`'yi agent'a bağla~~ — ✅ MVP'ye çekildi, `ui/app.py`'ye entegre edildi (2026-09-15)
 - [x] ~~`bot/db.py`'yi bota bağla — tarla defteri~~ — ✅ MVP'ye çekildi, `ui/app.py`'ye entegre edildi (2026-09-15)
 - [ ] n8n bölgesel erken uyarı (cron) — hâlâ bonus (Telegram botuna otomatik proaktif bildirim, `db.recent_cluster` zaten hazır)
+- [ ] **"Tarla 360" derinliğini n8n/Telegram akışına taşımak** (2026-09-20 not) — şu an hava durumu riski, tarla defteri trendi ve bölgesel kümelenme SADECE yerel Streamlit demosunda (`ui/app.py`) var; n8n workflow'u sadece CNN sonucu + Claude raporu veriyor. Not: bölge bilgisi modelin kendisinden gelmiyor — `bot/db.py`'de kullanıcının kendi girdiği `il`/`ilce` profil bilgisi + `recent_cluster()` SQL sorgusuyla hesaplanıyor, CNN'e hiç dokunmuyor. Taşınırsa: n8n'e `agent/weather.py` + `bot/db.py` çağıran ek HTTP Request node'ları eklenmesi gerekir (inference/app.py'ye sarmalayıcı endpoint'ler eklenerek).
 - [ ] `SELECTED_CLASSES = None` yapıp 38 sınıfa / çoklu bitkiye genişlet
 - [ ] Düşük güvende "farklı açıdan foto iste"
 - [ ] Öğrenci/çiftçi için farklı ayrıntı seviyesi

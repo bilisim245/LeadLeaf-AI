@@ -206,8 +206,17 @@ with tab_analiz:
         st.subheader("Açıklama")
         st.write(rapor.get("aciklama", "-"))
 
+        neden = rapor.get("neden")
+        if neden:
+            st.subheader("Neden oluyor?")
+            st.write(neden)
+
         st.subheader("Önerilen kültürel/biyolojik önlemler")
-        st.markdown(rapor.get("onlem", "-"))
+        onlem = rapor.get("onlem", [])
+        if isinstance(onlem, list):
+            st.markdown("\n".join(f"- {madde}" for madde in onlem) or "-")
+        else:
+            st.markdown(onlem or "-")
 
         if kume_sayisi > 0:
             st.info(f"📍 Son 7 günde **{ilce}** ilçesinde aynı hastalığı bildiren "

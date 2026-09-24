@@ -14,7 +14,26 @@ Dört iş: (1) anında "inceleniyor" mesajı, (2) düzenli rapor mesajı, (3) bo
 1. "Fotoğraf var mı?" düğümünün **true** çıkışından yeni bir **Telegram** düğümü ekleyin
    → *Send a text message*. Adı: `Telegram - İnceleniyor`.
    - **Chat ID** (Expression): `{{ $json.message.chat.id }}`
-   - **Text**: `🔍 Yaprağınız inceleniyor… Raporunuz yaklaşık 20 saniye içinde hazır olacak.`
+   - **Text** (Expression) — beklerken Mevlâna'dan rastgele bir söz gösterir:
+
+```
+🔍 Yaprağınız inceleniyor… Raporunuz yaklaşık 20 saniye içinde hazır olacak.
+
+{{ (() => { const sozler = [
+  { soz: "SÖZ 1", kaynak: "Mesnevî, c. _, b. ____" },
+  { soz: "SÖZ 2", kaynak: "Mesnevî, c. _, b. ____" },
+  { soz: "SÖZ 3", kaynak: "Mesnevî, c. _, b. ____" }
+]; const s = sozler[Math.floor(Math.random() * sozler.length)];
+return '🌾 "' + s.soz + '"\n— Mevlâna, ' + s.kaynak; })() }}
+```
+
+   > ⚠️ **Sözleri güvenilir bir çeviriden (ör. Abdülbâki Gölpınarlı, *Mesnevî ve Şerhi*)
+   > cilt/beyit numarasıyla alın.** Mevlâna'ya atfedilen popüler sözlerin bir kısmı onun
+   > eserlerinde geçmez (en bilinen örnek: "Ne olursan ol yine gel"). İnternetteki listeler
+   > çoğunlukla İngilizce "Rumi quotes" çevirileridir; kaynağı olmayan söz eklemeyin.
+   > Tarım botuna uygun temalar: sabır, emek, toprak, tohum, bahar, büyüme.
+   > Listeye istediğiniz kadar söz ekleyebilirsiniz; her satır `{ soz: "...", kaynak: "..." },`
+   > biçiminde olmalı ve sözün içinde çift tırnak (") kullanılmamalı.
    - *Add Field → Append n8n Attribution* seçeneği varsa **kapalı** yapın (mesajın altına
      "This message was sent automatically with n8n" yazmasın).
 2. **true** çıkışının "Fotoğrafı İndir"e giden bağlantısı **kalsın** — true çıkışından artık

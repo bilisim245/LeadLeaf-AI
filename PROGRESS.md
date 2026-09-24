@@ -19,6 +19,13 @@ Sheets'e `bitki` sütunu (`{{ $('HTTP Request - Predict CNN').item.json.bitki }}
 promptuna "fotoğrafı bitki adını açıklamaya yazarak gönderin" ipucu. Rapora "kapalı sınıf
 sorunu" adımı olarak yazılmalı.
 
+**KARAR (2026-09-24 gece) — Pl@ntNet sunuma kadar devreye ALINMAYACAK:** Zaman darlığı ve
+yaprakta başarısının ölçülmemiş olması nedeniyle otomatik bitki tanıma "sonraki aşama"ya
+bırakıldı (rapor Adım 37, 5.5, 5.8, 5.9'da bu şekilde yazıldı). Kod `inference/app.py`'de duruyor,
+`PLANTNET_API_KEY` tanımlanmadıkça pasif. Onun yerine: `/start` karşılama mesajında desteklenen
+bitki/hastalık listesi + açıklamaya yazılan bitki adıyla çalışan filtre (n8n'de `bitki` alanı —
+**mutlaka eklenmeli**). Rehber: `n8n/profesyonel_gorunum.md`.
+
 **Sıradaki işler (n8n arayüzünde, elle):**
 1. **Google Sheets - Kaydet** düğümü → "Refresh Column List", sonra yeni sütunları **Expression**
    modunda ("fx" görünmeli) eşle:

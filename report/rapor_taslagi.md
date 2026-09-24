@@ -55,8 +55,8 @@ becerisi — her birinin tek başına yapamayacağı, hem doğru hem anlaşılı
   karmaşık arkaplanlı fotoğraflara genelleme başarısı ayrı bir soru — literatürde bilinen bir
   risk, rapora açıkça not düşüldü (Bölüm 4, Adım 30).
 - **Kapalı küme problemi:** Model tanımadığı bir hastalığı (gerçek örnek: şeftali yaprak
-  kıvırcıklığı) %89 güvenle başka bir bitkinin hastalığına yakıştırabildi; bitki filtresi ve
-  otomatik bitki tanıma ile ele alındı (Adım 37). Tüm sınırlılıklar ve geliştirme yol haritası:
+  kıvırcıklığı) %89 güvenle başka bir bitkinin hastalığına yakıştırabildi; bitki filtresi ile
+  kısmen ele alındı, otomatik bitki tanıma sonraki aşamaya bırakıldı (Adım 37). Tüm sınırlılıklar ve geliştirme yol haritası:
   **Bölüm 5**.
 - **Mimari zorunluluğu:** LLM çağrısı ve orkestrasyon Python'da değil **n8n içinde** — bootcamp'in
   "prompt geliştirme n8n'de" şartı gereği (Bölüm 4, Adım 14 civarı).
@@ -1169,22 +1169,29 @@ belirti" deyip uzmana yönlendirir. Aynı fotoğrafla test: bitki bilgisi yokken
 %89,1", "Şeftali" bilgisiyle "tanımlı olmayan belirti, uzmana yönlendir". Kontrol görsellerinde
 (sağlıklı şeftali/patates/mısır, üzüm yaprak yanıklığı) doğru sonuçlar korundu (%99,8–100).
 
-**Yapılan 2 — bitkiyi sistemin kendisinin bulması:** Bitki adını çiftçiye yazdırmak ciddi bir
-kullanılabilirlik sınırlılığıydı. Bu yüzden fotoğraf önce **Pl@ntNet** bitki tanıma servisine
-(Fransız araştırma kurumlarının geliştirdiği, 50.000+ türü tanıyan servis; `organs=leaf` ile
-yalnızca yaprak gönderilir) iletilip tür bulunuyor (*Prunus persica* → şeftali), filtre otomatik
-uygulanıyor. Tür, modelin bildiği 14 bitkiden biri değilse "Desteklenmeyen bitki" dönüyor.
-Pl@ntNet'e ulaşılamazsa sistem filtresiz davranışa düşüyor; çiftçinin yazdığı bitki adı yedek
-olarak kullanılıyor. **İş bölümü:** Pl@ntNet "bu hangi bitki?", bizim modelimiz "bu yaprakta hangi
-hastalık var?" sorusunu cevaplıyor — Pl@ntNet hastalık teşhisi yapmaz.
+**Yapılan 2 — kullanıcıyı bilgilendirmek:** Botun `/start` karşılama mesajında desteklenen 14
+bitki ve her biri için tanınan hastalıklar listeleniyor; kullanıcıya fotoğraf açıklamasına bitki
+adını yazabileceği söyleniyor. Bu tek başına yeterli değil — şeftali listede olduğu hâlde yaprak
+kıvırcıklığı fotoğrafı yine gönderilebilir — ama açıklamaya yazılan bitki adıyla birlikte
+filtreyi devreye sokuyor.
 
-> ⚠️ Pl@ntNet'in **yalnızca yaprak** (özellikle hastalıklı yaprak) fotoğrafında bitkiyi ne kadar
-> doğru bulduğu henüz ölçülmedi — ölçüm yapılınca sonuç buraya eklenmeli (Bölüm 5.5).
+**Değerlendirilip sonraya bırakılan çözüm — otomatik bitki tanıma:** Bitki adını çiftçiye
+yazdırmak bir kullanılabilirlik sınırlılığıdır; ideal olan, sistemin bitkiyi yapraktan kendisinin
+bulmasıdır. Bunun için **Pl@ntNet** bitki tanıma servisi (Fransız araştırma kurumlarının
+geliştirdiği, 50.000+ türü tanıyan servis; `organs=leaf` ile yalnızca yaprak gönderilebiliyor)
+incelendi: fotoğraf önce Pl@ntNet'e gidip tür bulunacak (*Prunus persica* → şeftali), filtre
+otomatik uygulanacak, tür desteklenen 14 bitkiden biri değilse "Desteklenmeyen bitki" dönecekti.
+Kod `inference/app.py`'de hazırlandı (`PLANTNET_API_KEY` tanımlanmadıkça pasif, mevcut davranışı
+etkilemiyor). **Sunuma kadar canlıya alınmadı**, çünkü servisin yalnızca hastalıklı yapraktan
+bitki bulma başarısı ölçülmemişti ve demo öncesinde test edilmemiş bir dış bağımlılık eklemek
+yeni bir kırılma noktası olacaktı. **İş bölümü notu:** Pl@ntNet "bu hangi bitki?" sorusunu
+cevaplar, hastalık teşhisi yapmaz — teşhis yine bizim modelimizin işidir.
 
 **(Sunum için kısa özet):** "Modelimiz tanımadığı bir hastalığı %89 güvenle başka bir bitkinin
 hastalığına yakıştırdı. Bunu gerçek bir fotoğrafla fark ettik, nedenini ölçtük (şeftali
-sınıflarına düşen olasılık %0,1) ve çözdük: önce bitki bulunuyor, sonra teşhis yalnızca o
-bitkinin hastalıkları arasından yapılıyor; uymuyorsa sistem 'bilmiyorum' diyor."
+sınıflarına düşen olasılık %0,1) ve bir çözüm ekledik: bitki biliniyorsa teşhis yalnızca o
+bitkinin hastalıkları arasından yapılıyor, uymuyorsa sistem 'bilmiyorum' diyor. Bitkinin
+yapraktan otomatik tanınmasını bir sonraki aşamanın ilk işi olarak planladık."
 
 ---
 
@@ -1237,17 +1244,23 @@ konuldu. **Tarladan çekilmiş, etiketli bir test seti bu projenin en önemli ek
 Model eğitimde görmediği bir durumda "bilmiyorum" diyemez ve softmax güveni bu durumda yanıltıcı
 olabilir (Adım 37: %89,1 yanlış teşhis). %70 güven eşiği yalnızca modelin **kendi
 kararsızlığını** yakalar, **emin olduğu hataları** yakalamaz. Bitki filtresi bu sorunun bitkiler
-arası kısmını çözer; ancak **aynı bitkinin** tanımlı olmayan bir hastalığı, o bitkinin bilinen
+arası kısmını çözer — ama yalnızca kullanıcı bitki adını yazdığında; yazmazsa yüksek güvenli
+yanlış teşhis riski sürer. Ayrıca **aynı bitkinin** tanımlı olmayan bir hastalığı, o bitkinin bilinen
 bir hastalığına benziyorsa hâlâ yanlış sınıflandırılabilir.
 
-### 5.5 Dış servise bağımlılık (Pl@ntNet)
+### 5.5 Bitkinin kullanıcıdan alınması
 
+Sistem bitkiyi yapraktan kendisi tanımıyor; bitki filtresi yalnızca kullanıcı fotoğraf
+açıklamasına bitki adını yazarsa çalışıyor. Karşılama mesajı bunu öneriyor ama kullanıcıların
+çoğunun açıklama yazmayacağı varsayılmalı. Otomatik bitki tanıma (Pl@ntNet ya da kendi modelimiz)
+için kod hazırlığı yapıldı, sunuma kadar devreye alınmadı (Adım 37). Devreye alınırken dikkat
+edilmesi gerekenler:
 - Yalnızca yapraktan tür tanıma, çiçek/meyveden tanımaya göre genelde daha zordur; hastalıklı,
   kıvrılmış veya lekeli yaprak daha da zorlaştırır. Aynı ailedeki (Rosaceae: şeftali, elma,
-  kiraz) yapraklar birbirine benzer. **Başarı oranı henüz ölçülmedi.**
-- Ücretsiz plan günde 500 tanıma ile sınırlı; servis kesintisinde sistem filtresiz çalışır.
-- Fotoğraf üçüncü taraf bir servise (Avrupa'da barındırılan) gönderilir — gerçek kullanımda
-  kullanıcıya bildirilmeli (KVKK/aydınlatma metni).
+  kiraz) yapraklar birbirine benzer — başarı oranı önce ölçülmelidir.
+- Dış servis kullanılırsa: ücretsiz plan günlük tanıma sayısıyla sınırlıdır; servis kesintisinde
+  sistem filtresiz çalışmalıdır; fotoğraf üçüncü taraf bir servise gideceği için kullanıcıya
+  bildirilmelidir (KVKK/aydınlatma metni).
 
 ### 5.6 Değerlendirmenin sınırlılıkları
 
@@ -1267,7 +1280,7 @@ bunun büyük kısmı LLM'den geliyor (Adım 36). Gerçek kullanım için bir su
 
 | Öncelik | Geliştirme | Hangi sınırlılığı giderir |
 |---|---|---|
-| **Kısa vade** | Pl@ntNet'in yaprakta bitki bulma başarısını ölçmek; düşük skorda filtreyi devre dışı bırakacak eşiği veriyle belirlemek | 5.5 |
+| **Kısa vade** | **Otomatik bitki tanıma:** hazırlanan Pl@ntNet entegrasyonunu devreye almak; önce yaprakta (özellikle hastalıklı yaprakta) bitki bulma başarısını ölçmek ve düşük skorda filtreyi devre dışı bırakacak eşiği veriyle belirlemek | 5.4, 5.5 |
 | Kısa vade | Telefonla, tarlada çekilmiş 100–200 fotoğraflık küçük bir **etiketli test seti** oluşturmak (ziraat mühendisi etiketiyle) ve modeli bu sette ölçmek | 5.3, 5.6 |
 | Kısa vade | Bir ziraat mühendisiyle LLM raporlarının kör değerlendirmesi (doğru/yanlış/zararlı öneri puanlaması) | 5.6 |
 | **Orta vade** | Türkiye'ye özgü sınıfların eklenmesi (şeftali yaprak kıvırcıklığı, üzüm mildiyösü/küllemesi, zeytin halkalı lekesi…) — İl Tarım ve Orman Müdürlükleri / ziraat fakülteleriyle veri toplama işbirliği | 5.1 |
@@ -1294,8 +1307,11 @@ hastalığı teşhisi üzerine çalışacak başka ekipler için genellenebilir 
 3. **Sınıflandırıcının güven skorunu "doğruluk" sanmayın.** Softmax güveni, modelin
    tanımadığı görüntülerde de yüksek çıkabilir. Güven eşiği tek başına yeterli bir güvenlik
    önlemi değildir; bilinmeyeni tespit etmek için ayrı bir mekanizma planlayın.
-4. **Teşhisi bitkiyle başlatın.** Ziraat mühendisinin yaptığı gibi önce bitkiyi, sonra
-   hastalığı belirleyen iki aşamalı bir yapı, bitkiler arası karışmayı yapısal olarak önler.
+4. **Teşhisi bitkiyle başlatın ve bitkiyi sistem bulsun.** Ziraat mühendisinin yaptığı gibi
+   önce bitkiyi, sonra hastalığı belirleyen iki aşamalı bir yapı, bitkiler arası karışmayı
+   yapısal olarak önler. Bitkiyi kullanıcıya yazdırmak yerine yapraktan otomatik tanıyan bir
+   katman (ör. Pl@ntNet gibi hazır bir bitki tanıma servisi ya da ayrı eğitilmiş bir model)
+   tasarımın başından planlanmalıdır.
 5. **Ziraat uzmanını sürecin başına alın, sonuna değil.** Sınıf seçimi, veri etiketleme,
    bilgi tabanının doğrulanması ve sistemin çıktılarının değerlendirilmesi alan uzmanlığı
    gerektirir.

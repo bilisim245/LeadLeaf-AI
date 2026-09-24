@@ -54,6 +54,10 @@ becerisi — her birinin tek başına yapamayacağı, hem doğru hem anlaşılı
 - **Bilinen sınırlama:** PlantVillage veri seti laboratuvar koşullarında çekilmiş; modelin gerçek/
   karmaşık arkaplanlı fotoğraflara genelleme başarısı ayrı bir soru — literatürde bilinen bir
   risk, rapora açıkça not düşüldü (Bölüm 4, Adım 30).
+- **Kapalı küme problemi:** Model tanımadığı bir hastalığı (gerçek örnek: şeftali yaprak
+  kıvırcıklığı) %89 güvenle başka bir bitkinin hastalığına yakıştırabildi; bitki filtresi ve
+  otomatik bitki tanıma ile ele alındı (Adım 37). Tüm sınırlılıklar ve geliştirme yol haritası:
+  **Bölüm 5**.
 - **Mimari zorunluluğu:** LLM çağrısı ve orkestrasyon Python'da değil **n8n içinde** — bootcamp'in
   "prompt geliştirme n8n'de" şartı gereği (Bölüm 4, Adım 14 civarı).
 
@@ -1102,11 +1106,211 @@ güvenlik katmanı da tam bu noktada devreye girip üretime yönelik tekrarlı o
 engelledi. Tasarım tamamen hazır ve test edilmiş; üretime taşımak, gözden geçirip onaylandıktan
 sonra aynı 4 node'u canlı workflow'a eklemekten ibaret.
 
-### Adım 34 — Sırada ne var
+### Adım 34 — Sohbet dalını canlıya alma ve yayından önce yakalanan bir bağlantı hatası
 
-n8n workflow'u artık local n8n'de duruyor, doğrulandı, Telegram credential'ı çalışıyor. Kalan
-adımlar: Anthropic ve Google Sheets credential'larını bağlamak ve Telegram'dan gerçek bir
-fotoğrafla uçtan uca test etmek (Gün 5'in geri kalanı), sonra Gün 6 (prompt geliştirme), Gün 7
-(Sheets + PDF), Gün 8 (uç durum testleri), Gün 9-10 (rapor/sunum). Güncel durum ve kalan
-görevler için her zaman `PROGRESS.md`'ye bakılmalı — bu rapor dosyası sonuçları/gerekçeleri
-belgeliyor, güncel iş takibini değil.
+Adım 33'te deneysel kopyada test edilen sohbet dalı 2026-09-24 akşamı canlı workflow'a alındı.
+Yayından önce taslak incelendiğinde iki sorun bulundu: **IF düğümünün ("Fotoğraf var mı?") TRUE
+çıkışı hiçbir yere bağlı değildi** — bu hâliyle yayınlansaydı sohbet dalı çalışır ama **fotoğraflı
+teşhis akışının tamamı sessizce dururdu** — ve bir yere bağlı olmayan fazladan bir "Anthropic Chat
+Model1" düğümü vardı. TRUE çıkışı "Fotoğrafı İndir"e bağlandı, fazla düğüm silindi, n8n
+veritabanı önce yedeklendi. Yayından sonra Telegram'dan iki test yapıldı: "merhaba" → sohbet
+cevabı (execution #27, başarılı), fotoğraf → CNN + RAG + rapor (execution #28, başarılı).
+
+**Ders:** Bir akışa yeni bir dal eklemek, var olan dalı bozabilir. Her değişiklikten sonra
+sadece yeni özelliği değil, **eski akışı da** yeniden test etmek gerekir (regresyon testi).
+
+### Adım 35 — Beklenmedik bir engel: okul ağının HTTPS denetimi
+
+Servisler okulda (MEB FATİH ağı) başlatıldığında ngrok tüneli açılamadı ve n8n'in dış
+bağlantıları "self-signed certificate in certificate chain" hatası verdi. İnceleme: FATİH ağı
+HTTPS trafiğini denetliyor (SSL inspection) — `api.anthropic.com` ve ngrok bağlantıları MEB'in
+kendi sertifikasıyla (`MEB-CERT-IZM` / `fatihca`) yeniden imzalanıyordu; Telegram trafiği ise
+denetlenmeden geçiyordu. İki çözüm vardı: (1) ngrok ve n8n'e MEB sertifikasına güvenmelerini
+söylemek — ama bu, **Anthropic API anahtarının ve tüm istek içeriklerinin denetim cihazından açık
+metin olarak geçmesi** demekti; (2) başka bir ağa (telefon internet paylaşımı) geçmek. İkincisi
+seçildi, sistem hiçbir ayar değişikliği olmadan çalıştı.
+
+**Ders:** Bir sistemin çalıştığı ağ da sistemin parçasıdır. Sunum/demo ortamının ağ koşulları
+önceden test edilmeli; gizli anahtar taşıyan trafik denetlenen bir ağdan geçirilmemeli.
+
+### Adım 36 — Yanıt süresi analizi: bot neden 39 saniyede cevap verdi?
+
+İlk fotoğraflı testte cevap 39 saniye sürdü. n8n'in çalıştırma kayıtlarından her düğümün süresi
+çıkarıldı:
+
+| Adım | Süre | Neden / çözüm |
+|---|---|---|
+| RAG bağlam sorgusu | 17,0 sn | Çok dilli embedding modeli **ilk istekte** yükleniyordu. Servis açılışında yükletildi → ilk sorgu 0,05–0,19 sn |
+| Claude rapor üretimi | 14,7 sn | Uzun yapılandırılmış JSON rapor. Daha küçük model (Haiku) hızlı olurdu ama güvenlik kurallarına uyum riske girerdi → Sonnet'te kalındı |
+| Google Sheets kaydı | 4,0 sn | Telegram cevabından **önce** çalışıyordu; sıralama değiştirilerek çiftçinin beklemesinden çıkarılabilir |
+| CNN tahmini + fotoğraf indirme | 2,6 sn | Normal |
+
+**Ders:** "Yavaş" şikâyetine tahminle değil ölçümle yaklaşmak — sürenin %44'ü tek bir
+başlatma hatasından geliyordu ve bir satırlık değişiklikle giderildi.
+
+### Adım 37 — Kapalı sınıf problemi: şeftali yaprağına "domates geç yanıklığı" teşhisi
+
+**Ne oldu:** Gerçek bir **şeftali yaprak kıvırcıklığı** (*Taphrina deformans*) fotoğrafı bota
+gönderildiğinde model **%89,1 güvenle "Domates — Geç Yanıklık"** dedi. Güven %70 eşiğinin
+üzerinde olduğu için uzmana yönlendirme de devreye girmedi.
+
+**Neden oldu:** Modelin şeftali için bildiği yalnızca iki sınıf var (`Peach___Bacterial_spot`,
+`Peach___healthy`); yaprak kıvırcıklığı PlantVillage'da **hiç yok**. Sınıflandırıcı "bilmiyorum"
+diyemez — softmax katmanı olasılığı her zaman bildiği 38 sınıfa dağıtmak zorundadır ve eğitimde
+görmediği bir görüntüde bile yüksek güven üretebilir. Buna **kapalı küme (closed-set) problemi**
+denir. Bu fotoğrafta şeftalinin iki sınıfına düşen toplam olasılık yalnızca **%0,1** idi: model
+yaprağı şeftali olarak değil, en çok benzettiği domates hastalığı olarak gördü.
+
+**Yapılan 1 — bitki filtresi:** `/predict` isteğe bağlı bir `bitki` bilgisi alacak şekilde
+genişletildi. Bitki biliniyorsa tahmin **yalnızca o bitkinin sınıfları arasından** seçilir;
+olasılıklar yeniden normalize edilmez. O bitkinin sınıflarına düşen toplam olasılık %50'nin
+altındaysa sistem bilinen bir hastalık adı **uydurmaz**, "Şeftali: sistemde tanımlı olmayan
+belirti" deyip uzmana yönlendirir. Aynı fotoğrafla test: bitki bilgisi yokken "Geç Yanıklık
+%89,1", "Şeftali" bilgisiyle "tanımlı olmayan belirti, uzmana yönlendir". Kontrol görsellerinde
+(sağlıklı şeftali/patates/mısır, üzüm yaprak yanıklığı) doğru sonuçlar korundu (%99,8–100).
+
+**Yapılan 2 — bitkiyi sistemin kendisinin bulması:** Bitki adını çiftçiye yazdırmak ciddi bir
+kullanılabilirlik sınırlılığıydı. Bu yüzden fotoğraf önce **Pl@ntNet** bitki tanıma servisine
+(Fransız araştırma kurumlarının geliştirdiği, 50.000+ türü tanıyan servis; `organs=leaf` ile
+yalnızca yaprak gönderilir) iletilip tür bulunuyor (*Prunus persica* → şeftali), filtre otomatik
+uygulanıyor. Tür, modelin bildiği 14 bitkiden biri değilse "Desteklenmeyen bitki" dönüyor.
+Pl@ntNet'e ulaşılamazsa sistem filtresiz davranışa düşüyor; çiftçinin yazdığı bitki adı yedek
+olarak kullanılıyor. **İş bölümü:** Pl@ntNet "bu hangi bitki?", bizim modelimiz "bu yaprakta hangi
+hastalık var?" sorusunu cevaplıyor — Pl@ntNet hastalık teşhisi yapmaz.
+
+> ⚠️ Pl@ntNet'in **yalnızca yaprak** (özellikle hastalıklı yaprak) fotoğrafında bitkiyi ne kadar
+> doğru bulduğu henüz ölçülmedi — ölçüm yapılınca sonuç buraya eklenmeli (Bölüm 5.5).
+
+**(Sunum için kısa özet):** "Modelimiz tanımadığı bir hastalığı %89 güvenle başka bir bitkinin
+hastalığına yakıştırdı. Bunu gerçek bir fotoğrafla fark ettik, nedenini ölçtük (şeftali
+sınıflarına düşen olasılık %0,1) ve çözdük: önce bitki bulunuyor, sonra teşhis yalnızca o
+bitkinin hastalıkları arasından yapılıyor; uymuyorsa sistem 'bilmiyorum' diyor."
+
+---
+
+## 5. Sınırlılıklar ve Geliştirilmesi Gereken Alanlar
+
+Bu bölüm sistemin **neyi yapamadığını** ve **bunun nasıl giderilebileceğini** açıkça listeler.
+Buradaki her madde ya gerçek bir testte gözlendi ya da veriden sayısal olarak çıkarıldı.
+
+### 5.1 Veri setinin kapsamı: 14 bitki, 38 sınıf — Türkiye'nin önemli hastalıkları eksik
+
+PlantVillage ABD kaynaklı bir veri setidir; hangi bitki ve hastalıkların yer aldığı Türkiye'nin
+tarımsal önceliklerine göre değil, veri toplandığı dönemin imkânlarına göre belirlenmiştir.
+Örnekler:
+
+| Bitki | Modelde olan | Türkiye'de önemli olup modelde **olmayan** (örnekler) |
+|---|---|---|
+| Şeftali | Bakteriyel leke, sağlıklı | Yaprak kıvırcıklığı (*Taphrina deformans*), külleme, çil/yaprak delen, monilya |
+| Üzüm | Kara çürüklük, esca, yaprak yanıklığı, sağlıklı | **Mildiyö** (*Plasmopara viticola*), **külleme** (*Erysiphe necator*) |
+| Elma | Karaleke, kara çürüklük, sedir pası, sağlıklı | Külleme, ateş yanıklığı (*Erwinia amylovora*) |
+| Kiraz | Külleme, sağlıklı | Yaprak delen/çil, monilya |
+| Domates | 9 hastalık + sağlıklı | Kurşuni küf (*Botrytis cinerea*), külleme |
+| Portakal | Yalnızca HLB (yeşillenme) | Uçkurutan (*Plenodomus tracheiphilus*, özellikle limonda) |
+| — | — | **Hiç olmayan bitkiler:** zeytin, fındık, pamuk, buğday, hıyar, çay… |
+
+Bu listenin amacı "sistem kullanılmaz" demek değil; **sistemin hangi soruya cevap verebileceğini
+dürüstçe sınırlamak**. Tabloda olmayan bir hastalıkta sistemin doğru davranışı "bilmiyorum,
+uzmana danışın" demektir — Adım 37'deki bitki filtresi bu davranışı sağlamak için eklendi.
+
+### 5.2 Sınıf dengesizliği
+
+Sınıfların fotoğraf sayıları çok farklı: en küçük sınıf `Potato___healthy` **152**, en büyük
+`Orange___Haunglongbing` **5.507** fotoğraf (~36 kat). Şeftalide sağlıklı yaprak **360**,
+bakteriyel leke **2.297** fotoğraf (~6 kat). Macro F1'in (%98,59) yüksek olması modelin küçük
+sınıfları da test setinde iyi ayırt ettiğini gösteriyor; ancak küçük sınıfların test örnekleri
+de az (ör. sağlıklı şeftali için 54), bu yüzden o sınıflardaki başarı ölçümü daha belirsizdir.
+
+### 5.3 Laboratuvar ile tarla arasındaki fark (domain shift)
+
+%99,02'lik test doğruluğu, eğitim verisiyle **aynı koşullarda** (tek yaprak, sade arkaplan,
+kontrollü ışık) çekilmiş fotoğraflarda ölçüldü. Tarlada telefonla çekilen fotoğraflarda
+doğruluğun düşmesi beklenir; veri setinin kendi yazarları (Mohanty ve ark., 2016) farklı
+kaynaklardan toplanan fotoğraflarda doğruluğun ~%31'e düştüğünü raporlamıştır (bkz. Adım 30).
+Bizim gözlemlerimiz de bununla uyumlu: gerçek fotoğraflarla yapılan az sayıdaki Telegram
+testinde güven değerleri test setine göre belirgin biçimde düşük çıktı (ör. bir mısır
+fotoğrafında %55) ve bir örnekte (şeftali, Adım 37) yanlış bitkiye yüksek güvenle teşhis
+konuldu. **Tarladan çekilmiş, etiketli bir test seti bu projenin en önemli eksiğidir.**
+
+### 5.4 Kapalı küme problemi ve güven skorunun güvenilirliği
+
+Model eğitimde görmediği bir durumda "bilmiyorum" diyemez ve softmax güveni bu durumda yanıltıcı
+olabilir (Adım 37: %89,1 yanlış teşhis). %70 güven eşiği yalnızca modelin **kendi
+kararsızlığını** yakalar, **emin olduğu hataları** yakalamaz. Bitki filtresi bu sorunun bitkiler
+arası kısmını çözer; ancak **aynı bitkinin** tanımlı olmayan bir hastalığı, o bitkinin bilinen
+bir hastalığına benziyorsa hâlâ yanlış sınıflandırılabilir.
+
+### 5.5 Dış servise bağımlılık (Pl@ntNet)
+
+- Yalnızca yapraktan tür tanıma, çiçek/meyveden tanımaya göre genelde daha zordur; hastalıklı,
+  kıvrılmış veya lekeli yaprak daha da zorlaştırır. Aynı ailedeki (Rosaceae: şeftali, elma,
+  kiraz) yapraklar birbirine benzer. **Başarı oranı henüz ölçülmedi.**
+- Ücretsiz plan günde 500 tanıma ile sınırlı; servis kesintisinde sistem filtresiz çalışır.
+- Fotoğraf üçüncü taraf bir servise (Avrupa'da barındırılan) gönderilir — gerçek kullanımda
+  kullanıcıya bildirilmeli (KVKK/aydınlatma metni).
+
+### 5.6 Değerlendirmenin sınırlılıkları
+
+- Model doğruluğu yalnızca PlantVillage test setinde ölçüldü (5.3).
+- **LLM raporlarının kalitesi** (doğruluk, anlaşılırlık, güvenlik kurallarına uyum) sistematik
+  olarak ölçülmedi — örnek testler yapıldı ama bir ziraat mühendisi tarafından kör değerlendirme
+  yapılmadı.
+- RAG bilgi dosyalarının bir kısmı henüz bağımsız kaynaklarla çapraz doğrulanmadı.
+
+### 5.7 Altyapı
+
+Sistem tek bir dizüstü bilgisayarda çalışıyor (FastAPI + n8n + ngrok): bilgisayar kapanınca,
+belleği azalınca veya ağ değişince bot durur (Adım 35). Yanıt süresi ~20–25 sn civarında,
+bunun büyük kısmı LLM'den geliyor (Adım 36). Gerçek kullanım için bir sunucuya taşınması gerekir.
+
+### 5.8 Geliştirme yol haritası
+
+| Öncelik | Geliştirme | Hangi sınırlılığı giderir |
+|---|---|---|
+| **Kısa vade** | Pl@ntNet'in yaprakta bitki bulma başarısını ölçmek; düşük skorda filtreyi devre dışı bırakacak eşiği veriyle belirlemek | 5.5 |
+| Kısa vade | Telefonla, tarlada çekilmiş 100–200 fotoğraflık küçük bir **etiketli test seti** oluşturmak (ziraat mühendisi etiketiyle) ve modeli bu sette ölçmek | 5.3, 5.6 |
+| Kısa vade | Bir ziraat mühendisiyle LLM raporlarının kör değerlendirmesi (doğru/yanlış/zararlı öneri puanlaması) | 5.6 |
+| **Orta vade** | Türkiye'ye özgü sınıfların eklenmesi (şeftali yaprak kıvırcıklığı, üzüm mildiyösü/küllemesi, zeytin halkalı lekesi…) — İl Tarım ve Orman Müdürlükleri / ziraat fakülteleriyle veri toplama işbirliği | 5.1 |
+| Orta vade | Tarla fotoğraflarıyla ince ayar (fine-tuning) ve güçlü veri artırma (arkaplan, ışık, açı çeşitliliği) | 5.3 |
+| Orta vade | **Bilinmeyeni tespit** (out-of-distribution detection): özellik uzayında eğitim örneklerine uzaklık, enerji skoru veya ayrı bir "bilinmeyen" sınıfı ile "bu görüntü tanıdıklarıma benzemiyor" diyebilmek | 5.4 |
+| Orta vade | Çiftçi/uzman geri bildirimi döngüsü: Sheets kayıtlarında teşhisin doğru/yanlış işaretlenmesi → yeni etiketli veri → periyodik yeniden eğitim | 5.1, 5.3 |
+| **Uzun vade** | Kendi bitki tanıma modelimiz (dış servis bağımlılığını kaldırmak için) | 5.5 |
+| Uzun vade | Bağlam bilgisi: konum, mevsim ve hava durumu (ör. şeftali yaprak kıvırcıklığı ilkbaharda, serin-nemli havada görülür) ile teşhis olasılıklarını ayarlamak | 5.1, 5.4 |
+| Uzun vade | Sunucuya taşıma, çoklu fotoğraf (farklı açılar), Grad-CAM ile "model yaprağın neresine baktı" görselleştirmesi | 5.7, açıklanabilirlik |
+
+### 5.9 Bu alanda çalışacaklar için öneriler
+
+Aşağıdaki öneriler bu projede yaşanan somut deneyimlerden çıkarıldı ve görüntüden bitki
+hastalığı teşhisi üzerine çalışacak başka ekipler için genellenebilir niteliktedir:
+
+1. **Yüksek test doğruluğuna güvenmeyin, tarlada ölçün.** PlantVillage gibi laboratuvar veri
+   setlerinde %99'a ulaşmak görece kolaydır; asıl başarı ölçütü, kullanıcının telefonla
+   çektiği fotoğraflardaki doğruluktur. Projeye ilk günden küçük de olsa gerçek koşullarda
+   çekilmiş, uzman tarafından etiketlenmiş bir test seti toplayarak başlayın.
+2. **Veri setini hedef bölgenin tarımına göre seçin.** Hazır veri setleri çoğunlukla başka
+   ülkelerin tarımını yansıtır. Önce hedef bölgede hangi bitki ve hastalıkların önemli
+   olduğunu (ör. il tarım müdürlüklerinin hastalık bildirimleri) belirleyin, sonra veri setinin
+   bunları kapsayıp kapsamadığına bakın.
+3. **Sınıflandırıcının güven skorunu "doğruluk" sanmayın.** Softmax güveni, modelin
+   tanımadığı görüntülerde de yüksek çıkabilir. Güven eşiği tek başına yeterli bir güvenlik
+   önlemi değildir; bilinmeyeni tespit etmek için ayrı bir mekanizma planlayın.
+4. **Teşhisi bitkiyle başlatın.** Ziraat mühendisinin yaptığı gibi önce bitkiyi, sonra
+   hastalığı belirleyen iki aşamalı bir yapı, bitkiler arası karışmayı yapısal olarak önler.
+5. **Ziraat uzmanını sürecin başına alın, sonuna değil.** Sınıf seçimi, veri etiketleme,
+   bilgi tabanının doğrulanması ve sistemin çıktılarının değerlendirilmesi alan uzmanlığı
+   gerektirir.
+6. **LLM'e ilaç ve doz önerisi yaptırmayın.** Dil modelleri ikna edici ama yanlış bilgi
+   üretebilir; tarım ilacı dozu gibi insan ve çevre sağlığını etkileyen konularda kesin bilgi
+   yerine ruhsatlı bir uzmana yönlendirme yapılmalıdır.
+7. **Sistemi uçtan uca ve ölçerek test edin.** Her değişiklikten sonra eski akışları da
+   deneyin (Adım 34); yavaşlık gibi sorunlara tahminle değil adım adım süre ölçümüyle
+   yaklaşın (Adım 36); demonun yapılacağı ağ ortamını önceden deneyin (Adım 35).
+8. **Sınırlılıkları gizlemeyin, belgeleyin.** Bir sistemin neyi yapamadığını açıkça
+   bilmek, onu güvenle kullanmanın ön koşuludur.
+
+**(Sunum için kısa özet):** "Modelimiz laboratuvar verisinde %99 başarılı, ama bunun tarladaki
+başarı anlamına gelmediğini biliyoruz. Gerçek bir fotoğrafta sistemin sınırını gördük (şeftali),
+nedenini ölçtük ve bir çözüm ekledik. Sonraki aşamada öncelik: tarladan etiketli test verisi,
+Türkiye'ye özgü hastalıklar ve bir ziraat mühendisiyle değerlendirme."
+
+Güncel iş takibi için `PROGRESS.md`'ye bakılmalı — bu rapor sonuçları ve gerekçeleri belgeler.

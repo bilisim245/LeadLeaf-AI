@@ -29,6 +29,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
@@ -50,6 +51,56 @@ SINIF38_DIR = os.path.join(PROJE_KOKU, "model", "model_38sinif")
 
 RISK_CARPANI = {"dusuk": 0.9, "orta": 1.0, "yuksek": 1.15, "bilinmiyor": 1.0}
 
+# Bitki seçimi /predict'e `bitki` olarak gider -> tahmin o bitkinin sınıflarıyla sınırlanır
+# (kapalı sınıf sorunu, rapor Adım 37). Anahtarlar inference/app.py BITKI_ONEKLERI ile eşleşir.
+BITKI_SECENEKLERI = ["Belirtmek istemiyorum", "Domates", "Patates", "Biber", "Elma", "Şeftali",
+                     "Kiraz", "Üzüm", "Mısır", "Çilek", "Portakal", "Ahududu", "Soya", "Kabak",
+                     "Yaban mersini"]
+DESTEKLENEN_HASTALIKLAR = {
+    "Domates": "erken yanıklık, geç yanıklık, bakteriyel leke, septoria yaprak lekesi, yaprak küfü, "
+               "kırmızı örümcek, hedef leke, sarı yaprak kıvırcıklığı virüsü, mozaik virüsü",
+    "Patates": "erken yanıklık, geç yanıklık",
+    "Biber": "bakteriyel leke",
+    "Elma": "karaleke, kara çürüklük, elma pası",
+    "Üzüm": "kara çürüklük, esca, yaprak yanıklığı",
+    "Mısır": "gri yaprak lekesi, pas, kuzey yaprak yanıklığı",
+    "Şeftali": "bakteriyel leke",
+    "Kiraz": "külleme",
+    "Kabak": "külleme",
+    "Çilek": "yaprak yanıklığı",
+    "Portakal": "turunçgil yeşillenmesi (HLB)",
+    "Yaban mersini, ahududu, soya": "yalnızca sağlıklı yaprak",
+}
+BITKI_TR = {"Tomato": "Domates", "Potato": "Patates", "Pepper,_bell": "Biber", "Apple": "Elma",
+            "Peach": "Şeftali", "Cherry_(including_sour)": "Kiraz", "Grape": "Üzüm",
+            "Corn_(maize)": "Mısır", "Strawberry": "Çilek", "Orange": "Portakal",
+            "Raspberry": "Ahududu", "Soybean": "Soya", "Squash": "Kabak", "Blueberry": "Yaban mersini"}
+
+
+@st.cache_data
+def _tr_adlar() -> dict:
+    """inference/app.py'deki TR_ADLAR sözlüğünü TensorFlow'u import ETMEDEN okur (ast ile)."""
+    import ast
+    with open(os.path.join(PROJE_KOKU, "inference", "app.py"), encoding="utf-8") as f:
+        agac = ast.parse(f.read())
+    for dugum in agac.body:
+        if isinstance(dugum, ast.Assign) and getattr(dugum.targets[0], "id", "") == "TR_ADLAR":
+            return ast.literal_eval(dugum.value)
+    return {}
+
+
+LACIVERT, ACIK_MAVI = "#1B3A6B", "#8FB4E8"
+DURUM_RENK = alt.Scale(domain=["Hastalıklı", "Sağlıklı"], range=[LACIVERT, ACIK_MAVI])
+
+
+def _saglikli(sinif: str) -> bool:
+    return sinif.endswith("___healthy")
+
+
+def _tanimsiz(sinif: str) -> bool:
+    """Bitki filtresi 'bilinen sınıflara benzemiyor' dediyse (bkz. inference/app.py)."""
+    return sinif.endswith("___Tanimsiz") or sinif == "Desteklenmeyen_bitki"
+
 
 @st.cache_resource
 def get_db() -> DB:
@@ -67,7 +118,7 @@ def _risk_skoru(hastalik: str, guven: float, hava_riski: str, kume_sayisi: int) 
     """Basit, ŞEFFAF bir sezgisel formül — ML tahmini DEĞİL.
     hastalik saglikliysa risk dusuk baz alinir; degilse guven kendisi risk baz alinir.
     Hava durumu (mantar riski) ve bolgesel kumelenme carpani/ek puan ekler."""
-    baz = guven if hastalik != "Tomato___healthy" else max(5.0, 100 - guven)
+    baz = guven if not _saglikli(hastalik) else max(5.0, 100 - guven)
     carpan = RISK_CARPANI.get(hava_riski, 1.0)
     kume_bonus = min(20.0, kume_sayisi * 5.0)
     return round(min(100.0, baz * carpan + kume_bonus), 1)
@@ -101,9 +152,35 @@ def _risk_durum_kutusu(risk: float, mesaj: str) -> None:
         st.error(mesaj)
 
 
-st.set_page_config(page_title="LeadLeaf AI — Tarla 360", page_icon="🍅", layout="wide")
+st.set_page_config(page_title="LeadLeaf AI — Tarla 360", page_icon="🌿", layout="wide")
 
-st.title("🍅 LeadLeaf AI — Tarla 360")
+# Renkler .streamlit/config.toml'daki lacivert temadan gelir; burada yalnızca başlık bandı ve
+# metrik kartları için küçük bir stil var.
+st.markdown(
+    """
+<style>
+  .ll-hero {background: linear-gradient(120deg, #0F2347 0%, #1B3A6B 60%, #2E5A9A 100%);
+            color: #FFFFFF; padding: 1.4rem 1.8rem; border-radius: 14px; margin-bottom: 1.2rem;}
+  .ll-hero h1 {color: #FFFFFF; font-size: 2.0rem; margin: 0; padding: 0;}
+  .ll-hero p {color: #D6E2F3; margin: .35rem 0 .8rem 0; font-size: 1.02rem;}
+  .ll-rozet {display: inline-block; background: rgba(255,255,255,.14); color: #FFFFFF;
+             border: 1px solid rgba(255,255,255,.25); border-radius: 999px;
+             padding: .18rem .75rem; margin: 0 .35rem .3rem 0; font-size: .85rem;}
+  div[data-testid="stMetric"] {background: #EEF2F8; border: 1px solid #D5DEEB;
+             border-left: 4px solid #1B3A6B; border-radius: 10px; padding: .7rem .9rem;}
+  div[data-testid="stMetricValue"] {color: #0F2347;}
+</style>
+<div class="ll-hero">
+  <h1>🌿 LeadLeaf AI — Tarla 360</h1>
+  <p>Yaprak fotoğrafından yapay zekâ destekli bitki hastalığı ön değerlendirmesi</p>
+  <span class="ll-rozet">EfficientNetB0 · 38 sınıf</span>
+  <span class="ll-rozet">14 bitki · 26 hastalık</span>
+  <span class="ll-rozet">Test doğruluğu %99,02</span>
+  <span class="ll-rozet">RAG + Claude raporu</span>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
 tab_analiz, tab_veri, tab_karsilastirma = st.tabs(
     ["🔎 Analiz", "📊 Veri Analizi", "🔬 Model Karşılaştırma"]
@@ -125,7 +202,15 @@ with tab_analiz:
         isim = st.text_input("Çiftçi adı", value="Ahmet")
         il = st.text_input("İl", value="Antalya")
         ilce = st.text_input("İlçe", value="Serik")
-        urun = st.text_input("Ürün", value="domates")
+        bitki_secimi = st.selectbox("Bitki", BITKI_SECENEKLERI, index=1)
+        st.caption("Bitki seçilirse teşhis yalnızca o bitkinin hastalıkları arasından yapılır; "
+                   "yaprak bu bitkinin bilinen sınıflarına benzemiyorsa sistem uydurma teşhis "
+                   "koymaz, uzmana yönlendirir.")
+        with st.expander("🌱 Tanınan bitki ve hastalıklar"):
+            for b, h in DESTEKLENEN_HASTALIKLAR.items():
+                st.markdown(f"**{b}:** {h}")
+            st.caption("14 bitki, 26 hastalık + sağlıklı yaprak. Listede olmayan hastalıklar tanınamaz.")
+        urun = "" if bitki_secimi == BITKI_SECENEKLERI[0] else bitki_secimi
 
     st.header("📸 Fotoğraf")
     yuklenen = st.file_uploader("Yaprak fotoğrafı yükle", type=["jpg", "jpeg", "png"])
@@ -148,6 +233,7 @@ with tab_analiz:
                 r = requests.post(
                     f"{INFERENCE_URL}/predict",
                     files={"file": ("yaprak.jpg", buf, "image/jpeg")},
+                    data={"bitki": urun},
                     timeout=30,
                 )
                 r.raise_for_status()
@@ -175,18 +261,20 @@ with tab_analiz:
         db = get_db()
         uid = _demo_user_id(isim, il, ilce)
         db.upsert_user(uid, isim, il=il, ilce=ilce)
-        fid = db.get_or_create_default_field(uid, crop=urun or "domates")
+        fid = db.get_or_create_default_field(uid, crop=(urun or "belirtilmedi").lower())
         db.add_observation(uid, fid, hastalik=cnn["hastalik"], guven=cnn["guven"] / 100,
                             baglam={"il": il, "ilce": ilce}, ozet=rapor.get("aciklama", ""))
         gecmis = db.history(uid, fid, limit=10)
+        tanimsiz = _tanimsiz(cnn["hastalik"])
         kume_sayisi = (db.recent_cluster(cnn["hastalik"], ilce, gun=7)
-                       if cnn["hastalik"] != "Tomato___healthy" else 0)
+                       if not (_saglikli(cnn["hastalik"]) or tanimsiz) else 0)
 
         with st.spinner("Hava durumu kontrol ediliyor..."):
             hava = weather_summary(f"{ilce}, {il}")
 
-        risk = _risk_skoru(cnn["hastalik"], cnn["guven"],
-                            hava.get("mantar_riski", "bilinmiyor"), kume_sayisi)
+        # Tanımsız belirtide güven ~%0 -> formül "düşük risk" derdi; bu yanıltıcı olur, hesaplanmaz.
+        risk = None if tanimsiz else _risk_skoru(cnn["hastalik"], cnn["guven"],
+                                                 hava.get("mantar_riski", "bilinmiyor"), kume_sayisi)
 
         st.divider()
         st.header("🔎 Tespit Sonucu")
@@ -194,15 +282,26 @@ with tab_analiz:
         c1, c2, c3 = st.columns(3)
         c1.metric("Hastalık", cnn["hastalik_tr"])
         c2.metric("Model güveni", f"%{cnn['guven']}")
-        c3.metric("Risk skoru (hava + bölge dahil)", f"%{risk}")
+        c3.metric("Risk skoru (hava + bölge dahil)", "—" if risk is None else f"%{risk}")
 
-        _risk_durum_kutusu(
-            risk,
-            f"**{cnn['hastalik_tr']}** — risk seviyesi "
-            f"{'düşük' if risk < 30 else 'orta' if risk < 60 else 'yüksek'}."
-            + (" ⚠️ Bir ziraat mühendisine danışmanız önerilir."
-               if cnn.get("uzmana_yonlendir") else ""),
-        )
+        if cnn.get("bitki"):
+            st.caption(f"🌱 Bitki filtresi: **{cnn['bitki']}** — bu bitkinin sınıflarına düşen "
+                       f"toplam olasılık %{cnn.get('bitki_uyumu')}")
+
+        if tanimsiz:
+            st.error(
+                f"**{cnn['hastalik_tr']}** — yaprak, bu bitkinin sistemde tanımlı sınıflarına "
+                "benzemiyor. Tanınmayan bir hastalık olabilir; sistem teşhis uydurmuyor. "
+                "⚠️ Bir ziraat mühendisine danışmanız önerilir."
+            )
+        else:
+            _risk_durum_kutusu(
+                risk,
+                f"**{cnn['hastalik_tr']}** — risk seviyesi "
+                f"{'düşük' if risk < 30 else 'orta' if risk < 60 else 'yüksek'}."
+                + (" ⚠️ Bir ziraat mühendisine danışmanız önerilir."
+                   if cnn.get("uzmana_yonlendir") else ""),
+            )
 
         st.subheader("Açıklama")
         st.write(rapor.get("aciklama", "-"))
@@ -254,21 +353,20 @@ with tab_analiz:
             st.metric("Mantar hastalığı riski", risk_etiket)
             st.text(hava.get("ozet_metni", "-"))
 
-        st.subheader("🎯 Riski düşürmek için ne yapmalı?")
-        st.caption("(kural tabanlı senaryo — ML tahmini DEĞİL)")
-        st.dataframe(_senaryo_tablosu(risk), use_container_width=True, hide_index=True)
+        if risk is not None:
+            st.subheader("🎯 Riski düşürmek için ne yapmalı?")
+            st.caption("(kural tabanlı senaryo — ML tahmini DEĞİL)")
+            st.dataframe(_senaryo_tablosu(risk), width="stretch", hide_index=True)
 
         benzerler = cnn.get("benzer_gorseller", [])
-        st.subheader("🖼️ Benzer referans görseller")
-        st.caption("(görsel RAG — modelin öğrendiği özniteliklerle en yakın örnekler)")
         if benzerler:
+            st.subheader("🖼️ Benzer referans görseller")
+            st.caption("(görsel RAG — modelin öğrendiği özniteliklerle en yakın örnekler)")
             cols = st.columns(len(benzerler))
             for col, it in zip(cols, benzerler):
                 yol = os.path.join(DEMO_IMAGES_DIR, it["dosya"])
                 if os.path.exists(yol):
                     col.image(yol, caption=f"{it['sinif']} — %{it['benzerlik']}")
-        else:
-            st.caption("Henüz yok — gerçek model + referans görseller eklenince burada görünecek.")
 
         with st.expander("🔧 Ham CNN çıktısı (debug)"):
             st.json(cnn)
@@ -281,24 +379,94 @@ with tab_analiz:
 # =====================================================================
 with tab_veri:
     st.caption(
-        "`notebooks/00_veri_kesfi.py` Colab'da çalıştırılıp indirilen "
-        "`eda_ciktilari.zip` içeriği `report/eda_ciktilari/` klasörüne çıkarılınca "
-        "burası otomatik dolar. Amaç: modele geçmeden veriyi VARSAYIMLA değil "
-        "SAYIYLA incelemek — sınıf dengesizliği, görsel kalitesi, bozuk/tekrar "
-        "eden görsel kontrolü."
+        "Üretimdeki 38 sınıflı modelin eğitildiği veri — PlantVillage (ham, "
+        "abdallahalidev/plantvillage-dataset). Sayılar eğitim sırasında kaydedilen "
+        "`model/model_38sinif/split_manifest.json` dosyasından okunur: veri VARSAYIMLA "
+        "değil SAYIYLA inceleniyor."
     )
 
-    ozet_json_yolu = os.path.join(EDA_DIR, "veri_ozeti.json")
-    if not os.path.exists(ozet_json_yolu):
+    manifest_yolu = os.path.join(SINIF38_DIR, "split_manifest.json")
+    if os.path.exists(manifest_yolu):
+        with open(manifest_yolu, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+        sayilar = manifest["sayilar"]  # {"train": {sinif: n}, "valid": {...}, "test": {...}}
+        siniflar = list(sayilar["train"])
+        df_s = pd.DataFrame([
+            {"Sınıf": s, "Bitki": BITKI_TR.get(s.split("___")[0], s.split("___")[0]),
+             "Durum": "Sağlıklı" if _saglikli(s) else "Hastalıklı",
+             "Eğitim": sayilar["train"].get(s, 0), "Doğrulama": sayilar["valid"].get(s, 0),
+             "Test": sayilar["test"].get(s, 0)}
+            for s in siniflar
+        ])
+        df_s["Toplam"] = df_s[["Eğitim", "Doğrulama", "Test"]].sum(axis=1)
+        en_kucuk, en_buyuk = df_s.loc[df_s["Toplam"].idxmin()], df_s.loc[df_s["Toplam"].idxmax()]
+
+        st.subheader("📌 Genel özet — 38 sınıf")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Toplam görsel", f"{int(df_s['Toplam'].sum()):,}".replace(",", "."))
+        c2.metric("Bitki / sınıf", f"{df_s['Bitki'].nunique()} / {len(df_s)}")
+        c3.metric("Hastalık sınıfı", int((df_s["Durum"] == "Hastalıklı").sum()))
+        c4.metric("Dengesizlik (en büyük / en küçük)",
+                  f"{en_buyuk['Toplam'] / en_kucuk['Toplam']:.0f}x")
+
+        oranlar = manifest.get("oranlar", {})
+        st.info(
+            f"**Bölme:** her sınıf kendi içinde %{int(oranlar.get('train', .7) * 100)} eğitim / "
+            f"%{int(oranlar.get('valid', .15) * 100)} doğrulama / "
+            f"%{int(oranlar.get('test', .15) * 100)} test olarak TEK SEFERDE, sabit tohumla "
+            f"(seed={manifest.get('seed')}) bölündü. Test görselleri eğitimde hiç kullanılmadı; "
+            "hangi dosyanın nereye düştüğü manifest'te kayıtlı (tekrarlanabilirlik + sızıntı denetimi)."
+        )
+
+        st.subheader("🌱 Bitki bazında görsel sayısı")
+        df_bitki = df_s.groupby(["Bitki", "Durum"], as_index=False)["Toplam"].sum()
+        # Sıralama için bitki toplamını ayrı sütun olarak veriyoruz (yığılmış çubukta "-x" güvenilir değil)
+        bitki_sirasi = (df_bitki.groupby("Bitki")["Toplam"].sum()
+                        .sort_values(ascending=False).index.tolist())
+        st.altair_chart(
+            alt.Chart(df_bitki).mark_bar().encode(
+                x=alt.X("Toplam:Q", stack="zero", title="Görsel sayısı"),
+                y=alt.Y("Bitki:N", sort=bitki_sirasi, title=None),
+                color=alt.Color("Durum:N", scale=DURUM_RENK, legend=alt.Legend(orient="bottom", title=None)),
+                tooltip=["Bitki", "Durum", alt.Tooltip("Toplam:Q", format=",")],
+            ).properties(height=420),
+            use_container_width=True,
+        )
+        st.subheader("⚖️ Sınıf dengesizliği")
+        tr = _tr_adlar()
+        df_s["Etiket"] = [
+            f"{b} — {'Sağlıklı' if _saglikli(s) else tr.get(s, s).split(' (')[0]}"
+            for s, b in zip(df_s["Sınıf"], df_s["Bitki"])
+        ]
+        st.altair_chart(
+            alt.Chart(df_s).mark_bar(cornerRadiusEnd=3).encode(
+                x=alt.X("Toplam:Q", title="Görsel sayısı"),
+                y=alt.Y("Etiket:N", sort="-x", title=None, axis=alt.Axis(labelLimit=260)),
+                color=alt.Color("Durum:N", scale=DURUM_RENK, legend=None),
+                tooltip=["Sınıf", "Durum", alt.Tooltip("Toplam:Q", format=",")],
+            ).properties(height=760),
+            use_container_width=True,
+        )
+        st.caption(f"En küçük sınıf: {en_kucuk['Sınıf']} ({en_kucuk['Toplam']}) · "
+                   f"en büyük: {en_buyuk['Sınıf']} ({en_buyuk['Toplam']:,})".replace(",", "."))
+
+        with st.expander("📋 Sınıf bazında tam tablo"):
+            st.dataframe(df_s.sort_values("Toplam", ascending=False),
+                         width="stretch", hide_index=True)
+
         st.warning(
-            "⚠️ Henüz veri analizi çıktısı yok.\n\n"
-            "**Nasıl doldurulur:** Google Colab'da `notebooks/00_veri_kesfi.py`'yi "
-            "çalıştır (önce `01_train_model_colab.py`'deki veri indirme hücresini "
-            "çalıştırmış olman gerekir) → inen `eda_ciktilari.zip`'i aç → "
-            "içindekileri projede `report/eda_ciktilari/` klasörüne kopyala → "
-            "bu sayfayı yenile."
+            "**Veri setinin sınırlılıkları** (rapor Bölüm 5): görseller laboratuvar koşullarında "
+            "(tek yaprak, sade arkaplan) çekilmiş — tarladaki başarı ayrıca ölçülmeli. Türkiye'de "
+            "önemli birçok hastalık (ör. üzüm mildiyösü, şeftali yaprak kıvırcıklığı) ve bitki "
+            "(zeytin, fındık, buğday) veri setinde yok."
         )
     else:
+        st.info("38 sınıf eğitim manifest'i bulunamadı (`model/model_38sinif/split_manifest.json`).")
+
+    ozet_json_yolu = os.path.join(EDA_DIR, "veri_ozeti.json")
+    if os.path.exists(ozet_json_yolu):
+        st.divider()
+        st.header("🍅 İlk aşama: domates alt kümesi keşifsel analizi")
         with open(ozet_json_yolu, "r", encoding="utf-8") as f:
             ozet = json.load(f)
 
@@ -314,7 +482,7 @@ with tab_veri:
             [{"Sınıf": k, "Görsel sayısı": v} for k, v in ozet["domates_sayilar"].items()]
         )
         st.bar_chart(df_sinif.set_index("Sınıf"))
-        st.dataframe(df_sinif, use_container_width=True, hide_index=True)
+        st.dataframe(df_sinif, width="stretch", hide_index=True)
 
         gb = ozet.get("gorsel_boyutu", {})
         st.subheader("📐 Görsel boyutu")
@@ -332,7 +500,7 @@ with tab_veri:
                      "eğitimden önce temizlenmesi önerilir.")
         else:
             st.success("Bozuk/açılamayan görsel bulunamadı.")
-        st.dataframe(df_bozuk, use_container_width=True, hide_index=True)
+        st.dataframe(df_bozuk, width="stretch", hide_index=True)
 
         st.subheader("🔁 Tekrar eden (duplicate) görsel kontrolü")
         st.caption(
@@ -344,7 +512,7 @@ with tab_veri:
              "Oran (%)": v["oran_yuzde"]}
             for k, v in ozet.get("tekrar_eden", {}).items()
         ])
-        st.dataframe(df_tekrar, use_container_width=True, hide_index=True)
+        st.dataframe(df_tekrar, width="stretch", hide_index=True)
         yuksek_tekrar = df_tekrar[df_tekrar["Oran (%)"] > 5] if not df_tekrar.empty else df_tekrar
         if not yuksek_tekrar.empty:
             st.warning(f"⚠️ {len(yuksek_tekrar)} sınıfta %5'in üzerinde tekrar oranı — "
@@ -360,7 +528,7 @@ with tab_veri:
         ]:
             yol = os.path.join(EDA_DIR, dosya)
             if os.path.exists(yol):
-                st.image(yol, caption=baslik, use_container_width=True)
+                st.image(yol, caption=baslik, width="stretch")
 
         with st.expander("📄 Ham özet (veri_ozeti.txt)"):
             txt_yolu = os.path.join(EDA_DIR, "veri_ozeti.txt")
@@ -373,34 +541,55 @@ with tab_veri:
 # =====================================================================
 with tab_karsilastirma:
     st.caption(
-        "Aynı fotoğraf `/predict_compare` üzerinden üç modele birden (MobileNetV2, "
-        "MobileNetV3Small, EfficientNetB0 — `notebooks/01_train_model_colab.py`'nin "
-        "TÜBİTAK sürümünde aynı split/koşullarla eğitilir) gönderilir. Model "
-        "uzlaşması ve %70 güven eşiği **kural tabanlı** yorumlanır — bu bir ML "
-        "tahmini değil, üç sonucu birleştiren açıklanabilir bir karardır."
+        "İki aşamalı deney: **(1)** üç mimari (MobileNetV2, MobileNetV3Small, EfficientNetB0) "
+        "domatesin 5 sınıfında AYNI veri bölmesi ve AYNI eğitim koşullarıyla karşılaştırıldı → "
+        "EfficientNetB0 seçildi; **(2)** seçilen mimari PlantVillage'ın 38 sınıfına (14 bitki) "
+        "genişletilip üretime alındı. Tüm metrikler eğitimde hiç kullanılmamış bağımsız test "
+        "setinde ölçüldü."
     )
+
+    sinif38_csv = os.path.join(SINIF38_DIR, "model_comparison.csv")
+    if os.path.exists(sinif38_csv):
+        st.subheader("🚀 Üretimdeki model — EfficientNetB0, 38 sınıf")
+        m38 = pd.read_csv(sinif38_csv).iloc[0]
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Test doğruluğu", f"%{m38['dogruluk'] * 100:.2f}".replace(".", ","))
+        c2.metric("Macro F1", f"%{m38['macro_f1'] * 100:.2f}".replace(".", ","))
+        c3.metric("Macro AUC", f"%{m38['macro_auc'] * 100:.2f}".replace(".", ","))
+        c4.metric("Model boyutu", f"{m38['model_boyutu_mb']:.1f} MB".replace(".", ","))
+        c5.metric("Görüntü başına süre", f"{m38['ort_inference_ms']:.0f} ms")
+        col_cm38, col_egri38 = st.columns(2)
+        for col, dosya, baslik in [
+            (col_cm38, "confusion_matrix_EfficientNetB0_38sinif.png", "Confusion Matrix (bağımsız test seti)"),
+            (col_egri38, "ogrenme_egrisi_EfficientNetB0_38sinif.png", "Öğrenme eğrisi (doğruluk + kayıp)"),
+        ]:
+            yol = os.path.join(SINIF38_DIR, dosya)
+            if os.path.exists(yol):
+                col.image(yol, caption=baslik, width="stretch")
+        st.caption("⚠️ Bu doğruluk laboratuvar koşullarındaki test görsellerinde ölçüldü; tarla "
+                   "fotoğraflarındaki başarı ayrıca ölçülmelidir (rapor 5.3).")
+        st.divider()
 
     karsilastirma_csv = os.path.join(TUBITAK_DIR, "model_comparison.csv")
     if os.path.exists(karsilastirma_csv):
-        st.subheader("📈 Test seti doğruluğu — 3 model (Colab çıktısı)")
+        st.subheader("🏁 Mimari seçimi — 3 model, domates 5 sınıf (aynı koşullar)")
         df_test_sonuc = pd.read_csv(karsilastirma_csv)
         st.bar_chart(df_test_sonuc.set_index("model")[["dogruluk", "macro_f1", "macro_auc"]])
         st.dataframe(
             df_test_sonuc[["model", "dogruluk", "macro_precision", "macro_recall",
                             "macro_f1", "macro_auc", "model_boyutu_mb", "ort_inference_ms"]],
-            use_container_width=True, hide_index=True,
+            width="stretch", hide_index=True,
         )
         grafik_yolu = os.path.join(TUBITAK_DIR, "model_karsilastirma_dogruluk.png")
         if os.path.exists(grafik_yolu):
-            st.image(grafik_yolu, use_container_width=True)
+            st.image(grafik_yolu, width="stretch")
 
         st.subheader("🔍 Model bazında detaylı grafikler")
         MODEL_GRAFIK_SECENEKLERI = {
             "MobileNetV2": "MobileNetV2",
             "MobileNetV3Small": "MobileNetV3Small",
             "EfficientNetB0 (temel tarif)": "EfficientNetB0",
-            "EfficientNetB0 (gelişmiş fine-tuning — üretimde kullanılan)": "EfficientNetB0_gelismis",
-            "EfficientNetB0 (38 sınıf deneyi — ayrı, deneysel)": "EfficientNetB0_38sinif",
+            "EfficientNetB0 (gelişmiş fine-tuning, 5 sınıf — %97,62)": "EfficientNetB0_gelismis",
         }
         secilen_etiket = st.selectbox(
             "Hangi modelin confusion matrix'ini ve öğrenme eğrisini görmek istersin?",
@@ -414,12 +603,12 @@ with tab_karsilastirma:
         egri_yolu = os.path.join(TUBITAK_DIR, f"ogrenme_egrisi_{secilen_dosya_eki}.png")
         with col_cm:
             if os.path.exists(cm_yolu):
-                st.image(cm_yolu, caption="Confusion Matrix (bağımsız test seti)", use_container_width=True)
+                st.image(cm_yolu, caption="Confusion Matrix (bağımsız test seti)", width="stretch")
             else:
                 st.info("Bu model için confusion matrix henüz yok.")
         with col_egri:
             if os.path.exists(egri_yolu):
-                st.image(egri_yolu, caption="Öğrenme Eğrisi (doğruluk + kayıp)", use_container_width=True)
+                st.image(egri_yolu, caption="Öğrenme Eğrisi (doğruluk + kayıp)", width="stretch")
             else:
                 st.info("Bu model için öğrenme eğrisi henüz yok.")
 
@@ -427,7 +616,7 @@ with tab_karsilastirma:
             onceki_gelismis_yolu = os.path.join(TUBITAK_DIR, "efficientnetb0_onceki_vs_gelismis.png")
             if os.path.exists(onceki_gelismis_yolu):
                 st.image(onceki_gelismis_yolu, caption="Önceki tarif vs Gelişmiş tarif (5 metrik)",
-                          use_container_width=True)
+                          width="stretch")
 
         st.divider()
     else:
@@ -436,25 +625,10 @@ with tab_karsilastirma:
             "çalışıp `model_comparison.csv` `model/tubitak/`'a konunca burada otomatik görünür."
         )
 
-    sinif38_csv = os.path.join(SINIF38_DIR, "model_comparison.csv")
-    if os.path.exists(sinif38_csv):
-        st.subheader("🧪 38 Sınıf Deneyi (ayrı, deneysel — üretimden bağımsız)")
-        st.caption(
-            "Kapsam genişletme denemesi: yukarıdaki 3 model 5 sınıfı (domates + 4 hastalık) "
-            "ayırt ediyor, buradaki tek model ise PlantVillage'ın TÜM 38 sınıfını (14 bitki). "
-            "Farklı zorlukta bir görev olduğu için doğruluk sayıları yukarıdakiyle **doğrudan "
-            "kıyaslanamaz** — ayrı bir satır olarak, kendi bağlamında gösteriliyor. Bu model "
-            "henüz üretim `/predict`'ine bağlı DEĞİL, sadece izole test edildi."
-        )
-        df_38 = pd.read_csv(sinif38_csv)
-        st.dataframe(
-            df_38[["model", "dogruluk", "macro_precision", "macro_recall",
-                    "macro_f1", "macro_auc", "model_boyutu_mb", "ort_inference_ms"]],
-            use_container_width=True, hide_index=True,
-        )
-        st.divider()
-
-    st.subheader("🖼️ Tek fotoğrafla canlı karşılaştırma")
+    st.subheader("🖼️ Tek fotoğrafla canlı karşılaştırma (3 mimari)")
+    st.caption("Bu üç model domatesin 5 sınıfıyla (sağlıklı, erken/geç yanıklık, bakteriyel leke, "
+               "septoria) eğitildi — **yalnızca domates yaprağı yükleyin.** Model uzlaşması ve %70 "
+               "güven eşiği kural tabanlı yorumlanır (ML tahmini değil).")
     karsilastirma_foto = st.file_uploader(
         "Yaprak fotoğrafı yükle", type=["jpg", "jpeg", "png"], key="karsilastirma_uploader"
     )
@@ -513,7 +687,7 @@ with tab_karsilastirma:
             }
             for s in sonuclar
         ])
-        st.dataframe(df_karsilastirma, use_container_width=True, hide_index=True)
+        st.dataframe(df_karsilastirma, width="stretch", hide_index=True)
 
         st.subheader("🤝 Model uzlaşması")
         durum_etiket = {"tam": "Tam uzlaşma", "kismi": "Kısmi uzlaşma", "yok": "Uzlaşma yok"}

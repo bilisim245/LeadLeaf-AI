@@ -17,6 +17,19 @@ Kod tarafı hazır ve canlıda; n8n canlı akışı (`SuklzMNlxzUJN6xQ`) hâlâ 
 7. Her adımdan sonra Publish → Telegram'dan "merhaba" + fotoğraf testi
 
 n8n DB yedeği (değişikliklerden önce): `~/.n8n/database.sqlite.bak_20260924_2350`.
+
+**Gece yapılanlar (Claude, 2026-09-25 00:00–01:00):**
+- **Streamlit yenilendi** (`b059497`): lacivert tema (`.streamlit/config.toml`), başlık bandı;
+  bitki seçimi → `/predict` bitki filtresi (jüriye canlı gösterilebilir); tanımsız belirtide
+  yanlış "düşük risk / yeşil" hatası düzeltildi; Veri Analizi sekmesi 38 sınıf gerçek verisiyle
+  (bitki bazında + sınıf dengesizliği grafikleri); Model Karşılaştırma'da üretim modeli en üstte.
+  AppTest ile 3 sekme hatasız. Çalıştırma: `.venv\Scripts\python -m streamlit run ui/app.py`
+- ⚠️ **Projede `.env` YOK** → Streamlit'teki rapor Claude yerine yerel şablonla üretiliyor.
+  `.env.example`'ı `.env` olarak kopyalayıp `ANTHROPIC_API_KEY=` satırına anahtarı yazın
+  (Telegram botu anahtarını n8n'den aldığı için etkilenmiyor).
+- **Sunum** (15 slayt, lacivert): https://claude.ai/artifact/Y9BViQpSpPqTmtNRSGMrFE —
+  yer tutucular: `[Ad Soyad]`, `[Okul / Program]`, `[@bot_adı]`; slayt 12'deki ~%31 (Mohanty
+  2016) makaleden doğrulanmalı. Konuşmacı notları her slaytta var.
 Sonra Claude: uçtan uca test + yanıt süresi ölçümü → rapor 5.7. Ardından: BotFather, gerçek
 fotoğraf testi (10–15 adet), slaytlar, demo videosu. Pl@ntNet YOK (sonraki aşama kararı).
 

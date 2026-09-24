@@ -1,6 +1,24 @@
 # İLERLEME — LeadLeaf AI (Bitki Hastalığı Ön Değerlendirme Sistemi)
 
-**Son güncelleme:** 2026-09-24
+**Son güncelleme:** 2026-09-24 (gece)
+
+## ☀️ SABAH İLK İŞ (2026-09-25) — n8n değişiklikleri HENÜZ YAPILMADI
+
+Kod tarafı hazır ve canlıda; n8n canlı akışı (`SuklzMNlxzUJN6xQ`) hâlâ 24 Eylül 19:56 hâlinde
+(13 düğüm). Rehber: **`n8n/profesyonel_gorunum.md`** — sırayla:
+1. Rapor kodu (`n8n/rapor_ayristir_kod.js`) + "Telegram - Cevap Gönder" → Text
+   `{{ $json.telegram_mesaji }}`, Parse Mode HTML; Cevap Gönder'i Sheets'in ÜSTÜNE taşı
+2. "Telegram - İnceleniyor" (Fotoğrafı İndir'e PARALEL, üstünde) + "Telegram - Ön Tespit"
+   (Edit Message Text, RAG Context'e PARALEL, üstünde)
+3. `/start` + `/yardim` → "Komut mu?" IF + "Telegram - Karşılama" (bitki/hastalık listesi)
+4. Predict CNN → Form Data `bitki` = `{{ $('Telegram Trigger').item.json.message.caption || '' }}`
+5. Sheets: `neden`, `model_surumu` sütunları + `tarih` → `$now.setZone('Europe/Istanbul')`
+6. Deneysel akışı (`YeZ4MA5eGNSHwO6E`) arşivle (silme)
+7. Her adımdan sonra Publish → Telegram'dan "merhaba" + fotoğraf testi
+
+n8n DB yedeği (değişikliklerden önce): `~/.n8n/database.sqlite.bak_20260924_2350`.
+Sonra Claude: uçtan uca test + yanıt süresi ölçümü → rapor 5.7. Ardından: BotFather, gerçek
+fotoğraf testi (10–15 adet), slaytlar, demo videosu. Pl@ntNet YOK (sonraki aşama kararı).
 
 ## ▶ KALDIĞIMIZ YER — evde devam (2026-09-24 akşam, sunum 2026-09-28)
 

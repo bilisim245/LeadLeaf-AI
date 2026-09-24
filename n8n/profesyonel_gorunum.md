@@ -1,6 +1,6 @@
 # Botun profesyonel görünümü — uygulama rehberi
 
-Dört iş: (1) anında "inceleniyor" mesajı, (2) düzenli rapor mesajı, (3) bot kimliği +
+Dört iş: (1) anında "inceleniyor" mesajı + ön tespit, (2) düzenli rapor mesajı, (3) bot kimliği +
 `/start` karşılama mesajı, (4) yedek demo videosu. Her adımdan sonra **Publish**.
 
 > **n8n'de sıra kuralı:** Bir düğümün çıkışından birden fazla düğüme bağlantı varsa n8n bu
@@ -14,26 +14,7 @@ Dört iş: (1) anında "inceleniyor" mesajı, (2) düzenli rapor mesajı, (3) bo
 1. "Fotoğraf var mı?" düğümünün **true** çıkışından yeni bir **Telegram** düğümü ekleyin
    → *Send a text message*. Adı: `Telegram - İnceleniyor`.
    - **Chat ID** (Expression): `{{ $json.message.chat.id }}`
-   - **Text** (Expression) — beklerken Mevlâna'dan rastgele bir söz gösterir:
-
-```
-🔍 Yaprağınız inceleniyor… Raporunuz yaklaşık 20 saniye içinde hazır olacak.
-
-{{ (() => { const sozler = [
-  { soz: "SÖZ 1", kaynak: "Mesnevî, c. _, b. ____" },
-  { soz: "SÖZ 2", kaynak: "Mesnevî, c. _, b. ____" },
-  { soz: "SÖZ 3", kaynak: "Mesnevî, c. _, b. ____" }
-]; const s = sozler[Math.floor(Math.random() * sozler.length)];
-return '🌾 "' + s.soz + '"\n— Mevlâna, ' + s.kaynak; })() }}
-```
-
-   > ⚠️ **Sözleri güvenilir bir çeviriden (ör. Abdülbâki Gölpınarlı, *Mesnevî ve Şerhi*)
-   > cilt/beyit numarasıyla alın.** Mevlâna'ya atfedilen popüler sözlerin bir kısmı onun
-   > eserlerinde geçmez (en bilinen örnek: "Ne olursan ol yine gel"). İnternetteki listeler
-   > çoğunlukla İngilizce "Rumi quotes" çevirileridir; kaynağı olmayan söz eklemeyin.
-   > Tarım botuna uygun temalar: sabır, emek, toprak, tohum, bahar, büyüme.
-   > Listeye istediğiniz kadar söz ekleyebilirsiniz; her satır `{ soz: "...", kaynak: "..." },`
-   > biçiminde olmalı ve sözün içinde çift tırnak (") kullanılmamalı.
+   - **Text**: `🔍 Yaprağınız inceleniyor…`
    - *Add Field → Append n8n Attribution* seçeneği varsa **kapalı** yapın (mesajın altına
      "This message was sent automatically with n8n" yazmasın).
 2. **true** çıkışının "Fotoğrafı İndir"e giden bağlantısı **kalsın** — true çıkışından artık
@@ -43,6 +24,53 @@ return '🌾 "' + s.soz + '"\n— Mevlâna, ' + s.kaynak; })() }}
 ⚠️ Bu düğümü "Fotoğrafı İndir"in **önüne seri olarak** koymayın: "Fotoğrafı İndir" fotoğrafı
 kendisinden önceki düğümün verisinden (`$json.message.photo`) okuyor, araya giren düğüm bunu
 bozar.
+
+## 1b. Ön tespiti hemen göstermek (aynı mesajı güncelleyerek)
+
+CNN sonucu 2–3 saniyede geliyor; Claude'un raporu ~15 saniye sürüyor. Kullanıcıyı beklemek
+yerine "inceleniyor" mesajı, CNN sonucu gelir gelmez **yerinde güncellenir**:
+
+```
+✅ Ön tespit: Geç Yanıklık (Late Blight) (%97,5)
+📚 Kaynaklar taranıyor, ayrıntılı rapor hazırlanıyor…
+
+💡 Fotoğrafta tek bir yaprak olsun ve ekranın büyük kısmını kaplasın.
+```
+
+1. **"HTTP Request - Predict CNN"** düğümünün çıkışından yeni bir **Telegram** düğümü
+   ekleyin → *Edit a text message* (Edit Message Text). Adı: `Telegram - Ön Tespit`.
+   - **Message Type**: Message (inline değil)
+   - **Chat ID** (Expression): `{{ $('Telegram Trigger').first().json.message.chat.id }}`
+   - **Message ID** (Expression): `{{ $('Telegram - İnceleniyor').first().json.result.message_id }}`
+   - **Text** (Expression):
+
+```
+{{ (() => {
+  const ipuclari = [
+    'En doğru sonuç için yaprağı gün ışığında ama doğrudan güneş altında değil, gölgede çekin.',
+    'Fotoğrafta tek bir yaprak olsun ve ekranın büyük kısmını kaplasın.',
+    'Lekeli yüzeyi net görünecek şekilde, yaprağa tepeden ve yakından çekin; bulanık fotoğraf sonucu olumsuz etkiler.',
+    'Belirtinin en belirgin olduğu yaprağı seçin; tamamen kurumuş ya da çürümüş yapraklar yanıltıcı olabilir.',
+    'Aynı bitkiden birkaç farklı yaprağı ayrı ayrı göndermek sonucu doğrulamanıza yardımcı olur.',
+    'Fotoğraf açıklamasına bitkinin adını yazarsanız (ör. şeftali) teşhis daha isabetli olur.'
+  ];
+  const ipucu = ipuclari[Math.floor(Math.random() * ipuclari.length)];
+  const bas = $json.uzmana_yonlendir ? '⚠️ Ön tespit (kesin değil): ' : '✅ Ön tespit: ';
+  return bas + $json.hastalik_tr + ' (%' + String($json.guven).replace('.', ',') + ')\n'
+    + '📚 Kaynaklar taranıyor, ayrıntılı rapor hazırlanıyor…\n\n💡 ' + ipucu;
+})() }}
+```
+
+2. "HTTP Request - Predict CNN" → "HTTP Request - RAG Context" bağlantısı **kalsın**
+   (paralel). `Telegram - Ön Tespit` düğümünü "HTTP Request - RAG Context"in **üstüne**
+   sürükleyin — yoksa ön tespit, rapor yazıldıktan sonra görünür.
+3. İlk testten sonra `Telegram - Ön Tespit` hata verirse ("message to edit not found" vb.):
+   n8n'de `Telegram - İnceleniyor` düğümünün çıktısını açıp mesaj numarasının hangi alanda
+   olduğuna bakın (`result.message_id` ya da doğrudan `message_id`) ve Message ID
+   ifadesini ona göre düzeltin.
+
+⚠️ Aynı nedenle bu düğüm de "RAG Context"in önüne **seri** konmamalı: RAG düğümü hastalık
+adını kendisinden önceki düğümün (`$json.hastalik`) çıktısından okuyor.
 
 ## 2. Düzenli rapor mesajı
 
@@ -138,7 +166,16 @@ Listedeki bitkilerin sağlıklı yapraklarını da tanırım.
 ⚠️ Listede olmayan hastalıkları tanıyamam; böyle durumlarda sizi bir ziraat mühendisine yönlendiririm.
 
 <i>Raporlarım ön değerlendirmedir, kesin teşhis değildir. İlaç markası ve doz önerisi vermem.</i>
+
+🌾 <i>"MEVLÂNA SÖZÜ"</i>
+— Mevlâna, <i>Mesnevî</i>, c. _, b. ____
 ```
+
+> ⚠️ **Mevlâna sözünü güvenilir bir çeviriden (ör. Abdülbâki Gölpınarlı, *Mesnevî ve
+> Şerhi*) cilt/beyit numarasıyla alın.** Mevlâna'ya atfedilen popüler sözlerin bir kısmı
+> onun eserlerinde geçmez (en bilinen örnek: "Ne olursan ol yine gel"); internetteki
+> listeler çoğunlukla İngilizce "Rumi quotes" çevirileridir. Kaynağı bulunamazsa son iki
+> satırı silin. Uygun temalar: sabır, emek, toprak, tohum, bahar.
 
 ## 4. Yedek demo videosu
 

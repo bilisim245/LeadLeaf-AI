@@ -28,7 +28,7 @@ from typing import Optional
 
 import numpy as np
 from dotenv import load_dotenv
-from fastapi import Body, FastAPI, File, HTTPException, Response, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 
@@ -44,6 +44,34 @@ CLASS_NAMES_PATH = os.getenv("CLASS_NAMES_PATH", "./model/class_names.json")
 MODEL_META_PATH = os.getenv("MODEL_META_PATH", "./model/model_meta.json")
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.70"))
 IMG_SIZE = 224
+
+# Bitki filtresi (kapalı sınıf sorunu): model tanımadığı bir hastalığı (ör. şeftali yaprak
+# bükülmesi) bilinen bir sınıfa yüksek güvenle yakıştırabiliyor (%89 "domates geç yanıklığı").
+# Çiftçi fotoğraf açıklamasına bitkiyi yazarsa tahmin SADECE o bitkinin sınıflarıyla
+# sınırlanır. Olasılıklar yeniden normalize EDİLMEZ — o bitkiye düşen ham olasılık düşükse
+# bu, "görüntü bu bitkinin bilinen sınıflarına benzemiyor" demektir ve uzmana yönlendirilir.
+BITKI_ONEKLERI = {
+    "domates": "Tomato", "patates": "Potato", "biber": "Pepper,_bell", "elma": "Apple",
+    "seftali": "Peach", "kiraz": "Cherry_(including_sour)", "visne": "Cherry_(including_sour)",
+    "uzum": "Grape", "misir": "Corn_(maize)", "cilek": "Strawberry", "portakal": "Orange",
+    "ahududu": "Raspberry", "soya": "Soybean", "kabak": "Squash",
+    "yaban mersini": "Blueberry", "yabanmersini": "Blueberry",
+}
+BITKI_GORUNEN_AD = {
+    "seftali": "Şeftali", "visne": "Vişne", "uzum": "Üzüm", "misir": "Mısır", "cilek": "Çilek",
+    "yabanmersini": "Yaban mersini",
+}
+BITKI_UYUM_ESIGI = 0.50  # o bitkinin sınıflarına düşen toplam olasılık bunun altındaysa uyumsuz
+
+
+def _bitki_bul(metin: str) -> tuple[Optional[str], Optional[str]]:
+    """Serbest metinden (Telegram fotoğraf açıklaması) bitkiyi bulur -> (türkçe ad, sınıf öneki)."""
+    # "İ".lower() -> "i" + birleşik nokta (U+0307); önce onu at, sonra Türkçe harfleri sadeleştir
+    sade = metin.lower().replace("̇", "").translate(str.maketrans("şçğıöüâ", "scgioua"))
+    for ad in sorted(BITKI_ONEKLERI, key=len, reverse=True):
+        if ad in sade:
+            return ad, BITKI_ONEKLERI[ad]
+    return None, None
 
 # TÜBİTAK model karşılaştırması (notebooks/01_train_model_colab.py çıktısı) —
 # üretim /predict'ten AYRI: n8n/Telegram akışını etkilemez, sadece Streamlit'in
@@ -306,7 +334,9 @@ def _gercek_predict(img: Image.Image) -> np.ndarray:
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)) -> dict:
+async def predict(file: UploadFile = File(...), bitki: str = Form("")) -> dict:
+    """`bitki`: isteğe bağlı serbest metin (Telegram fotoğraf açıklaması, ör. "şeftali ağacım").
+    İçinde desteklenen bir bitki adı geçerse tahmin o bitkinin sınıflarıyla sınırlanır."""
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(400, "Sadece görsel dosyası kabul edilir (image/*).")
 
@@ -325,6 +355,26 @@ async def predict(file: UploadFile = File(...)) -> dict:
         top_class = siniflar[int(probs.argmax())]
 
     guven = float(probs.max()) * 100
+    hastalik_tr = TR_ADLAR.get(top_class, top_class)
+    uzmana_yonlendir = guven < CONFIDENCE_THRESHOLD * 100
+
+    bitki_ad, onek = _bitki_bul(bitki) if bitki and not DEMO_MODE else (None, None)
+    bitki_uyumu = None
+    if onek:
+        idx = [i for i, s in enumerate(siniflar) if s.startswith(onek + "___")]
+        bitki_uyumu = float(probs[idx].sum())
+        en_iyi = max(idx, key=lambda i: probs[i])
+        top_class, guven = siniflar[en_iyi], float(probs[en_iyi]) * 100
+        hastalik_tr = TR_ADLAR.get(top_class, top_class)
+        uzmana_yonlendir = guven < CONFIDENCE_THRESHOLD * 100
+        if bitki_uyumu < BITKI_UYUM_ESIGI:
+            # Görüntü bu bitkinin bilinen hiçbir sınıfına benzemiyor -> bilinen bir hastalık
+            # adı UYDURMA; RAG de bu sınıf için boş döner, LLM "tanımsız" üzerinden yazar.
+            top_class = f"{onek}___Tanimsiz"
+            gorunen = BITKI_GORUNEN_AD.get(bitki_ad, bitki_ad.capitalize())
+            hastalik_tr = f"{gorunen}: sistemde tanımlı olmayan belirti"
+            uzmana_yonlendir = True
+
     sirali = sorted(zip(siniflar, probs.tolist()), key=lambda x: x[1], reverse=True)
     ilk3 = [
         {"sinif": s, "sinif_tr": TR_ADLAR.get(s, s), "olasilik": round(p * 100, 1)}
@@ -344,10 +394,12 @@ async def predict(file: UploadFile = File(...)) -> dict:
 
     return {
         "hastalik": top_class,
-        "hastalik_tr": TR_ADLAR.get(top_class, top_class),
+        "hastalik_tr": hastalik_tr,
         "guven": round(guven, 1),
         "ilk3": ilk3,
-        "uzmana_yonlendir": guven < CONFIDENCE_THRESHOLD * 100,
+        "uzmana_yonlendir": uzmana_yonlendir,
+        "bitki": bitki_ad and BITKI_GORUNEN_AD.get(bitki_ad, bitki_ad.capitalize()),
+        "bitki_uyumu": None if bitki_uyumu is None else round(bitki_uyumu * 100, 1),
         "demo_mode": DEMO_MODE,
         "model_surumu": "demo" if DEMO_MODE else f"{_model_mimari}-{len(siniflar)}sinif",
         "benzer_gorseller": benzer_gorseller,

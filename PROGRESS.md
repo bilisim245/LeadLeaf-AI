@@ -2,6 +2,37 @@
 
 **Son güncelleme:** 2026-09-24
 
+## ▶ KALDIĞIMIZ YER — evde devam (2026-09-24 akşam, sunum 2026-09-28)
+
+**Bu oturumda yapılanlar:** sohbet dalı canlıya alındı (aşağıda); fotoğraflı cevap 39 sn
+sürüyordu — RAG embedding modeli artık açılışta yükleniyor (ilk istekteki 17 sn gitti);
+`/predict` yanıtına `model_surumu` alanı eklendi (şu an `EfficientNetB0-38sinif`). Hepsi
+commit+push edildi (`975d001`, `3f65030`).
+
+**Sıradaki işler (n8n arayüzünde, elle):**
+1. **Google Sheets - Kaydet** düğümü → "Refresh Column List", sonra yeni sütunları **Expression**
+   modunda ("fx" görünmeli) eşle:
+   - `neden` → `{{ $json.neden }}` (Claude zaten üretiyor, sadece eşlenmemişti)
+   - `model_surumu` → `{{ $('HTTP Request - Predict CNN').item.json.model_surumu }}`
+   - `aciklama` (varsa) → `{{ $json.aciklama }}`
+2. **Saat yanlış** (19:58'deki test 12:58 yazıldı): `tarih` →
+   `{{ $now.setZone('Europe/Istanbul').toFormat('yyyy-LL-dd HH:mm:ss') }}`
+3. **Hız:** "Telegram - Cevap Gönder"i "Google Sheets - Kaydet"in ÜSTÜNE sürükle (n8n kardeş
+   dalları yukarıdan aşağı çalıştırıyor → çiftçi ~4 sn erken cevap alır). Claude adımı ~15 sn;
+   sunum için Sonnet'te kalınması öneriliyor (Haiku denenecekse önce deneysel workflow'da).
+4. Publish → Telegram'dan fotoğraf + "merhaba" ile test.
+5. `report/rapor_taslagi.md`'ye yeni adım: sohbet dalının canlıya alınması, IF bağlantı hatası,
+   FATİH ağı SSL denetimi, hız analizi (adım süreleri: RAG 17 sn, Claude 14,7 sn, Sheets 4 sn).
+
+**Servisleri yeniden başlatma (bilgisayar kapanınca hepsi durur; FATİH DIŞI ağda!):**
+```
+.venv\Scripts\python -m uvicorn inference.app:app --host 127.0.0.1 --port 8000
+ngrok http --url=enclose-afterglow-sappiness.ngrok-free.dev 5678
+# bash: WEBHOOK_URL=https://enclose-afterglow-sappiness.ngrok-free.dev/ npx n8n start
+# PowerShell: $env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; npx n8n start
+```
+Kontrol: `http://127.0.0.1:8000/health` → `num_classes:38`; ngrok adresi `/healthz` → 200.
+
 ## ✅ Sohbet dalı CANLIDA (2026-09-24 akşam)
 
 Üretim workflow'u (`SuklzMNlxzUJN6xQ`) 13 düğümle yayınlandı. Yayın öncesi taslakta iki hata

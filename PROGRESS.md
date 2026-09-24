@@ -9,6 +9,16 @@ sürüyordu — RAG embedding modeli artık açılışta yükleniyor (ilk istekt
 `/predict` yanıtına `model_surumu` alanı eklendi (şu an `EfficientNetB0-38sinif`). Hepsi
 commit+push edildi (`975d001`, `3f65030`).
 
+**YENİ (2026-09-24 gece) — bitki filtresi (kapalı sınıf sorunu):** Gerçek bir şeftali yaprak
+bükülmesi fotoğrafı (sınıflarda YOK) %89 güvenle "domates geç yanıklığı" çıktı → eşik uyarısı
+tetiklenmedi. `/predict` artık isteğe bağlı `bitki` form alanı alıyor (commit `7e08298`); aynı
+fotoğraf + "Şeftali" → "Şeftali: sistemde tanımlı olmayan belirti", uyum %0.1, uzmana yönlendir.
+n8n'de yapılacak: **HTTP Request - Predict CNN** → Body'ye Form Data alanı ekle: Name `bitki`,
+Value (Expression) `{{ $('Telegram Trigger').item.json.message.caption || '' }}`. İsteğe bağlı:
+Sheets'e `bitki` sütunu (`{{ $('HTTP Request - Predict CNN').item.json.bitki }}`); sohbet
+promptuna "fotoğrafı bitki adını açıklamaya yazarak gönderin" ipucu. Rapora "kapalı sınıf
+sorunu" adımı olarak yazılmalı.
+
 **Sıradaki işler (n8n arayüzünde, elle):**
 1. **Google Sheets - Kaydet** düğümü → "Refresh Column List", sonra yeni sütunları **Expression**
    modunda ("fx" görünmeli) eşle:

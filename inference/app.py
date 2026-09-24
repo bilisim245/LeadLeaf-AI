@@ -63,6 +63,54 @@ BITKI_GORUNEN_AD = {
 }
 BITKI_UYUM_ESIGI = 0.50  # o bitkinin sınıflarına düşen toplam olasılık bunun altındaysa uyumsuz
 
+# Otomatik bitki tanıma: çiftçiden bitki adı İSTEMEMEK için fotoğraf önce Pl@ntNet'e
+# (my.plantnet.org, ücretsiz plan 500 tanıma/gün) gönderilip tür bulunur. Anahtar yoksa ya da
+# servis hata verirse sessizce atlanır — sistem filtresiz (eski) davranışa düşer.
+PLANTNET_API_KEY = os.getenv("PLANTNET_API_KEY", "")
+PLANTNET_MIN_SKOR = float(os.getenv("PLANTNET_MIN_SKOR", "0.20"))
+# Bilimsel ad öneki -> BITKI_ONEKLERI'ndeki türkçe anahtar (en uzun önek önce eşleşir)
+BILIMSEL_AD_BITKI = {
+    "Solanum lycopersicum": "domates", "Solanum tuberosum": "patates",
+    "Capsicum": "biber", "Malus": "elma", "Prunus persica": "seftali",
+    "Prunus avium": "kiraz", "Prunus cerasus": "visne", "Vitis": "uzum",
+    "Zea mays": "misir", "Fragaria": "cilek", "Citrus": "portakal",
+    "Rubus idaeus": "ahududu", "Glycine max": "soya", "Cucurbita": "kabak",
+    "Vaccinium": "yabanmersini",
+}
+
+
+def _plantnet_tani(raw: bytes) -> Optional[dict]:
+    """Pl@ntNet ile türü bulur. Dönüş: {"tur", "yaygin_ad", "skor", "bitki_ad"} (bitki_ad
+    desteklenmeyen türde None) ya da anahtar yok/hata/düşük skor durumunda None."""
+    if not PLANTNET_API_KEY:
+        return None
+    try:
+        import requests
+
+        r = requests.post(
+            "https://my-api.plantnet.org/v2/identify/all",
+            params={"api-key": PLANTNET_API_KEY, "lang": "tr", "nb-results": 1},
+            files=[("images", ("yaprak.jpg", raw, "image/jpeg"))],
+            data={"organs": "leaf"},
+            timeout=8,
+        )
+        if r.status_code == 404:  # Pl@ntNet: "Species not found" -> bitki tanınamadı
+            return None
+        r.raise_for_status()
+        en_iyi = r.json()["results"][0]
+    except Exception as e:
+        print(f"[UYARI] Pl@ntNet tanıma başarısız, filtresiz devam: {e}")
+        return None
+    if en_iyi["score"] < PLANTNET_MIN_SKOR:
+        return None
+    tur = en_iyi["species"]["scientificNameWithoutAuthor"]
+    bitki_ad = next(
+        (BILIMSEL_AD_BITKI[k] for k in sorted(BILIMSEL_AD_BITKI, key=len, reverse=True) if tur.startswith(k)),
+        None,
+    )
+    yaygin = en_iyi["species"].get("commonNames") or [tur]
+    return {"tur": tur, "yaygin_ad": yaygin[0], "skor": round(en_iyi["score"] * 100, 1), "bitki_ad": bitki_ad}
+
 
 def _bitki_bul(metin: str) -> tuple[Optional[str], Optional[str]]:
     """Serbest metinden (Telegram fotoğraf açıklaması) bitkiyi bulur -> (türkçe ad, sınıf öneki)."""
@@ -359,6 +407,18 @@ async def predict(file: UploadFile = File(...), bitki: str = Form("")) -> dict:
     uzmana_yonlendir = guven < CONFIDENCE_THRESHOLD * 100
 
     bitki_ad, onek = _bitki_bul(bitki) if bitki and not DEMO_MODE else (None, None)
+    bitki_kaynagi = "aciklama" if onek else None
+    plantnet = None
+    if not onek and not DEMO_MODE:
+        plantnet = _plantnet_tani(raw)
+        if plantnet and plantnet["bitki_ad"]:
+            bitki_ad, onek, bitki_kaynagi = plantnet["bitki_ad"], BITKI_ONEKLERI[plantnet["bitki_ad"]], "plantnet"
+        elif plantnet:
+            # Tür güvenle tanındı ama modelin bildiği 14 bitkiden biri değil -> teşhis UYDURMA
+            top_class = "Desteklenmeyen_bitki"
+            hastalik_tr = f"Desteklenmeyen bitki ({plantnet['yaygin_ad']}, {plantnet['tur']})"
+            uzmana_yonlendir = True
+            bitki_kaynagi = "plantnet"
     bitki_uyumu = None
     if onek:
         idx = [i for i, s in enumerate(siniflar) if s.startswith(onek + "___")]
@@ -400,6 +460,8 @@ async def predict(file: UploadFile = File(...), bitki: str = Form("")) -> dict:
         "uzmana_yonlendir": uzmana_yonlendir,
         "bitki": bitki_ad and BITKI_GORUNEN_AD.get(bitki_ad, bitki_ad.capitalize()),
         "bitki_uyumu": None if bitki_uyumu is None else round(bitki_uyumu * 100, 1),
+        "bitki_kaynagi": bitki_kaynagi,
+        "plantnet": plantnet,
         "demo_mode": DEMO_MODE,
         "model_surumu": "demo" if DEMO_MODE else f"{_model_mimari}-{len(siniflar)}sinif",
         "benzer_gorseller": benzer_gorseller,

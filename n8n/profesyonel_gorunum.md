@@ -166,16 +166,7 @@ Listedeki bitkilerin sağlıklı yapraklarını da tanırım.
 ⚠️ Listede olmayan hastalıkları tanıyamam; böyle durumlarda sizi bir ziraat mühendisine yönlendiririm.
 
 <i>Raporlarım ön değerlendirmedir, kesin teşhis değildir. İlaç markası ve doz önerisi vermem.</i>
-
-🌾 <i>"MEVLÂNA SÖZÜ"</i>
-— Mevlâna, <i>Mesnevî</i>, c. _, b. ____
 ```
-
-> ⚠️ **Mevlâna sözünü güvenilir bir çeviriden (ör. Abdülbâki Gölpınarlı, *Mesnevî ve
-> Şerhi*) cilt/beyit numarasıyla alın.** Mevlâna'ya atfedilen popüler sözlerin bir kısmı
-> onun eserlerinde geçmez (en bilinen örnek: "Ne olursan ol yine gel"); internetteki
-> listeler çoğunlukla İngilizce "Rumi quotes" çevirileridir. Kaynağı bulunamazsa son iki
-> satırı silin. Uygun temalar: sabır, emek, toprak, tohum, bahar.
 
 ## 4. Yedek demo videosu
 

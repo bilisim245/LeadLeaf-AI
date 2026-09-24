@@ -249,6 +249,8 @@ def _load_tubitak_models_if_available() -> None:
 def _startup() -> None:
     _load_model_if_available()
     _load_tubitak_models_if_available()
+    # RAG embedding modelini acilista yukle - yoksa ilk Telegram istegi ~17 sn bekliyor.
+    retrieve_context("Tomato___healthy")
 
 
 @app.get("/health")

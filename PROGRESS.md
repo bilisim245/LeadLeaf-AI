@@ -2,6 +2,19 @@
 
 **Son güncelleme:** 2026-09-24
 
+## ✅ Sohbet dalı CANLIDA (2026-09-24 akşam)
+
+Üretim workflow'u (`SuklzMNlxzUJN6xQ`) 13 düğümle yayınlandı. Yayın öncesi taslakta iki hata
+düzeltildi: "Fotoğraf var mı?" IF düğümünün TRUE çıkışı boştu (yayınlansa fotoğraflı akış
+dururdu) → "Fotoğrafı İndir"e bağlandı; boşta duran "Anthropic Chat Model1" silindi. Telegram'dan
+test edildi: "merhaba" → sohbet cevabı (execution #27 success), fotoğraf → CNN + RAG + rapor
+(execution #28 success). n8n DB yedeği: `~/.n8n/database.sqlite.bak_20260924_1939`.
+
+**⚠️ AĞ UYARISI:** MEB FATİH ağı HTTPS'i denetliyor (SSL inspection, `MEB-CERT-IZM`/`fatihca`
+sertifikası) → ngrok tüneli açılmıyor ve `api.anthropic.com` çağrıları sertifika hatası veriyor.
+Bot yalnızca FATİH dışı bir ağda (örn. telefon paylaşımı) çalışır; ağ değişince ngrok + n8n
+yeniden başlatılmalı. **Sunum telefon paylaşımıyla yapılmalı.**
+
 ## Sohbet dalı — UYGULANDI ve test edildi, ama SADECE deneysel workflow'da (2026-09-24 gece)
 
 **Güncelleme:** Bu tasarım artık sadece bir plan değil — `YeZ4MA5eGNSHwO6E` ("LeadLeaf AI — 38

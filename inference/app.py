@@ -349,6 +349,7 @@ async def predict(file: UploadFile = File(...)) -> dict:
         "ilk3": ilk3,
         "uzmana_yonlendir": guven < CONFIDENCE_THRESHOLD * 100,
         "demo_mode": DEMO_MODE,
+        "model_surumu": "demo" if DEMO_MODE else f"{_model_mimari}-{len(siniflar)}sinif",
         "benzer_gorseller": benzer_gorseller,
     }
 

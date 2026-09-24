@@ -30,3 +30,6 @@ pandas
 # Yardımcılar
 python-dotenv
 requests
+
+# PDF raporu (Gün 7 — n8n Telegram'a gönderilen rapor PDF'i)
+fpdf2

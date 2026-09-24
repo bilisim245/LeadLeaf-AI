@@ -28,12 +28,14 @@ from typing import Optional
 
 import numpy as np
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.image_rag import find_similar, index_var_mi
+from agent.rag import retrieve_context
+from agent.pdf_rapor import rapor_pdf_olustur
 
 load_dotenv()
 
@@ -54,12 +56,52 @@ TUBITAK_MODEL_DEFS = [
 ]
 
 # Sınıf adı -> sade Türkçe adı (rapor ve Gradio arayüzü için)
+# NOT (2026-09-23, 38 sınıfa genişletme): Aşağıdaki anahtarlar PlantVillage veri setinin
+# BİLİNEN standart klasör adlarıdır. `notebooks/03_efficientnetb0_38_sinif.py` çalıştırılıp
+# class_names.json indiğinde, BU SÖZLÜĞÜN ANAHTARLARI o dosyayla birebir karşılaştırılıp
+# (özellikle boşluk/virgül/parantez içeren adlarda - örn. "Pepper,_bell", "Spider_mites
+# Two-spotted_spider_mite", "Corn_(maize)___Common_rust_") gerekirse düzeltilmelidir —
+# TR_ADLAR.get(sinif, sinif) fallback'i sayesinde eşleşmeyen bir anahtar sistemi ÇÖKERTMEZ,
+# sadece o sınıf için ham İngilizce adı gösterir (Türkçe ad eksik kalır).
 TR_ADLAR = {
     "Tomato___healthy": "Sağlıklı",
     "Tomato___Early_blight": "Erken Yanıklık (Early Blight)",
     "Tomato___Late_blight": "Geç Yanıklık (Late Blight)",
     "Tomato___Bacterial_spot": "Bakteriyel Leke (Bacterial Spot)",
     "Tomato___Septoria_leaf_spot": "Septoria Yaprak Lekesi",
+    "Tomato___Leaf_Mold": "Yaprak Küfü (Leaf Mold)",
+    "Tomato___Spider_mites Two-spotted_spider_mite": "Kırmızı Örümcek (İki Noktalı)",
+    "Tomato___Target_Spot": "Hedef Leke (Target Spot)",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": "Sarı Yaprak Kıvırcıklığı Virüsü (TYLCV)",
+    "Tomato___Tomato_mosaic_virus": "Mozaik Virüsü (ToMV)",
+    "Pepper,_bell___Bacterial_spot": "Bakteriyel Leke (Biber)",
+    "Pepper,_bell___healthy": "Sağlıklı (Biber)",
+    "Potato___Early_blight": "Erken Yanıklık (Patates)",
+    "Potato___Late_blight": "Geç Yanıklık (Patates)",
+    "Potato___healthy": "Sağlıklı (Patates)",
+    "Apple___Apple_scab": "Elma Karalekesi (Apple Scab)",
+    "Apple___Black_rot": "Kara Çürüklük (Black Rot)",
+    "Apple___Cedar_apple_rust": "Elma Pası (Cedar Apple Rust)",
+    "Apple___healthy": "Sağlıklı (Elma)",
+    "Blueberry___healthy": "Sağlıklı (Yaban Mersini)",
+    "Cherry_(including_sour)___Powdery_mildew": "Külleme (Kiraz)",
+    "Cherry_(including_sour)___healthy": "Sağlıklı (Kiraz)",
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": "Gri Yaprak Lekesi (Mısır)",
+    "Corn_(maize)___Common_rust_": "Yaygın Pas Hastalığı (Mısır)",
+    "Corn_(maize)___Northern_Leaf_Blight": "Kuzey Yaprak Yanıklığı (Mısır)",
+    "Corn_(maize)___healthy": "Sağlıklı (Mısır)",
+    "Grape___Black_rot": "Kara Çürüklük (Üzüm)",
+    "Grape___Esca_(Black_Measles)": "Esca (Kara Kızamık)",
+    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": "Yaprak Yanıklığı (Üzüm)",
+    "Grape___healthy": "Sağlıklı (Üzüm)",
+    "Orange___Haunglongbing_(Citrus_greening)": "Turunçgil Yeşillenmesi (HLB)",
+    "Peach___Bacterial_spot": "Bakteriyel Leke (Şeftali)",
+    "Peach___healthy": "Sağlıklı (Şeftali)",
+    "Raspberry___healthy": "Sağlıklı (Ahududu)",
+    "Soybean___healthy": "Sağlıklı (Soya)",
+    "Squash___Powdery_mildew": "Külleme (Kabak)",
+    "Strawberry___Leaf_scorch": "Yaprak Yanıklığı (Çilek)",
+    "Strawberry___healthy": "Sağlıklı (Çilek)",
 }
 DEMO_CLASS_NAMES = list(TR_ADLAR.keys())
 
@@ -219,6 +261,26 @@ def health() -> dict:
         "tubitak_models_yuklu": sorted(_tubitak_models.keys()),
         "tubitak_models_toplam": len(TUBITAK_MODEL_DEFS),
     }
+
+
+@app.get("/rag-context")
+def rag_context(hastalik: str, ek_sorgu: str = "") -> dict:
+    """n8n'in Claude'a göndermeden önce çağırdığı RAG bağlamı — agent/rag.py'deki
+    Chroma indeksinden bu hastalık için doğrulanmış kaynak metin parçalarını getirir.
+    Index yoksa veya sorgu başarısızsa boş metin döner (LLM promptu RAG'siz devam eder)."""
+    return {"baglam": retrieve_context(hastalik, ek_sorgu)}
+
+
+@app.post("/generate-pdf")
+def generate_pdf(rapor: dict = Body(...), hastalik_tr: str = "", tarih: str = "") -> Response:
+    """n8n'in Claude'un ürettiği rapor JSON'unu gönderip PDF istediği endpoint —
+    dönen binary, Telegram'a "sendDocument" ile doğrudan iletilebilir."""
+    pdf_bytes = rapor_pdf_olustur(rapor, hastalik_tr=hastalik_tr or None, tarih=tarih or None)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=leadleaf_rapor.pdf"},
+    )
 
 
 def _demo_predict() -> tuple[str, np.ndarray]:

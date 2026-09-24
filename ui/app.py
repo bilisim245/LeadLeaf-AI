@@ -46,6 +46,7 @@ PROJE_KOKU = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEMO_IMAGES_DIR = os.path.join(PROJE_KOKU, "model", "demo_images")
 EDA_DIR = os.path.join(PROJE_KOKU, "report", "eda_ciktilari")
 TUBITAK_DIR = os.path.join(PROJE_KOKU, "model", "tubitak")
+SINIF38_DIR = os.path.join(PROJE_KOKU, "model", "model_38sinif")
 
 RISK_CARPANI = {"dusuk": 0.9, "orta": 1.0, "yuksek": 1.15, "bilinmiyor": 1.0}
 
@@ -399,6 +400,7 @@ with tab_karsilastirma:
             "MobileNetV3Small": "MobileNetV3Small",
             "EfficientNetB0 (temel tarif)": "EfficientNetB0",
             "EfficientNetB0 (gelişmiş fine-tuning — üretimde kullanılan)": "EfficientNetB0_gelismis",
+            "EfficientNetB0 (38 sınıf deneyi — ayrı, deneysel)": "EfficientNetB0_38sinif",
         }
         secilen_etiket = st.selectbox(
             "Hangi modelin confusion matrix'ini ve öğrenme eğrisini görmek istersin?",
@@ -433,6 +435,24 @@ with tab_karsilastirma:
             "📈 Test seti doğruluk karşılaştırması henüz yok — Colab notebook'u "
             "çalışıp `model_comparison.csv` `model/tubitak/`'a konunca burada otomatik görünür."
         )
+
+    sinif38_csv = os.path.join(SINIF38_DIR, "model_comparison.csv")
+    if os.path.exists(sinif38_csv):
+        st.subheader("🧪 38 Sınıf Deneyi (ayrı, deneysel — üretimden bağımsız)")
+        st.caption(
+            "Kapsam genişletme denemesi: yukarıdaki 3 model 5 sınıfı (domates + 4 hastalık) "
+            "ayırt ediyor, buradaki tek model ise PlantVillage'ın TÜM 38 sınıfını (14 bitki). "
+            "Farklı zorlukta bir görev olduğu için doğruluk sayıları yukarıdakiyle **doğrudan "
+            "kıyaslanamaz** — ayrı bir satır olarak, kendi bağlamında gösteriliyor. Bu model "
+            "henüz üretim `/predict`'ine bağlı DEĞİL, sadece izole test edildi."
+        )
+        df_38 = pd.read_csv(sinif38_csv)
+        st.dataframe(
+            df_38[["model", "dogruluk", "macro_precision", "macro_recall",
+                    "macro_f1", "macro_auc", "model_boyutu_mb", "ort_inference_ms"]],
+            use_container_width=True, hide_index=True,
+        )
+        st.divider()
 
     st.subheader("🖼️ Tek fotoğrafla canlı karşılaştırma")
     karsilastirma_foto = st.file_uploader(

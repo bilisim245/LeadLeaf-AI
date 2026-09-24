@@ -16,6 +16,13 @@ ama pratikte "mantar hastalığı" gibi ele alınır).
 - Bu proje kapsamındaki hava durumu modülü (`agent/weather.py`), yağış + nem verisine
   bakarak "mantar hastalığı riski"ni tahmin eder — bu risk özellikle geç yanıklık için anlamlıdır.
 
+## Teknik not
+Etken sürekli evrim geçiren bir patojendir — Avrupa'da 2022'de ortaya çıkan yeni bir soy
+(EU43), yaygın kullanılan bir fungisit grubuna (mandipropamid) TAM DİRENÇLİ bulunmuştur.
+Bu, tek bir ilaca güvenmenin neden riskli olduğunu ve entegre (kültürel + rotasyonlu ilaç
+kullanımı) bir yaklaşımın neden önemli olduğunu gösterir. Avrupa'da patates geç yanıklığının
+yıllık ekonomik maliyeti hâlâ 1 milyar Euro'nun üzerindedir.
+
 ## Karıştırılabileceği hastalıklar
 - **Erken yanıklık** ile karıştırılabilir — erken yanıklıkta hedef/halka deseni ve daha yavaş
   ilerleme vardır; geç yanıklıkta desen yoktur ve yayılma çok daha hızlıdır.

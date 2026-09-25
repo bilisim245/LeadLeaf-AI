@@ -123,50 +123,39 @@ yardim - Tanınan bitki ve hastalıklar
 
 `/setdescription` metni, kullanıcı botu ilk açtığında "Başlat" düğmesinin üstünde görünür.
 
-### 3b. n8n: `/start` ve `/yardim` için sabit karşılama mesajı
+### 3b. n8n: selamlaşma ve `/start` için sabit tanıtım mesajı
 
-Şu an `/start` yazılınca Claude serbest bir cevap üretiyor (her seferinde farklı). Sabit bir
-karşılama mesajı daha profesyonel ve maliyetsiz:
+Kullanıcı "merhaba", "selam", "merhaba nasılsın", `/start` ya da "yardım" yazınca bot kendini
+sabit bir mesajla tanıtır (anında gelir, Claude'a gitmez, API sorunu olsa bile çalışır).
+Diğer yazılar (ör. "domatesim neden sararıyor") yine Claude'a gider.
 
 1. "Fotoğraf var mı?" düğümünün **false** çıkışı ile "Basic LLM Chain - Sohbet" arasına yeni
-   bir **IF** düğümü ekleyin. Adı: `Komut mu?`
-   - Koşul (Boolean → *is true*):
-     `{{ ($json.message.text || '').startsWith('/start') || ($json.message.text || '').startsWith('/yardim') }}`
-2. `Komut mu?` **false** çıkışı → "Basic LLM Chain - Sohbet" (eski davranış).
-3. `Komut mu?` **true** çıkışı → yeni **Telegram** düğümü, adı `Telegram - Karşılama`:
+   bir **IF** düğümü ekleyin. Adı: `Selamlaşma mı?`
+   - Koşul: sol taraf aşağıdaki ifade (Expression), operatör **Boolean → is true**:
+
+```
+{{ (() => { const t = ($json.message.text || '').toLocaleLowerCase('tr').trim(); return t.startsWith('/start') || t.startsWith('/yardim') || /^(merhaba|mrb|selam|slm|selamlar|sa|hey|günaydın|iyi günler|iyi akşamlar|yardım|yardim)[\s!.,?]*(nasılsın|nasilsin|naber)?[\s!.,?]*$/.test(t); })() }}
+```
+
+2. `Selamlaşma mı?` **false** çıkışı → "Basic LLM Chain - Sohbet" (eski davranış).
+3. `Selamlaşma mı?` **true** çıkışı → yeni **Telegram** düğümü, adı `Telegram - Tanıtım`:
    - **Chat ID** (Expression): `{{ $json.message.chat.id }}`
    - *Add Field → Parse Mode → **HTML***, *Append n8n Attribution* **kapalı**
    - **Text**:
 
 ```
-🌿 <b>LeadLeaf AI'ya hoş geldiniz!</b>
-Yaprak fotoğrafından bitki hastalığı ön değerlendirmesi yapan yapay zekâ asistanıyım.
+🌿 Merhaba, ben LeadLeaf. Yaprak fotoğrafından bitki hastalığı ön değerlendirmesi yapıyorum.
 
-📸 <b>Nasıl kullanılır?</b>
-1. Hastalıklı görünen <b>tek bir yaprağın</b> fotoğrafını çekin.
-2. Yaprak ekranın büyük kısmını kaplasın; gün ışığında, net çekin.
-3. Fotoğrafı bu sohbete gönderin — raporunuz yaklaşık 20 saniyede gelir.
-İsterseniz fotoğraf açıklamasına bitkinin adını yazın (ör. "şeftali").
+<b>Nasıl kullanılır?</b>
+Hastalıklı görünen tek bir yaprağın fotoğrafını çekip bana gönderin. Açıklamaya bitkinin adını yazarsanız (ör. "şeftali") daha doğru sonuç veririm.
 
-🌱 <b>Tanıyabildiğim bitki ve hastalıklar</b>
-<b>Domates:</b> erken yanıklık, geç yanıklık, bakteriyel leke, septoria yaprak lekesi, yaprak küfü, kırmızı örümcek, hedef leke, sarı yaprak kıvırcıklığı virüsü, mozaik virüsü
-<b>Patates:</b> erken yanıklık, geç yanıklık
-<b>Biber:</b> bakteriyel leke
-<b>Elma:</b> karaleke, kara çürüklük, elma pası
-<b>Üzüm:</b> kara çürüklük, esca, yaprak yanıklığı
-<b>Mısır:</b> gri yaprak lekesi, pas, kuzey yaprak yanıklığı
-<b>Şeftali:</b> bakteriyel leke
-<b>Kiraz:</b> külleme
-<b>Kabak:</b> külleme
-<b>Çilek:</b> yaprak yanıklığı
-<b>Portakal:</b> turunçgil yeşillenmesi (HLB)
-<b>Yaban mersini, ahududu, soya:</b> yalnızca sağlıklı yaprak
-Listedeki bitkilerin sağlıklı yapraklarını da tanırım.
+<b>Tanıdığım bitkiler:</b> domates, patates, biber, elma, üzüm, mısır, şeftali, kiraz, kabak, çilek, portakal, ahududu, soya, yaban mersini.
 
-⚠️ Listede olmayan hastalıkları tanıyamam; böyle durumlarda sizi bir ziraat mühendisine yönlendiririm.
-
-<i>Raporlarım ön değerlendirmedir, kesin teşhis değildir. İlaç markası ve doz önerisi vermem.</i>
+Sonuçlarım kesin teşhis değildir. İlaç ve doz önermem, bunun için ziraat mühendisine danışın.
 ```
+
+4. Publish → Telegram'dan "merhaba nasılsın" yazın: tanıtım mesajı gelmeli. Sonra
+   "domates yaprağım sararıyor" yazın: bu Claude'dan cevap almalı.
 
 ## 4. Yedek demo videosu
 

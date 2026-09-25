@@ -86,7 +86,7 @@ ADIMLAR = [
 IPUCLARI = [
     "Her sayfada önce ekrana bakılır, sonra konuşulur; jüri ne gösterildiğini görmeden anlatılmaz.",
     "Fare, anlatılan grafiğin üzerinde tutulur; jüri nereye bakacağını bilir.",
-    "Bir grafik anlatılırken takılınırsa altındaki '📖 Bu grafik nasıl okunur?' kutusu açılıp 'Söylenecek' okunabilir.",
+    "Bir grafik anlatılırken takılınırsa altındaki 'Bu grafik nasıl okunur?' kutusu açılıp 'Söylenecek' okunabilir.",
     "Sayılar ezberlenmez: ekrandaki kutularda yazar, oradan okunur.",
     "Canlı demo aksarsa (ağ, bot) yedek video gösterilir ve Streamlit'teki Canlı Demo ile devam edilir.",
     "Bilinmeyen bir soruda: 'Bu konu denenmemiştir, sonraki aşamada incelenebilir.'",

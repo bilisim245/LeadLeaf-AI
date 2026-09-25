@@ -7,10 +7,15 @@ cümlelerinle söyle. Burada yazanlar sadece hatırlatma.
 
 1. Telefon internetine bağlan (okul ağında bot çalışmıyor).
 2. Terminal 1: `.venv\Scripts\python -m uvicorn inference.app:app --port 8000`
-3. Terminal 2: `.venv\Scripts\python -m streamlit run ui/sunum.py`
-4. Pano açılınca "Model yükleniyor" yazısı kaybolana kadar bekle.
-5. Sayfaların hepsine bir kez tıkla (ilk açılış yavaş olur, sonra hızlanır).
-6. Canlı Demo sayfasında bir fotoğrafla bir kez dene.
+3. Terminal 2: `ngrok http --url=enclose-afterglow-sappiness.ngrok-free.dev 5678`
+4. Terminal 3 (PowerShell, n8n): önce
+   `$env:NODE_OPTIONS="--dns-result-order=ipv4first"; $env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"`
+   sonra `npx n8n start`
+   (ipv4first ayarı önemli: bazı ağlarda IPv6 çalışmıyor, n8n o zaman Claude'a bağlanamıyor.)
+5. Terminal 4: `.venv\Scripts\python -m streamlit run ui/sunum.py`
+6. Telegram'dan "merhaba" yaz ve bir fotoğraf gönder, cevap geldiğini gör.
+7. Pano açılınca "Model yükleniyor" yazısı kaybolana kadar bekle, sayfaların hepsine bir kez tıkla.
+8. Canlı Demo sayfasında bir fotoğrafla bir kez dene.
 
 Sayfalar arasında altındaki **Sonraki →** butonuyla ilerle.
 

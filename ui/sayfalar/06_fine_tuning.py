@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from ortak import LACIVERT, M38_DIR, TUBITAK_DIR, gezinme, kod_parcasi, uretim_modeli
+from ortak import LACIVERT, M38_DIR, TUBITAK_DIR, gezinme, kod_parcasi, nasil_okunur, uretim_modeli
 
 st.title("Fine-Tuning (İnce Ayar)")
 
@@ -52,6 +52,10 @@ with sag:
     st.dataframe(asamalar.style.format({"Eğitilen parametre": "{:,.0f}"}), hide_index=True, use_container_width=True)
 st.caption("Parametre sayıları üretim modelinin katmanlarından hesaplandı. Toplam parametre: "
            f"{model.count_params():,}".replace(",", ".") + ". Son aşamada bile gövdenin büyük kısmı sabit kalıyor.")
+nasil_okunur(
+    "Fine-tuning'in her aşamasında eğitilen (güncellenen) parametre sayısı.",
+    "Her aşamada gövdenin biraz daha fazlası açıldığı için çubuk uzar. Aşama 0'da yalnızca en sondaki sınıflandırma katmanı eğitilir.",
+    "Eğitim kademeli yapılmıştır: önce yalnızca son katman, sonra gövdenin son %15, %30 ve %40'ı. Böylece modelin ImageNet'ten getirdiği bilgi bir anda bozulmamıştır.")
 
 st.markdown("""
 Her aşamada iki yardımcı var:
@@ -83,6 +87,10 @@ st.altair_chart(alt.Chart(kars).mark_bar().encode(
     tooltip=["Metrik", "Eğitim", alt.Tooltip("Değer:Q", format=".2%")],
 ).properties(height=70), use_container_width=False)
 st.caption("Domates 5 sınıf deneyi. Bu tarif daha sonra 38 sınıfa aynen uygulanmıştır.")
+nasil_okunur(
+    "Aynı EfficientNetB0 modelinin iki farklı eğitim tarifiyle aldığı sonuçlar.",
+    "Açık mavi ilk tarif (son %25 bir kerede açık, sabit öğrenme oranı), yeşil kademeli fine-tuning. Yeşil çubuk ne kadar uzunsa iyileşme o kadar büyüktür.",
+    "Model aynı kalmış, yalnızca eğitim şekli değişmiştir; doğruluk %94,68'den %97,62'ye, macro F1 0,940'tan 0,972'ye çıkmıştır.")
 
 k1, k2 = st.columns(2)
 for kolon, yol, baslik in (
@@ -93,6 +101,10 @@ for kolon, yol, baslik in (
         kolon.image(yol, caption=baslik, use_container_width=True)
 st.caption("Kesikli çizgiler aşama geçişleri. Her geçişte küçük bir sıçrama var ama eğitim ve doğrulama "
            "çizgileri birbirinden ayrılmıyor.")
+nasil_okunur(
+    "Kademeli fine-tuning ile eğitimin epoch epoch ilerleyişi: solda 5 sınıf deneyi, sağda 38 sınıflı üretim modeli.",
+    "Mavi eğitim, turuncu doğrulama. Kesikli çizgiler yeni bir aşamanın başladığı yerlerdir. Çizgilerin birlikte yükselmesi iyi, birbirinden ayrılması ezberleme belirtisidir.",
+    "Her aşama geçişinde küçük bir sıçrama olmuş ama doğrulama doğruluğu istikrarlı yükselmiştir; eğitim ve doğrulama çizgileri ayrılmamıştır, yani ezberleme görülmemektedir.")
 
 with st.expander("Kod: kademeli fine-tuning döngüsü"):
     st.code(kod_parcasi("notebooks/03_efficientnetb0_38_sinif.py", "for i, (oran, ust_sinir_epoch)",

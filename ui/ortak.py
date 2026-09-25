@@ -67,6 +67,12 @@ def tr_sirala(metin: str) -> str:
                    for h in metin.replace("I", "ı").replace("İ", "i").lower())
 
 
+def nasil_okunur(ne: str, nasil: str, soyle: str) -> None:
+    """Grafiğin altına kapalı bir açıklama kutusu: ne gösteriyor, nasıl okunur, ana fikir."""
+    with st.expander("📖 Bu grafik nasıl okunur?"):
+        st.markdown(f"**Ne gösteriyor:** {ne}\n\n**Nasıl okunur:** {nasil}\n\n**Söylenecek:** {soyle}")
+
+
 def bitki(sinif: str) -> str:
     return BITKI_TR.get(sinif.split("___")[0], sinif.split("___")[0])
 

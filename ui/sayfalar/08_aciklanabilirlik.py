@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 from PIL import Image
 
-from ortak import VERI_DIR, etiket, gezinme, test_sonuclari, uretim_modeli, veri_var
+from ortak import VERI_DIR, etiket, gezinme, nasil_okunur, test_sonuclari, uretim_modeli, veri_var
 
 st.title("Model Nereye Bakıyor?")
 st.write("Grad-CAM yöntemiyle modelin kararında yaprağın hangi bölgesinin etkili olduğunu "
@@ -80,6 +80,10 @@ if img is not None:
             st.progress(float(olasilik[j]), text=f"{ad} — %{olasilik[j] * 100:.1f}")
     st.caption("Isı haritası 7×7'lik son evrişim çıktısından hesaplanıp görsel boyutuna büyütülüyor, "
                "bu yüzden kaba bir bölge gösteriyor.")
+    nasil_okunur(
+        "Solda yaprak, ortada modelin karar verirken en çok baktığı bölgeleri gösteren ısı haritası, sağda modelin ilk 3 tahmini.",
+        "Kırmızı ve sarı bölgeler kararı en çok etkileyen, mavi bölgeler en az etkileyen yerlerdir.",
+        "Kırmızı bölge lekenin üzerindeyse model doğru şeye bakmaktadır. Arka planda ya da yaprak sapındaysa model doğru bilse bile kısa bir yol öğrenmiş olabilir; bu, tarla fotoğraflarında başarının düşebileceğinin işaretidir.")
 
 st.info("**Bulgu:** Model çoğu örnekte lekelere bakıyor (ör. domates geç yanıklığı, üzüm esca). Ama "
         "bazı örneklerde doğru tahmin ettiği halde yaprak sapına ya da kenardaki arka plana bakıyor "

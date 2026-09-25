@@ -5,7 +5,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from ortak import KNOWLEDGE_DIR, KOK, LACIVERT, etiket, gezinme, kod_parcasi
+from ortak import KNOWLEDGE_DIR, KOK, LACIVERT, etiket, gezinme, kod_parcasi, nasil_okunur
 
 st.title("RAG ve Rapor")
 st.write("Model sadece bir sınıf adı ve güven değeri veriyor. Çiftçiye anlaşılır bir rapor lazım. "
@@ -51,6 +51,10 @@ with t1:
             x=alt.X("Parça:Q"), y=alt.Y("Etiket:N", sort="-x", title=None, axis=alt.Axis(labelLimit=260)),
             tooltip=["Etiket", "Parça"],
         ).properties(height=620), use_container_width=True)
+        nasil_okunur(
+            "Bilgi tabanında her hastalık için kaç metin parçası bulunduğu.",
+            "Her bilgi dosyası başlıklarına (belirtiler, uygun koşullar, önlemler vb.) göre parçalara bölünmüştür. Çubuk ne kadar uzunsa o hastalık hakkında o kadar ayrıntılı bilgi vardır.",
+            "38 sınıfın hepsi için bilgi dosyası vardır; toplam 197 parça. Tahmin gelince o hastalığa ait en ilgili 2 parça Claude'a verilir ve rapor bu metne dayanarak yazılır.")
     except Exception as e:  # indeks yoksa sayfa yine açılsın
         st.info(f"Chroma indeksi okunamadı ({e}). `python rag/build_index.py` ile oluşturulabilir.")
     secilen = st.selectbox("Bilgi dosyası", dosyalar, index=dosyalar.index("Tomato___Late_blight"),

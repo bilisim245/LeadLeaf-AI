@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from ortak import LACIVERT, TUBITAK_DIR, gezinme
+from ortak import LACIVERT, TUBITAK_DIR, gezinme, nasil_okunur
 
 st.title("Model Karşılaştırma")
 st.write("Model seçimi tahmine göre yapılmamıştır. Üç hazır model **aynı veriyle, "
@@ -50,6 +50,10 @@ st.altair_chart(
     use_container_width=True,
 )
 st.caption("Eksen %80'den başlıyor; farklar daha net görünsün diye. Yeşil çubuk üretimde kullanılan eğitim tarifi.")
+nasil_okunur(
+    "Üç modelin ve fine-tuning sonrası EfficientNetB0'ın test setindeki başarısı. Üstteki seçenekle metrik değiştirilebilir.",
+    "Çubuk ne kadar uzunsa model o kadar başarılıdır. Eksen %80'den başladığı için küçük farklar büyük görünür; gerçek değerler çubuk içindeki yüzdelerdir.",
+    "Aynı veri ve aynı ayarlarla en iyi sonucu EfficientNetB0 vermiştir (%94,68). Fine-tuning tarifinin geliştirilmesiyle %97,62'ye çıkmıştır; bu yüzden üretimde bu model kullanılmaktadır.")
 
 sol, sag = st.columns([3, 2])
 with sol:
@@ -61,6 +65,10 @@ with sol:
         color=alt.Color("model:N", legend=alt.Legend(orient="bottom", columns=2, title=None)),
         tooltip=["model", alt.Tooltip("dogruluk:Q", format=".2%"), "model_boyutu_mb", "ort_inference_ms"],
     ).properties(height=320), use_container_width=True)
+    nasil_okunur(
+        "Her balon bir model. Yatay eksen boyut (MB), dikey eksen doğruluk, balonun büyüklüğü bir görselin işlenme süresi.",
+        "Sol üst köşe hem küçük hem doğru demektir. Sağ üst doğru ama büyük, sol alt küçük ama daha az doğrudur.",
+        "MobileNetV3Small en küçük (9,7 MB) ama en az doğru modeldir. EfficientNetB0 biraz daha büyüktür ama en doğrusudur; sunucuda çalıştığı için boyut farkı önemli değildir. Süreler birbirine yakındır (~90 ms).")
 with sag:
     st.markdown("**Tablo**")
     goster = tum[["model", "dogruluk", "macro_f1", "macro_auc", "model_boyutu_mb", "ort_inference_ms"]].copy()
@@ -88,5 +96,9 @@ with t_cm:
 st.caption("Öğrenme eğrisinde eğitim ve doğrulama çizgilerinin birbirine yakın gitmesi, modelin ezberlemediğini "
            "gösterir. MobileNetV3Small'da fine-tuning başlayınca doğrulama doğruluğu düşmüştür: küçük model bu ayara "
            "iyi tepki vermemiştir.")
+nasil_okunur(
+    "Öğrenme eğrisi: her epoch sonunda eğitim (mavi) ve doğrulama (turuncu) doğruluğu ile kaybı. Karışıklık matrisi: test görsellerinin hangi sınıfa tahmin edildiği.",
+    "Eğrideki kesikli çizgi fine-tuning'in başladığı yerdir. İki çizginin birbirine yakın gitmesi ezberlemenin olmadığını gösterir. Matriste koyu köşegen doğru tahminlerdir; köşegen dışındaki renkler karışmalardır.",
+    "EfficientNetB0'da fine-tuning başlayınca eğitim doğruluğu kısa bir süre düşüp toparlanmış, doğrulama çizgisi eğitim çizgisinden ayrılmamıştır. MobileNetV3Small'da ise fine-tuning sonrası doğrulama düşmüştür.")
 
 gezinme(__file__)

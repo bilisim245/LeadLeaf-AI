@@ -6,7 +6,8 @@ import pandas as pd
 import streamlit as st
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
 
-from ortak import LACIVERT, M38_DIR, TURUNCU, VERI_DIR, YESIL, etiket, gezinme, test_sonuclari, veri_var
+from ortak import (LACIVERT, M38_DIR, TURUNCU, VERI_DIR, YESIL, etiket, gezinme, nasil_okunur, test_sonuclari,
+                   veri_var)
 
 st.title("Test Sonuçları — 38 Sınıf")
 
@@ -59,6 +60,10 @@ with t1:
     st.dataframe(hatalar.sort_values("Adet", ascending=False).head(10), hide_index=True, use_container_width=True)
     st.caption("Karışmaların çoğu aynı bitkinin kendi hastalıkları arasında. Model bitkiyi neredeyse "
                "hiç şaşırmıyor, zorlandığı yer benzer görünen lekeler.")
+    nasil_okunur(
+        "Karışıklık matrisi: satırlar gerçek sınıf, sütunlar modelin tahmini. 'Sadece hataları göster' açıkken yalnızca yanlış tahminler çizilir.",
+        "Bir kare, o satırdaki gerçek sınıfın o sütundaki sınıfla kaç kez karıştırıldığını gösterir; renk koyulaştıkça karışma artar. Fare kareye getirilince sayı görünür.",
+        "8.146 test görselinde 83 hata vardır; bunların 70'i aynı bitkinin kendi hastalıkları arasındadır. En sık karışma mısırda gri yaprak lekesi ile kuzey yaprak yanıklığı arasındadır (iki yönde 17).")
 
 with t2:
     sdf = pd.DataFrame({"Sınıf": etiketler, "Precision": p, "Recall": r, "F1": f1, "Test görseli": destek})
@@ -73,6 +78,10 @@ with t2:
     ).properties(height=760), use_container_width=True)
     st.caption("Turuncu: %97'nin altında kalan sınıflar. Precision: model \"bu hastalık\" dediğinde ne kadar "
                "haklı. Recall: gerçekten o hastalıkta olanların ne kadarını yakaladı.")
+    nasil_okunur(
+        "38 sınıfın her biri için ayrı ayrı F1 (ya da seçilen metrik) değeri, küçükten büyüğe sıralı.",
+        "En üstteki sınıflar modelin en çok zorlandıklarıdır. Turuncu çubuklar %97'nin altında kalan sınıflardır.",
+        "Beş sınıf %97'nin altındadır; en düşükleri mısır gri yaprak lekesi (0,889) ve domates erken yanıklıktır (0,899). Bunlar birbirine çok benzeyen lekeli hastalıklardır.")
     st.dataframe(sdf.sort_values(metrik).style.format({"Precision": "{:.2%}", "Recall": "{:.2%}", "F1": "{:.2%}"}),
                  hide_index=True, use_container_width=True)
 
@@ -89,6 +98,10 @@ with t3:
         ).properties(height=320), use_container_width=True)
         st.caption(f"Yanlış tahminlerde ortalama güven %{guven[~dogru].mean():.1f}, doğrularda "
                    f"%{guven[dogru].mean():.1f}. Model yanılınca genelde daha az emin oluyor.")
+        nasil_okunur(
+            "Modelin verdiği güven değerlerinin dağılımı; lacivert doğru, turuncu yanlış tahminler.",
+            "Dikey eksen logaritmiktir, az sayıdaki yanlış tahminler de görünsün diye. Çubuklar sağa yığılıyorsa model çoğunlukla çok emindir.",
+            "Doğru tahminlerde ortalama güven %99,2, yanlışlarda %71,2'dir; model yanıldığında genellikle daha az emindir. Yine de 20 yanlış tahminde güven %90'ın üzerindedir; güven eşiği tek başına yeterli değildir.")
     with sag:
         st.markdown("**Uzmana yönlendirme eşiği**")
         esik = st.slider("Güven eşiği (%)", 30, 99, 70)
@@ -110,6 +123,10 @@ with t3:
             color=alt.Color("Ölçü:N", scale=alt.Scale(range=[LACIVERT, YESIL]), legend=alt.Legend(orient="top", title=None)),
         ).properties(height=220) + alt.Chart(pd.DataFrame({"x": [esik]})).mark_rule(strokeDash=[4, 4]).encode(x="x:Q"),
             use_container_width=True)
+        nasil_okunur(
+            "Güven eşiği değiştikçe iki şeyin nasıl değiştiği: cevap verilen tahminlerin doğruluğu (lacivert) ve uzmana gönderilen oran (yeşil).",
+            "Kaydırıcı sağa alındıkça lacivert çizgi yükselir ama yeşil çizgi de yükselir. Kesikli çizgi seçili eşiktir.",
+            "%70 eşiğinde tahminlerin %98,8'ine cevap verilmekte, bunların doğruluğu %99,5 olmaktadır; 83 hatanın 42'si uzmana gönderilerek yakalanmaktadır.")
     st.info("Botta eşik %70 olarak belirlenmiştir. Eşik yükseldikçe cevap verilen tahminler daha doğru olur ama "
             "daha fazla kullanıcı uzmana yönlendirilir. Bu bir denge kararıdır.")
 

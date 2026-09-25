@@ -5,7 +5,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from ortak import ACIK, DURUM_RENK, LACIVERT, M38_DIR, VERI_DIR, etiket, gezinme, manifest, sinif_tablosu
+from ortak import (ACIK, DURUM_RENK, LACIVERT, M38_DIR, VERI_DIR, etiket, gezinme, manifest, nasil_okunur,
+                   sinif_tablosu)
 
 st.title("Keşifsel Veri Analizi")
 
@@ -37,6 +38,13 @@ with t1:
             theta="Toplam:Q", color=alt.Color("Durum:N", scale=DURUM_RENK, legend=alt.Legend(orient="right", title=None)),
             tooltip=["Durum", alt.Tooltip("Toplam:Q", format=",")],
         ).properties(height=200), use_container_width=True)
+        nasil_okunur(
+            "Her bitkinin veri setindeki görsel sayısı. Koyu lacivert hastalıklı, açık mavi sağlıklı yaprakları "
+            "gösterir. Halka grafik tüm veride hastalıklı ve sağlıklı oranını verir.",
+            "Çubuk ne kadar uzunsa o bitkiden o kadar çok görsel vardır. Tamamı açık mavi olan bitkilerde "
+            "(soya, ahududu, yaban mersini) hastalık sınıfı yoktur.",
+            "Veri bitkiler arasında eşit dağılmamıştır: domates 18.160 görselle en büyük bitkidir, ahududu yalnızca "
+            "371 görseldir. Görsellerin %72'si hastalıklı, %28'i sağlıklı yapraktır.")
     with sag:
         st.markdown("**Sınıflara göre** (bir bitkiye tıklandığında o bitkinin sınıfları vurgulanır)")
         secim = alt.selection_point(fields=["Bitki"])
@@ -46,6 +54,12 @@ with t1:
             color=alt.condition(secim, alt.Color("Durum:N", scale=DURUM_RENK, legend=None), alt.value("#E3E8F0")),
             tooltip=["Etiket", "Sınıf", alt.Tooltip("Toplam:Q", format=",")],
         ).add_params(secim).properties(height=760), use_container_width=True)
+        nasil_okunur(
+            "38 sınıfın her birindeki görsel sayısı, büyükten küçüğe sıralı.",
+            "En üstteki en kalabalık, en alttaki en az görsele sahip sınıftır. Soldaki grafikte bir bitkiye "
+            "tıklanınca yalnızca o bitkinin sınıfları renkli kalır.",
+            "En büyük sınıf (portakal HLB, 5.507) en küçükten (sağlıklı patates, 152) yaklaşık 36 kat büyüktür. "
+            "Bu dengesizlik yüzünden yalnızca doğruluğa değil, her sınıfı eşit sayan macro F1 skoruna da bakılmıştır.")
     st.info("Sınıflar dengesiz. Bu yüzden sadece doğruluğa değil, her sınıfı eşit sayan "
             "**macro F1** skoru da raporlanmıştır.")
 
@@ -70,6 +84,12 @@ with t2:
         tooltip=["Etiket", "Küme", "Adet"],
     ).properties(height=760), use_container_width=True)
     st.caption("Her sınıfta oranlar aynı (stratified bölme). Küçük sınıflar da testte temsil ediliyor.")
+    nasil_okunur(
+        "Her sınıfın görsellerinin eğitim, doğrulama ve test kümelerine nasıl paylaştırıldığı (yüzde olarak).",
+        "Her çubuk bir sınıftır ve %100'e tamamlanır. Renklerin sınırları bütün çubuklarda aynı hizadaysa bölme "
+        "her sınıfta aynı oranda yapılmış demektir.",
+        "Bütün sınıflar %70 eğitim, %15 doğrulama, %15 test olarak bölünmüştür. Böylece 152 görsellik en küçük "
+        "sınıf bile testte temsil edilmektedir.")
 
 with t3:
     if not va:
@@ -92,13 +112,25 @@ with t3:
                         axis=alt.Axis(labelLimit=260)),
                 color=alt.Color("Durum:N", scale=DURUM_RENK, legend=alt.Legend(orient="top", title=None)),
             ).properties(height=760), use_container_width=True)
-        st.markdown("**Renk: yeşil kanal ile kırmızı kanal** (hastalıklı yapraklar sarı-kahverengiye kayıyor)")
+            nasil_okunur(
+                "Her sınıftan 60 görselin ortalama parlaklığı (0 siyah, 255 beyaz).",
+                "Kutu, görsellerin ortadaki yarısını; kutunun içindeki çizgi ortanca değeri; bıyıklar geri kalanını "
+                "gösterir. Kutular birbirinden uzaksa sınıfların ışık koşulları farklıdır.",
+                "Sınıflar arasında parlaklık farkı vardır: en koyu mısır pası (ortanca 89), en parlak sağlıklı mısır "
+                "(ortanca 142). Model rengi ve ışığı da öğrenebileceği için tarla fotoğraflarında bu fark sorun "
+                "yaratabilir.")
+        st.markdown("**Renk: yeşil kanal ile kırmızı kanal**")
         st.altair_chart(alt.Chart(renk).mark_circle(size=40, opacity=0.55).encode(
             x=alt.X("R:Q", title="Ortalama kırmızı", scale=alt.Scale(zero=False)),
             y=alt.Y("G:Q", title="Ortalama yeşil", scale=alt.Scale(zero=False)),
             color=alt.Color("Durum:N", scale=DURUM_RENK, legend=alt.Legend(orient="top", title=None)),
             tooltip=["Etiket", "R", "G", "B"],
         ).properties(height=380).interactive(), use_container_width=True)
+        nasil_okunur(
+            "Her nokta bir görsel. Yatay eksen ortalama kırmızı, dikey eksen ortalama yeşil değeridir.",
+            "Sağ üste gidildikçe görsel daha parlak, yukarı gidildikçe daha yeşildir. Grafik yakınlaştırılabilir.",
+            "Hastalıklı yapraklar ortalamada daha koyu ve daha az yeşildir: yeşil kanal 122'ye karşı 137, kırmızı "
+            "kanal 117'ye karşı 127. Renk tek başına hastalığı ayırmaya yetmez; iki grup büyük ölçüde iç içedir.")
 
 with t4:
     if not va:

@@ -6,7 +6,7 @@ import streamlit as st
 from PIL import Image
 from scipy import ndimage
 
-from ortak import (KOK, etiket, gezinme, kod_parcasi, ornek_dosyalar, sinif_tablosu, uretim_modeli,
+from ortak import (KOK, etiket, gezinme, kod_parcasi, nasil_okunur, ornek_dosyalar, sinif_tablosu, uretim_modeli,
                    veri_var)
 
 st.title("CNN ve Transfer Learning")
@@ -53,6 +53,10 @@ with t1:
                "İlk katmanlar kenar ve renk geçişi gibi basit şeyler, son katmanlar leke ve doku gibi "
                "daha karmaşık şeyler öğreniyor.")
 
+    nasil_okunur(
+        "Seçilen yaprak (ortada) ve üzerine 3×3'lük bir filtre uygulanmış hâli (sağda).",
+        "Sağdaki görselde parlak yerler filtrenin aradığı desenin bulunduğu yerlerdir. Dikey kenar filtresi dikey çizgileri, yatay kenar filtresi yatay çizgileri parlatır.",
+        "CNN'in temel işlemi budur: küçük bir filtre görselin üzerinde gezer ve belirli desenleri öne çıkarır. Gerçek modelde bu filtreler elle yazılmaz, eğitim sırasında öğrenilir.")
 with t2:
     st.write("İki yol vardı: sıfırdan bir CNN yazıp eğitmek ya da daha önce milyonlarca görselle "
              "eğitilmiş bir modeli alıp bu veriye uyarlamak (transfer learning). Projede ikincisi tercih edilmiştir.")
@@ -127,5 +131,9 @@ with t4:
     st.caption("Başta çıktı büyük (112×112) ve yaprağın şekli seçiliyor. Derine indikçe çıktı küçülüyor "
                "(14×14), filtre sayısı artıyor ve neyi gördüğü insan gözüyle zor anlaşılıyor: model "
                "artık şekil yerine leke, doku gibi soyut özelliklere bakıyor.")
+    nasil_okunur(
+        "Aynı yaprağın modelin başındaki, ortasındaki ve derinindeki katmanlarda nasıl göründüğü. Her kare bir filtrenin çıktısıdır.",
+        "Parlak yerler filtrenin bir şey bulduğu yerlerdir. Aşağı inildikçe kareler bulanıklaşır, çünkü çözünürlük düşer (112 → 28 → 14).",
+        "Model ilk katmanlarda yaprağın kenarını ve şeklini, derin katmanlarda leke ve doku gibi hastalığa özgü desenleri yakalamaktadır. Karar en derindeki bu desenlere göre verilir.")
 
 gezinme(__file__)

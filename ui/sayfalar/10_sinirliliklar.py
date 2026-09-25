@@ -17,7 +17,7 @@ st.write("Bu hastalık veri setinde yok. Model \"bilmiyorum\" diyemediği için 
 st.subheader("Bilinen sınırlılıklar")
 st.dataframe({
     "Konu": ["Laboratuvar verisi", "Eksik hastalıklar", "Bitki bilgisi", "Rapor değerlendirmesi", "Altyapı",
-             "Tekrar eden görseller"],
+             "Tekrar eden görseller", "İlaç dozu (bilinçli karar)"],
     "Durum": [
         "Görseller sade arka planda çekilmiş. Grad-CAM'de model bazen arka plana bakıyor. "
         "Tarladan çekilen fotoğraflarda başarı ayrıca ölçülmeli.",
@@ -26,6 +26,7 @@ st.dataframe({
         "Claude'un raporlarını bir ziraat mühendisi sistematik olarak incelemedi.",
         "Sistem tek bilgisayarda çalışıyor; sunucuya taşınmalı.",
         "3 test görselinin birebir aynısı eğitimde var (etkisi %0,04). Bölmeden önce tekrarlar temizlenmeli.",
+        "Görevde istenen doz ve bekleme süresi verilmemektedir; karar ruhsatlı ziraat mühendisine bırakılmıştır.",
     ],
 }, hide_index=True, use_container_width=True)
 

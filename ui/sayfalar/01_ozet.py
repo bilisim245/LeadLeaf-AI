@@ -18,22 +18,41 @@ c2.metric("Bitki / Sınıf", f"{df['Bitki'].nunique()} / {len(df)}")
 c3.metric("Test doğruluğu", f"%{dogruluk:.2f}".replace(".", ","))
 c4.metric("Model", "EfficientNetB0")
 
-st.subheader("Sistem nasıl çalışıyor?")
+st.subheader("Görev şablonu: DL → LLM-Agent → n8n")
+st.caption("Bootcamp görevi: \"Görüntüden Rapor (Vision → Agent → PDF)\" — A) Tarım, bitki hastalığı tespiti")
 st.graphviz_chart("""
 digraph {
-  rankdir=LR; bgcolor="transparent";
-  node [shape=box, style="rounded,filled", fillcolor="#EEF2F8", color="#1B3A6B",
-        fontname="Helvetica", fontsize=12, margin="0.25,0.15"];
+  rankdir=TB; bgcolor="transparent"; nodesep=0.3; ranksep=0.35;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=12, margin="0.3,0.12", width=6];
   edge [color="#1B3A6B"];
-  tg  [label="Telegram\\nfotoğraf"];
-  n8n [label="n8n\\nakış yönetimi"];
-  cnn [label="CNN (FastAPI)\\nEfficientNetB0, 38 sınıf", fillcolor="#1B3A6B", fontcolor="white"];
-  rag [label="RAG\\nChroma bilgi tabanı"];
-  llm [label="Claude\\nrapor yazımı"];
-  out [label="Telegram cevabı\\n+ Google Sheets kaydı"];
-  tg -> n8n -> cnn -> rag -> llm -> out;
+  g  [label="Telegram: yaprak fotoğrafı", fillcolor="#EEF2F8", color="#1B3A6B"];
+  dl [label="DL-Model: Algılama / Tahmin
+EfficientNetB0 (transfer learning), 38 sınıf → sınıf + güven skoru",
+      fillcolor="#1B3A6B", fontcolor="white", color="#1B3A6B"];
+  ag [label="LLM-Agent: Yorumlama + Karar + Doğal Dil Çıktısı
+Claude + RAG (Chroma, 38 bilgi dosyası) → JSON rapor",
+      fillcolor="#2E5A9A", fontcolor="white", color="#2E5A9A"];
+  n8 [label="n8n: Tetikleme + Entegrasyon + Aksiyon
+Telegram cevabı · PDF rapor · Google Sheets · güven < %70 → uzman · takip hatırlatması",
+      fillcolor="#EEF2F8", color="#1B3A6B"];
+  g -> dl -> ag -> n8;
 }
 """, use_container_width=True)
+
+st.subheader("Görevin karşılanma durumu")
+st.dataframe(
+    {
+        "Seviye": ["Temel", "Orta", "Orta", "İleri", "İleri"],
+        "Beklenen": ["Görsel → sınıflandırma → rapor", "Güvene göre yönlendirme (düşükse insana)",
+                     "RAG ile zenginleştirilmiş öneri", "Otomatik takip hatırlatması",
+                     "Geçmiş raporlarla trend / zaman içi karşılaştırma"],
+        "Projede": ["Karşılandı", "Karşılandı (n8n IF dalı + uzman bildirimi)", "Karşılandı (Chroma, 197 parça)",
+                    "Karşılandı (3 gün sonra Telegram mesajı)", "Kısmen (kayıtlar Sheets'te, analiz yok)"],
+    },
+    hide_index=True, use_container_width=True,
+)
+st.caption("Görevde istenen ilaç dozu ve bekleme süresi bilinçli olarak üretilmemektedir: yanlış doz zarar "
+           "verebilir, bu karar ruhsatlı ziraat mühendisine bırakılmıştır.")
 
 st.subheader("Kullanılan araçlar")
 st.dataframe(

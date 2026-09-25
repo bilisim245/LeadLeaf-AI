@@ -147,6 +147,18 @@ BOLUMLER = [
         ("Neden RAG kullanıldı?",
          "Dil modelleri bazen yanlış ama inandırıcı bilgi üretebiliyor. Her hastalık için bilgi dosyası "
          "hazırlanmıştır; tahmin gelince ilgili parçalar bulunuyor ve Claude raporu bunlara dayanarak yazıyor."),
+        ("Görevde ilaç dozu ve bekleme süresi isteniyordu, neden yok?",
+         "Bilinçli bir karardır. Yanlış doz insana, bitkiye ve toprağa zarar verebilir; bitki koruma "
+         "ürünlerinde bu karar ruhsatlı ziraat mühendisinindir. Yalnızca ilaç kategorisi söylenmekte ve "
+         "uzmana yönlendirilmektedir. Görev belgesinin sağlık bölümü de 'tanı değil, ön değerlendirme' "
+         "ilkesini savunmaktadır."),
+        ("Düşük güvende ne oluyor?",
+         "n8n'de ayrı bir IF dalı bulunmaktadır: güven %70'in altındaysa ya da yaprak belirtilen bitkinin "
+         "sınıflarına uymuyorsa ziraat mühendisine bildirim gönderilir ve Sheets'e 'uzman incelemesi "
+         "bekliyor' yazılır."),
+        ("Takip yapılıyor mu?",
+         "Hastalık tespit edilen çiftçiye birkaç gün sonra 'bitkinizin durumu nasıl?' mesajı otomatik olarak "
+         "gönderilir; yeni fotoğrafla durum tekrar değerlendirilebilir."),
         ("Neden ilaç ve doz vermiyor?",
          "Yanlış ilaç ya da doz insana, bitkiye ve toprağa zarar verebilir. Sadece genel ürün kategorisi "
          "söyleniyor, karar ruhsatlı ziraat mühendisine bırakılıyor."),
@@ -157,7 +169,8 @@ BOLUMLER = [
          "Kurallar hastalık adını modelden geldiği gibi yazmasını ve kaynağa dayanmasını istiyor. Yine de "
          "raporları bir uzman sistematik olarak incelemedi; bu bir sınırlılık."),
         ("PDF rapor var mı?",
-         "Evet. Streamlit'te analizden sonra rapor PDF olarak indirilebiliyor."),
+         "Evet. Telegram'da rapordan sonra 'PDF ister misiniz?' diye sorulur; istenirse PDF dosyası gönderilir. "
+         "Streamlit'te de indirilebilir. PDF'te en yakın 3 olasılık ve sonucun nasıl oluştuğu da yer alır."),
     ]),
     ("6. Canlı demodaki ekranlar", [
         ("Neden bir risk skoru yok?",

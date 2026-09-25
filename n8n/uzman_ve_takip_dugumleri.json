@@ -1,0 +1,172 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1702bd18-2ad0-4e46-a008-5c069f67e9ca",
+              "leftValue": "={{ $('HTTP Request - Predict CNN').item.json.uzmana_yonlendir === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "aa60efa8-c6cf-4ae3-ade8-91ffc4bafc62",
+      "name": "Güven < %70 mi?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=🔔 <b>Uzman incelemesi gerekiyor</b>\n\nÇiftçi: {{ $('Telegram Trigger').item.json.message.from.first_name || 'Bilinmiyor' }} (chat {{ $('Telegram Trigger').item.json.message.chat.id }})\nTarih: {{ $now.setZone('Europe/Istanbul').toFormat('dd.LL.yyyy HH:mm') }}\nModel tahmini: {{ $('HTTP Request - Predict CNN').item.json.hastalik_tr }} (%{{ $('HTTP Request - Predict CNN').item.json.guven }})\nEn yakın olasılıklar: {{ $('HTTP Request - Predict CNN').item.json.ilk3.map(t => t.sinif_tr + ' %' + t.olasilik).join(', ') }}\n\nNeden yönlendirildi: model güveni %70'in altında ya da yaprak, belirtilen bitkinin tanımlı sınıflarına uymuyor.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "60d636a5-9b38-4892-8a2f-6d8d54c6d18e",
+      "name": "Telegram - Uzmana Bildir",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1904,
+        380
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "wPqVk0IPIK85TlyK",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "439737f0-a50c-484b-a6fe-265482a39453",
+              "leftValue": "={{ !$('HTTP Request - Predict CNN').item.json.hastalik.endsWith('___healthy') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a865cd15-e750-48cf-960b-fb4becf8aedf",
+      "name": "Hastalık var mı?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 3,
+        "unit": "days"
+      },
+      "id": "2304eac0-940d-43af-933b-ea3c67c976e0",
+      "name": "Bekle (takip)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1904,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=🌿 Merhaba, birkaç gün önce gönderdiğiniz yaprakta <b>{{ $('HTTP Request - Predict CNN').item.json.hastalik_tr }}</b> belirtisi görülmüştü.\n\nBitkinizin durumu nasıl? Yeni bir yaprak fotoğrafı göndererek durumu tekrar değerlendirebilirsiniz. Belirtiler yayılıyorsa bir ziraat mühendisine danışmanız önerilir.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "d468b5b1-baba-4f76-afe0-8030cd1a560f",
+      "name": "Telegram - Takip Hatırlatması",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        620
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "wPqVk0IPIK85TlyK",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Güven < %70 mi?": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Uzmana Bildir",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Hastalık var mı?": {
+      "main": [
+        [
+          {
+            "node": "Bekle (takip)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Bekle (takip)": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Takip Hatırlatması",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -182,3 +182,30 @@ FastAPI'de kısa bir numarayla saklanır (`/rapor-kaydet`), PDF bu numarayla ür
      düğüm en altta dursun ki PDF sorusu rapordan sonra gelsin).
 4. Telegram düğümlerinde kimlik bilgisi seçili değilse "Telegram account 2"yi seçin.
 5. **Publish** → Telegram'dan bir fotoğraf gönderin → rapordan sonra gelen soruda "Evet"e basın.
+
+## 6. Güvene göre uzmana yönlendirme (görevdeki "confidence-based routing")
+
+Model emin değilse (güven < %70) ya da yaprak belirtilen bitkinin tanımlı sınıflarına uymuyorsa
+ziraat mühendisine ayrı bir bildirim gider. Görev belgesi bunu n8n'de bir IF düğümü olarak istiyor.
+
+1. `n8n/uzman_ve_takip_dugumleri.json` dosyasını Not Defteri'nde açın → Ctrl+A, Ctrl+C → n8n'de boş
+   bir yere Ctrl+V. 5 düğüm gelir (2 IF, 1 bekleme, 2 Telegram).
+2. **"Rapor JSON'unu Ayrıştır" → "Güven < %70 mi?"** bağlantısını ekleyin.
+3. `Telegram - Uzmana Bildir` düğümünde Chat ID şu an çiftçinin kendisi (demo için). Gerçek kullanımda
+   buraya ziraat mühendisinin Telegram chat ID'si yazılır.
+4. **Sheets'e durum sütunu:** Google Sheet'e `durum` başlıklı bir sütun ekleyin → n8n "Google Sheets -
+   Kaydet" → Refresh Column List → `durum` alanına (Expression):
+   `{{ $('HTTP Request - Predict CNN').item.json.uzmana_yonlendir ? 'Uzman incelemesi bekliyor' : 'Otomatik yanıtlandı' }}`
+
+## 7. Otomatik takip hatırlatması (görevdeki "İleri" seviye)
+
+Hastalık tespit edilen çiftçiye 3 gün sonra "Bitkinizin durumu nasıl? Yeni bir fotoğraf gönderin" mesajı gider.
+
+1. (Aynı yapıştırmayla geldi.) **"Rapor JSON'unu Ayrıştır" → "Hastalık var mı?"** bağlantısını ekleyin.
+2. ⚠️ Bu dal **en altta** olmalı: "Bekle" düğümü çalıştığı dalda akışı bekletir; üstte kalırsa diğer
+   dallar (cevap, PDF sorusu) 3 gün gecikir. "Hastalık var mı?" düğümünü diğer tüm dalların altına sürükleyin.
+3. **Demo için:** `Bekle (takip)` düğümünde süreyi 3 gün yerine **1 dakika** yapın (Amount 1, Unit Minutes),
+   sunumdan sonra 3 güne geri alın.
+
+Son sıralama ("Rapor JSON'unu Ayrıştır" çıkışında, yukarıdan aşağı): Telegram - Cevap Gönder → Google
+Sheets - Kaydet → HTTP Request - Raporu Kaydet → Güven < %70 mi? → Hastalık var mı?

@@ -42,9 +42,9 @@ def ust_uste(img: Image.Image, cam: np.ndarray) -> Image.Image:
 
 
 ts = test_sonuclari()
-kaynak = st.radio("Görsel", ["Test kümesinden seç", "Kendi fotoğrafımı yükle"], horizontal=True)
+kaynak = st.radio("Görsel", ["Test kümesinden", "Yüklenen fotoğraftan"], horizontal=True)
 img = None
-if kaynak == "Test kümesinden seç":
+if kaynak == "Test kümesinden":
     if ts is None or not veri_var():
         st.info("Test sonuçları ve veri seti gerekli.")
     else:

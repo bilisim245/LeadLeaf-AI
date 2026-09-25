@@ -161,7 +161,7 @@ with tab_analiz:
         urun = "" if bitki_secimi == BITKI_SECENEKLERI[0] else bitki_secimi
 
     st.header("📸 Fotoğraf")
-    yuklenen = st.file_uploader("Yaprak fotoğrafı yükle", type=["jpg", "jpeg", "png"])
+    yuklenen = st.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"])
 
     col_img, col_btn = st.columns([1, 3])
     with col_img:
@@ -577,7 +577,7 @@ if not SUNUM_MODU:
 
         st.subheader("🖼️ Tek fotoğrafla canlı karşılaştırma (3 mimari)")
         st.caption("Bu üç model domatesin 5 sınıfıyla (sağlıklı, erken/geç yanıklık, bakteriyel leke, "
-                   "septoria) eğitildi — **yalnızca domates yaprağı yükleyin.** Model uzlaşması ve %70 "
+                   "septoria) eğitilmiştir — **yalnızca domates yaprağı yüklenmelidir.** Model uzlaşması ve %70 "
                    "güven eşiği kural tabanlı yorumlanır (ML tahmini değil).")
         karsilastirma_foto = st.file_uploader(
             "Yaprak fotoğrafı yükle", type=["jpg", "jpeg", "png"], key="karsilastirma_uploader"

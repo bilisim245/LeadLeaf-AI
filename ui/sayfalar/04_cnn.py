@@ -26,7 +26,7 @@ t1, t2, t3, t4 = st.tabs(["Evrişim (convolution)", "Neden transfer learning?", 
 with t1:
     st.write("CNN'in temel işlemi: küçük bir filtre (3×3 sayı) görselin üzerinde kaydırılır. Her konumda "
              "filtre ile altındaki pikseller çarpılıp toplanır. Filtre neyi arıyorsa o bölgeler parlar. "
-             "Aşağıda filtreyi seçip ya da sayıları değiştirip sonucu görebilirsiniz.")
+             "Aşağıda bir filtre seçilerek ya da sayılar değiştirilerek sonuç görülebilir.")
     hazir = {
         "Dikey kenar": [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
         "Yatay kenar": [[-1, -2, -1], [0, 0, 0], [1, 2, 1]],

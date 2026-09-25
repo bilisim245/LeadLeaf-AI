@@ -20,7 +20,7 @@ if not veri_var():
     veri_yok_uyarisi()
     st.stop()
 
-st.subheader("Görsellere bakalım")
+st.subheader("Veri setinden örnek görseller")
 sol, sag = st.columns([1, 3])
 with sol:
     bitkiler = sorted(df["Bitki"].unique(), key=tr_sirala)
@@ -45,8 +45,8 @@ with sag:
             kolon.image(yol, use_container_width=True)
     st.caption(f"Klasör: {secili} · Görseller 256×256 piksel")
 
-st.subheader("İki sınıfı yan yana karşılaştır")
-st.write("Bazı hastalıklar birbirine çok benziyor. Modelin işini zorlaştıran da bu.")
+st.subheader("İki sınıfın karşılaştırılması")
+st.write("Bazı hastalıklar birbirine çok benzemektedir; modelin işini zorlaştıran da budur.")
 siniflar = df.sort_values("Etiket")["Sınıf"].tolist()
 k1, k2 = st.columns(2)
 a = k1.selectbox("Birinci sınıf", siniflar, index=siniflar.index("Tomato___Early_blight"), format_func=etiket)

@@ -53,7 +53,7 @@ with t1:
         ).properties(height=620), use_container_width=True)
     except Exception as e:  # indeks yoksa sayfa yine açılsın
         st.info(f"Chroma indeksi okunamadı ({e}). `python rag/build_index.py` ile oluşturulabilir.")
-    secilen = st.selectbox("Bir bilgi dosyasını aç", dosyalar, index=dosyalar.index("Tomato___Late_blight"),
+    secilen = st.selectbox("Bilgi dosyası", dosyalar, index=dosyalar.index("Tomato___Late_blight"),
                            format_func=etiket)
     with open(os.path.join(KNOWLEDGE_DIR, secilen + ".md"), encoding="utf-8") as f:
         with st.container(border=True, height=420):

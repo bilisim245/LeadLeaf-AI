@@ -1,0 +1,326 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/rapor-kaydet",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ ...$json, hastalik_tr: $('HTTP Request - Predict CNN').item.json.hastalik_tr, ilk3: $('HTTP Request - Predict CNN').item.json.ilk3, bitki: $('HTTP Request - Predict CNN').item.json.bitki, bitki_uyumu: $('HTTP Request - Predict CNN').item.json.bitki_uyumu, rag_kullanildi: !!$('HTTP Request - RAG Context').item.json.baglam, tarih: $now.setZone('Europe/Istanbul').toFormat('dd.LL.yyyy HH:mm') }) }}",
+        "options": {}
+      },
+      "id": "d2a2c84b-ffa3-4723-a877-be4bd3ea130f",
+      "name": "HTTP Request - Raporu Kaydet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1664,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "📄 Bu raporu PDF olarak ister misiniz?",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "📄 Evet, PDF gönder",
+                    "additionalFields": {
+                      "callback_data": "=pdf:{{ $json.rapor_id }}"
+                    }
+                  },
+                  {
+                    "text": "Hayır, teşekkürler",
+                    "additionalFields": {
+                      "callback_data": "pdf_hayir"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "3439980a-b497-4bf4-a225-43053216042a",
+      "name": "Telegram - PDF Sorusu",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1904,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "wPqVk0IPIK85TlyK",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "699d4b84-bfc0-4408-9ae0-373e162a68cf",
+              "leftValue": "={{ !!$json.callback_query }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ba4c21f5-9d4e-4f5f-bdf6-c24bf92ae941",
+      "name": "Buton mu?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $('Telegram Trigger').item.json.callback_query.id }}",
+        "additionalFields": {}
+      },
+      "id": "a03a8f36-8c90-41fd-aac5-de7895e9400b",
+      "name": "Telegram - Butonu Onayla",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        80,
+        380
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "wPqVk0IPIK85TlyK",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "429515d7-901a-4f1f-a0df-db4c66c1d2c7",
+              "leftValue": "={{ $('Telegram Trigger').item.json.callback_query.data.startsWith('pdf:') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6b32ada0-27a7-4e2e-997e-860fc56941b2",
+      "name": "PDF istendi mi?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        320,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.callback_query.message.chat.id }}",
+        "text": "📄 PDF raporunuzu hazırlıyorum, birazdan gönderiyorum…",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "98215120-90ea-4837-a088-9cc9c2daf7ce",
+      "name": "Telegram - PDF Hazırlanıyor",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "wPqVk0IPIK85TlyK",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://127.0.0.1:8000/rapor-pdf/' + $('Telegram Trigger').item.json.callback_query.data.slice(4) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "bdac7b14-fd0e-4c8b-a12e-06cc3ee59704",
+      "name": "HTTP Request - PDF Oluştur",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendDocument",
+        "chatId": "={{ $('Telegram Trigger').item.json.callback_query.message.chat.id }}",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "additionalFields": {
+          "caption": "LeadLeaf AI — ön değerlendirme raporu"
+        }
+      },
+      "id": "0dddd41a-6b0d-4b93-a179-325b97843fcb",
+      "name": "Telegram - PDF Gönder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "wPqVk0IPIK85TlyK",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.callback_query.message.chat.id }}",
+        "text": "Tamam. Başka bir yaprak fotoğrafı gönderebilirsiniz 🌿",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "82cc3f32-410e-4ea7-b0a1-c4898182ee0a",
+      "name": "Telegram - PDF İstenmedi",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        480
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "wPqVk0IPIK85TlyK",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "HTTP Request - Raporu Kaydet": {
+      "main": [
+        [
+          {
+            "node": "Telegram - PDF Sorusu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buton mu?": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Butonu Onayla",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Telegram - Butonu Onayla": {
+      "main": [
+        [
+          {
+            "node": "PDF istendi mi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF istendi mi?": {
+      "main": [
+        [
+          {
+            "node": "Telegram - PDF Hazırlanıyor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram - PDF İstenmedi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - PDF Hazırlanıyor": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - PDF Oluştur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - PDF Oluştur": {
+      "main": [
+        [
+          {
+            "node": "Telegram - PDF Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

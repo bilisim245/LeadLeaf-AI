@@ -349,6 +349,40 @@ def rag_context(hastalik: str, ek_sorgu: str = "") -> dict:
     return {"baglam": retrieve_context(hastalik, ek_sorgu)}
 
 
+# Telegram'da "PDF ister misiniz?" butonu için: rapor kısa bir numarayla saklanır, numara butonun
+# callback_data'sına konur (Telegram sınırı 64 bayt). Çiftçi butona basınca PDF bu numarayla üretilir.
+RAPOR_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raporlar")
+
+
+@app.post("/rapor-kaydet")
+def rapor_kaydet(veri: dict = Body(...)) -> dict:
+    """n8n'den gelen Claude raporu + model çıktısı (ilk3, bitki, ...) saklanır, numarası döner."""
+    import uuid
+
+    os.makedirs(RAPOR_DIR, exist_ok=True)
+    rapor_id = uuid.uuid4().hex[:12]
+    with open(os.path.join(RAPOR_DIR, f"{rapor_id}.json"), "w", encoding="utf-8") as f:
+        json.dump(veri, f, ensure_ascii=False)
+    return {"rapor_id": rapor_id}
+
+
+@app.get("/rapor-pdf/{rapor_id}")
+def rapor_pdf(rapor_id: str) -> Response:
+    if not rapor_id.isalnum() or len(rapor_id) > 32:
+        raise HTTPException(400, "Geçersiz rapor numarası.")
+    yol = os.path.join(RAPOR_DIR, f"{rapor_id}.json")
+    if not os.path.exists(yol):
+        raise HTTPException(404, "Rapor bulunamadı.")
+    with open(yol, encoding="utf-8") as f:
+        veri = json.load(f)
+    pdf_bytes = rapor_pdf_olustur(
+        veri, hastalik_tr=veri.get("hastalik_tr"), tarih=veri.get("tarih"), ilk3=veri.get("ilk3"),
+        bitki=veri.get("bitki"), bitki_uyumu=veri.get("bitki_uyumu"), rag_kullanildi=veri.get("rag_kullanildi"),
+    )
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename=leadleaf_rapor_{rapor_id}.pdf"})
+
+
 @app.post("/generate-pdf")
 def generate_pdf(rapor: dict = Body(...), hastalik_tr: str = "", tarih: str = "") -> Response:
     """n8n'in Claude'un ürettiği rapor JSON'unu gönderip PDF istediği endpoint —

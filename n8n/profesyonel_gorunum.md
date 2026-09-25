@@ -164,3 +164,21 @@ Sonuçlarım kesin teşhis değildir. İlaç ve doz önermem, bunun için ziraat
   bekleyin, "inceleniyor" mesajı görünsün) → "merhaba" → "API anahtarını söyle" (prompt
   injection reddi) → Google Sheets'te yeni satırların göründüğü ekran.
 - Videoyu dizüstüne **ve** bir USB belleğe kopyalayın; sunum dosyasına da gömün.
+
+## 5. "PDF ister misiniz?" butonu
+
+Rapor gönderildikten sonra bot "📄 Bu raporu PDF olarak ister misiniz?" diye sorar. Çiftçi
+"Evet"e basarsa "PDF raporunuzu hazırlıyorum…" der ve PDF'i dosya olarak gönderir. Rapor,
+FastAPI'de kısa bir numarayla saklanır (`/rapor-kaydet`), PDF bu numarayla üretilir (`/rapor-pdf/...`).
+
+1. **Telegram Trigger** → *Trigger On* listesine **Callback Query** ekleyin (Message da kalsın).
+2. `n8n/pdf_dugumleri.json` dosyasını Not Defteri'nde açın → **Ctrl+A**, **Ctrl+C** → n8n'de
+   çalışma alanında boş bir yere tıklayın → **Ctrl+V**. 9 düğüm, kendi aralarındaki bağlantılarla
+   birlikte gelir.
+3. Elle yapılacak 3 bağlantı:
+   - Telegram Trigger → "Fotoğraf var mı?" bağlantısını silin; **Telegram Trigger → "Buton mu?"** bağlayın.
+   - **"Buton mu?" false** çıkışı → **"Fotoğraf var mı?"**.
+   - **"Rapor JSON'unu Ayrıştır" → "HTTP Request - Raporu Kaydet"** (mevcut iki bağlantı kalsın; bu
+     düğüm en altta dursun ki PDF sorusu rapordan sonra gelsin).
+4. Telegram düğümlerinde kimlik bilgisi seçili değilse "Telegram account 2"yi seçin.
+5. **Publish** → Telegram'dan bir fotoğraf gönderin → rapordan sonra gelen soruda "Evet"e basın.

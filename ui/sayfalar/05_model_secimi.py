@@ -1,6 +1,7 @@
 import os
 
 import altair as alt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -31,18 +32,24 @@ metrikler = {"Doğruluk": "dogruluk", "Macro F1": "macro_f1", "Macro Precision":
 secilen = st.radio("Metrik", list(metrikler), horizontal=True)
 kolon = metrikler[secilen or "Doğruluk"]
 sira = tum.sort_values(kolon)["model"].tolist()
+tum["Vurgu"] = np.where(tum["model"] == "EfficientNetB0 (fine-tuning sonrası)", "Seçilen", "Diğer")
+taban = alt.Chart(tum).encode(
+    y=alt.Y("model:N", sort=sira, title=None, axis=alt.Axis(labelLimit=320)),
+    x=alt.X(f"{kolon}:Q", title=secilen, scale=alt.Scale(domain=[0.8, 1.0], clamp=True),
+            axis=alt.Axis(format="%")),
+    tooltip=["model", alt.Tooltip(f"{kolon}:Q", format=".2%")],
+)
 st.altair_chart(
-    alt.Chart(tum).mark_bar().encode(
-        x=alt.X(f"{kolon}:Q", title=secilen, scale=alt.Scale(domain=[0.8, 1.0]), axis=alt.Axis(format="%")),
-        y=alt.Y("model:N", sort=sira, title=None, axis=alt.Axis(labelLimit=300)),
-        color=alt.condition(alt.datum.model == "EfficientNetB0 (fine-tuning sonrası)",
-                            alt.value("#2F7D4A"), alt.value(LACIVERT)),
-        tooltip=["model", alt.Tooltip(f"{kolon}:Q", format=".2%")],
-    ).properties(height=230)
-    + alt.Chart(tum).mark_text(align="left", dx=6, color="#0F2347").encode(
-        x=f"{kolon}:Q", y=alt.Y("model:N", sort=sira), text=alt.Text(f"{kolon}:Q", format=".2%")),
+    alt.layer(
+        taban.mark_bar(clip=True).encode(
+            color=alt.Color("Vurgu:N", scale=alt.Scale(domain=["Seçilen", "Diğer"], range=["#2F7D4A", LACIVERT]),
+                            legend=None)),
+        taban.mark_text(align="right", dx=-8, color="white", fontWeight="bold").encode(
+            text=alt.Text(f"{kolon}:Q", format=".2%")),
+    ).properties(height=240),
     use_container_width=True,
 )
+st.caption("Eksen %80'den başlıyor; farklar daha net görünsün diye. Yeşil çubuk üretimde kullanılan eğitim tarifi.")
 
 sol, sag = st.columns([3, 2])
 with sol:
@@ -68,13 +75,18 @@ st.subheader("Eğitim grafikleri (Colab çıktıları)")
 secenek = {"MobileNetV2": "MobileNetV2", "MobileNetV3Small": "MobileNetV3Small",
            "EfficientNetB0 (ilk tarif)": "EfficientNetB0", "EfficientNetB0 (fine-tuning sonrası)": "EfficientNetB0_gelismis"}
 m = st.selectbox("Model", list(secenek), index=2)
-k1, k2 = st.columns(2)
-for kolon_, on_ek, baslik in ((k1, "ogrenme_egrisi", "Öğrenme eğrisi: eğitim ve doğrulama"),
-                              (k2, "confusion_matrix", "Karışıklık matrisi (test)")):
-    yol = os.path.join(TUBITAK_DIR, f"{on_ek}_{secenek[m]}.png")
-    if os.path.exists(yol):
-        kolon_.image(yol, caption=baslik, use_container_width=True)
-st.caption("Öğrenme eğrisinde eğitim ve doğrulama çizgileri birbirine yakın gidiyorsa model ezberlemiyor demektir. "
-           "MobileNetV3Small'da fine-tuning başlayınca doğrulama düştü: küçük model bu ayara iyi tepki vermedi.")
+egri = os.path.join(TUBITAK_DIR, f"ogrenme_egrisi_{secenek[m]}.png")
+cm = os.path.join(TUBITAK_DIR, f"confusion_matrix_{secenek[m]}.png")
+t_egri, t_cm = st.tabs(["Öğrenme eğrisi (eğitim ve doğrulama)", "Karışıklık matrisi (test)"])
+with t_egri:
+    if os.path.exists(egri):
+        st.image(egri, use_container_width=True)
+with t_cm:
+    if os.path.exists(cm):
+        orta = st.columns([1, 2, 1])[1]
+        orta.image(cm, use_container_width=True)
+st.caption("Öğrenme eğrisinde eğitim ve doğrulama çizgilerinin birbirine yakın gitmesi, modelin ezberlemediğini "
+           "gösterir. MobileNetV3Small'da fine-tuning başlayınca doğrulama doğruluğu düşmüştür: küçük model bu ayara "
+           "iyi tepki vermemiştir.")
 
 gezinme(__file__)

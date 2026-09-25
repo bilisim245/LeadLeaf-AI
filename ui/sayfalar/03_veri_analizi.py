@@ -38,7 +38,7 @@ with t1:
             tooltip=["Durum", alt.Tooltip("Toplam:Q", format=",")],
         ).properties(height=200), use_container_width=True)
     with sag:
-        st.markdown("**Sınıflara göre** (grafikte bir bitkiye tıklayın)")
+        st.markdown("**Sınıflara göre** (bir bitkiye tıklandığında o bitkinin sınıfları vurgulanır)")
         secim = alt.selection_point(fields=["Bitki"])
         st.altair_chart(alt.Chart(df).mark_bar().encode(
             x=alt.X("Toplam:Q", title="Görsel"),

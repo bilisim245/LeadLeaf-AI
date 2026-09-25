@@ -7,9 +7,9 @@ import streamlit as st
 from ortak import LACIVERT, TUBITAK_DIR, gezinme
 
 st.title("Model Karşılaştırma")
-st.write("Hangi modeli kullanacağımıza tahminle karar vermedik. Üç hazır modeli **aynı veriyle, "
-         "aynı ayarlarla** eğitip test setinde karşılaştırdık. Bu deneyi hız için domatesin 5 "
-         "sınıfıyla yaptık, kazananı sonra 38 sınıfa taşıdık.")
+st.write("Model seçimi tahmine göre yapılmamıştır. Üç hazır model **aynı veriyle, "
+         "aynı ayarlarla** eğitilip test setinde karşılaştırılmıştır. Bu deney hız için domatesin 5 "
+         "sınıfıyla yapılmış, kazanan model daha sonra 38 sınıfa taşınmıştır.")
 
 df = pd.read_csv(os.path.join(TUBITAK_DIR, "model_comparison.csv"))
 df["model"] = df["model"].replace({"EfficientNetB0": "EfficientNetB0 (ilk tarif)"})
@@ -62,7 +62,7 @@ with sag:
                                       "MB": "{:.1f}", "ms/görsel": "{:.0f}"}),
                  hide_index=True, use_container_width=True)
     st.success("EfficientNetB0 en yüksek doğruluk ve F1'i verdi. Boyutu biraz daha büyük ama modeli "
-               "sunucuda çalıştırdığımız için bu bir sorun değil.")
+               "sunucuda çalıştığı için bu bir sorun oluşturmamaktadır.")
 
 st.subheader("Eğitim grafikleri (Colab çıktıları)")
 secenek = {"MobileNetV2": "MobileNetV2", "MobileNetV3Small": "MobileNetV3Small",

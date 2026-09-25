@@ -47,13 +47,13 @@ with t1:
             tooltip=["Etiket", "Sınıf", alt.Tooltip("Toplam:Q", format=",")],
         ).add_params(secim).properties(height=760), use_container_width=True)
     st.info("Sınıflar dengesiz. Bu yüzden sadece doğruluğa değil, her sınıfı eşit sayan "
-            "**macro F1** skoruna da bakıyoruz.")
+            "**macro F1** skoru da raporlanmıştır.")
 
 with t2:
     m = manifest()
-    st.write(f"Veriyi eğitimden önce **bir kez** böldük: her sınıfın kendi içinde %70 eğitim, "
+    st.write(f"Veri, eğitimden önce **bir kez** bölünmüştür: her sınıfın kendi içinde %70 eğitim, "
              f"%15 doğrulama, %15 test. Rastgelelik sabit (seed = {m['seed']}), yani aynı bölme "
-             "tekrar üretilebiliyor. Hangi dosyanın nereye gittiği bir dosyada kayıtlı.")
+             "tekrar üretilebilmektedir. Hangi dosyanın hangi kümeye gittiği bir dosyada kayıtlıdır.")
     c1, c2, c3 = st.columns(3)
     c1.metric("Eğitim", f"{df['Eğitim'].sum():,}".replace(",", "."), "modelin öğrendiği", delta_color="off")
     c2.metric("Doğrulama", f"{df['Doğrulama'].sum():,}".replace(",", "."), "eğitim sırasında kontrol", delta_color="off")
@@ -108,8 +108,8 @@ with t4:
         c1.metric("Birebir aynı görsel grubu", va["tekrar_grubu"])
         c2.metric("Fazladan kopya", va["tekrar_eden_fazla_kopya"])
         c3.metric("Farklı sınıfta aynı görsel", va["farkli_sinifta_tekrar"])
-        st.write("Her dosyanın içeriğinden bir özet (MD5) çıkarıp karşılaştırdık. Aynı özete sahip "
-                 "iki dosya birebir aynı fotoğraf demek. Bu önemli: aynı fotoğrafın bir kopyası eğitimde, "
+        st.write("Her dosyanın içeriğinden bir özet (MD5) çıkarılıp karşılaştırılmıştır. Aynı özete sahip "
+                 "iki dosya birebir aynı fotoğraftır. Aynı fotoğrafın bir kopyası eğitimde, "
                  "diğeri testte olursa model onu ezberden bilir ve sonuç olduğundan iyi görünür.")
         if "farkli_kumede_tekrar" in va:
             n_test = va["egitimde_kopyasi_olan_test"]

@@ -35,7 +35,7 @@ digraph {
 }
 """, use_container_width=True)
 
-st.subheader("Kullandığımız araçlar")
+st.subheader("Kullanılan araçlar")
 st.dataframe(
     {
         "Katman": ["Model eğitimi", "Model servisi", "Bilgi tabanı (RAG)", "Rapor", "Akış",

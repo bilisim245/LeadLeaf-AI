@@ -9,7 +9,7 @@ from ortak import KNOWLEDGE_DIR, KOK, LACIVERT, etiket, gezinme, kod_parcasi
 
 st.title("RAG ve Rapor")
 st.write("Model sadece bir sınıf adı ve güven değeri veriyor. Çiftçiye anlaşılır bir rapor lazım. "
-         "Bunu Claude yazıyor, ama **ezberden değil**: önce bizim hazırladığımız bilgi tabanından o "
+         "Rapor Claude tarafından yazılır, ama **ezberden değil**: önce proje için hazırlanan bilgi tabanından o "
          "hastalığa ait metin bulunuyor (RAG), Claude raporu bu metne dayanarak yazıyor.")
 
 st.graphviz_chart("""
@@ -60,7 +60,7 @@ with t1:
             st.markdown(f.read())
 
 with t2:
-    st.write("Bot bir tahmin aldığında bilgi tabanında ne arıyor? Aynı fonksiyonu burada çalıştırıyoruz.")
+    st.write("Bot bir tahmin aldığında bilgi tabanında ne arar? Aynı fonksiyon burada çalıştırılmaktadır.")
     sinif = st.selectbox("Modelin tahmini", dosyalar, index=dosyalar.index("Tomato___Late_blight"),
                          format_func=etiket, key="arama")
     ek = st.text_input("Ek arama metni (isteğe bağlı)", placeholder="ör. yapraklarda sararma var")
@@ -76,7 +76,7 @@ with t2:
 with t3:
     sol, sag = st.columns(2)
     with sol:
-        st.markdown("**Claude'a verdiğimiz kurallardan bazıları**")
+        st.markdown("**Claude'a verilen kurallardan bazıları**")
         st.markdown("""
 - İlaç markası, kesin doz ve hasat öncesi bekleme süresi **verme**.
 - Önce kültürel ve biyolojik önlemleri söyle.

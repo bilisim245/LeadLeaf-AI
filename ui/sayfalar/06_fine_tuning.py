@@ -9,9 +9,9 @@ from ortak import LACIVERT, M38_DIR, TUBITAK_DIR, gezinme, kod_parcasi, uretim_m
 
 st.title("Fine-Tuning (İnce Ayar)")
 
-st.write("Transfer learning'de önce hazır modelin gövdesini **donduruyoruz**, yani ağırlıklarına "
-         "dokunmuyoruz ve sadece en sona eklediğimiz sınıflandırma katmanını eğitiyoruz. Fine-tuning, "
-         "bundan sonra gövdenin **son katmanlarını da açıp** çok küçük adımlarla kendi verimize göre "
+st.write("Transfer learning'de önce hazır modelin gövdesi **dondurulur**, yani ağırlıkları "
+         "değiştirilmez ve yalnızca en sona eklenen sınıflandırma katmanı eğitilir. Fine-tuning, "
+         "bundan sonra gövdenin **son katmanlarını da açıp** çok küçük adımlarla projenin verisine göre "
          "ayarlamak demek.")
 
 c1, c2 = st.columns(2)
@@ -22,7 +22,7 @@ c2.markdown("**Neden küçük öğrenme oranı?**  \nİlk aşamada öğrenme ora
             "yani 100 kat küçük. Büyük adımlarla gidersek modelin ImageNet'ten getirdiği bilgiyi birkaç "
             "adımda bozarız.")
 
-st.subheader("Nasıl yaptık: kademeli açma")
+st.subheader("Uygulanan yöntem: kademeli açma")
 asamalar = pd.DataFrame([
     {"Aşama": "0 · Kafa eğitimi", "Açık gövde (%)": 0, "Öğrenme oranı": "0,001", "En fazla epoch": 8},
     {"Aşama": "1 · Son %15 açık", "Açık gövde (%)": 15, "Öğrenme oranı": "0,00001", "En fazla epoch": 6},
@@ -59,8 +59,8 @@ Her aşamada iki yardımcı var:
 - **EarlyStopping:** doğrulama doğruluğu 5 epoch artmazsa duruyor ve en iyi epoch'un ağırlıklarına geri dönüyor.
 
 Bir de **BatchNormalization** tuzağı var: gövdeyi açınca bu katmanlar kendi istatistiklerini küçük
-batch'lerimize göre değiştirmeye başlıyor ve model sessizce bozuluyor. Gövdeyi `training=False` ile
-çağırarak bunu engelledik.
+batch'lere göre değiştirmeye başlar ve model sessizce bozulur. Gövde `training=False` ile
+çağrılarak bu durum engellenmiştir.
 """)
 
 st.subheader("Sonuç: aynı model, iki farklı eğitim")
@@ -82,7 +82,7 @@ st.altair_chart(alt.Chart(kars).mark_bar().encode(
     row=alt.Row("Metrik:N", title=None, header=alt.Header(labelAngle=0, labelAlign="left")),
     tooltip=["Metrik", "Eğitim", alt.Tooltip("Değer:Q", format=".2%")],
 ).properties(height=70), use_container_width=False)
-st.caption("Domates 5 sınıf deneyi. Bu tarifi daha sonra 38 sınıfa aynen uyguladık.")
+st.caption("Domates 5 sınıf deneyi. Bu tarif daha sonra 38 sınıfa aynen uygulanmıştır.")
 
 k1, k2 = st.columns(2)
 for kolon, yol, baslik in (

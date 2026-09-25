@@ -12,7 +12,7 @@ from ortak import VERI_DIR, etiket, gezinme, test_sonuclari, uretim_modeli, veri
 
 st.title("Model Nereye Bakıyor?")
 st.write("Grad-CAM yöntemiyle modelin kararında yaprağın hangi bölgesinin etkili olduğunu "
-         "görüyoruz. Kırmızı bölgeler karara en çok etki eden yerler. Model gerçekten lekelere "
+         "gösterilmektedir. Kırmızı bölgeler karara en çok etki eden yerlerdir. Model gerçekten lekelere "
          "bakıyorsa doğru şeyi öğrenmiş demektir; arka plana bakıyorsa bir sorun var demektir.")
 
 

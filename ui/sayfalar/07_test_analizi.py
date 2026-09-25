@@ -20,8 +20,8 @@ y_pred, guven = y_prob.argmax(1), y_prob.max(1) * 100
 dogru = y_pred == y_true
 etiketler = [etiket(s) for s in siniflar]
 
-st.write("Test kümesi eğitimde hiç kullanılmadı. Modeli bu 8.146 görselin hepsinde **bu bilgisayarda "
-         "yeniden çalıştırdık**; aşağıdaki her şey bu gerçek tahminlerden hesaplanıyor.")
+st.write("Test kümesi eğitimde hiç kullanılmamıştır. Model bu 8.146 görselin hepsinde **yerel olarak "
+         "yeniden çalıştırılmıştır**; aşağıdaki tüm sonuçlar bu gerçek tahminlerden hesaplanmaktadır.")
 
 p, r, f1, destek = precision_recall_fscore_support(y_true, y_pred, labels=range(len(siniflar)), zero_division=0)
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -110,8 +110,8 @@ with t3:
             color=alt.Color("Ölçü:N", scale=alt.Scale(range=[LACIVERT, YESIL]), legend=alt.Legend(orient="top", title=None)),
         ).properties(height=220) + alt.Chart(pd.DataFrame({"x": [esik]})).mark_rule(strokeDash=[4, 4]).encode(x="x:Q"),
             use_container_width=True)
-    st.info("Botta eşiği %70 seçtik. Eşik yükseldikçe cevap verdiğimiz tahminler daha doğru oluyor ama "
-            "daha fazla kişiyi uzmana gönderiyoruz. Bu bir denge kararı.")
+    st.info("Botta eşik %70 olarak belirlenmiştir. Eşik yükseldikçe cevap verilen tahminler daha doğru olur ama "
+            "daha fazla kullanıcı uzmana yönlendirilir. Bu bir denge kararıdır.")
 
 with t4:
     yanlis = np.where(~dogru)[0]

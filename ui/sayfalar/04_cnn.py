@@ -21,7 +21,7 @@ def gorsel_sec(anahtar: str, varsayilan: str = "Tomato___Early_blight") -> Image
     return Image.open(os.path.join(KOK, "model", "demo_images", "Tomato___Early_blight.jpg")).convert("RGB")
 
 
-t1, t2, t3, t4 = st.tabs(["Evrişim (convolution)", "Neden transfer learning?", "Bizim model", "Katmanlar ne görüyor?"])
+t1, t2, t3, t4 = st.tabs(["Evrişim (convolution)", "Neden transfer learning?", "Projedeki model", "Katmanlar ne görüyor?"])
 
 with t1:
     st.write("CNN'in temel işlemi: küçük bir filtre (3×3 sayı) görselin üzerinde kaydırılır. Her konumda "
@@ -49,15 +49,15 @@ with t1:
     sonuc = (sonuc - sonuc.min()) / (np.ptp(sonuc) + 1e-6) * 255
     orta.image(img, caption="Orijinal", use_container_width=True)
     sag.image(sonuc.astype(np.uint8), caption=f"Filtre sonrası: {secim}", use_container_width=True)
-    st.caption("Gerçek bir CNN'de bu filtreleri biz yazmıyoruz; model eğitim sırasında kendisi öğreniyor. "
+    st.caption("Gerçek bir CNN'de bu filtreler elle yazılmaz; model eğitim sırasında bunları kendisi öğrenir. "
                "İlk katmanlar kenar ve renk geçişi gibi basit şeyler, son katmanlar leke ve doku gibi "
                "daha karmaşık şeyler öğreniyor.")
 
 with t2:
     st.write("İki yol vardı: sıfırdan bir CNN yazıp eğitmek ya da daha önce milyonlarca görselle "
-             "eğitilmiş bir modeli alıp kendi verimize uyarlamak (transfer learning). İkinciyi seçtik.")
+             "eğitilmiş bir modeli alıp bu veriye uyarlamak (transfer learning). Projede ikincisi tercih edilmiştir.")
     st.table(pd.DataFrame({
-        "": ["Başlangıç", "Gereken veri", "Eğitim süresi", "Ezberleme riski", "Bizim durumumuz"],
+        "": ["Başlangıç", "Gereken veri", "Eğitim süresi", "Ezberleme riski", "Projenin koşulları"],
         "Sıfırdan CNN": ["Rastgele ağırlıklar, hiçbir şey bilmiyor", "Çok fazla", "Uzun",
                          "Yüksek", "Colab'ın ücretsiz GPU'su ve kısıtlı süre"],
         "Transfer learning": ["ImageNet'te (1,28 milyon görsel, 1000 sınıf) eğitilmiş",
@@ -65,9 +65,9 @@ with t2:
                               "Kenar, doku, şekil bilgisi hazır geliyor"],
     }))
     st.write("Yaprak da sonuçta bir görsel. Kenar, doku, renk geçişi gibi temel özellikleri ImageNet'te "
-             "öğrenmiş bir model bunları yaprakta da kullanabiliyor. Biz sadece son kısmı kendi 38 "
-             "sınıfımıza göre eğitiyoruz.")
-    st.info("Not: Sıfırdan bir CNN'i ayrıca eğitip karşılaştırmadık. Bu bir sonraki adım olarak "
+             "öğrenmiş bir model bunları yaprakta da kullanabilir. Bu projede yalnızca son kısım 38 "
+             "sınıfa göre eğitilmiştir.")
+    st.info("Not: Sıfırdan eğitilen bir CNN ile ayrıca karşılaştırma yapılmamıştır. Bu bir sonraki adım olarak "
             "yapılabilir; literatürde PlantVillage'da transfer learning'in sıfırdan eğitime göre "
             "daha iyi sonuç verdiği biliniyor.")
 
@@ -78,7 +78,7 @@ with t3:
     c1, c2, c3 = st.columns(3)
     c1.metric("Gövde (EfficientNetB0) katmanı", len(govde.layers))
     c2.metric("Gövde parametresi", f"{govde.count_params():,}".replace(",", "."), "ImageNet'ten hazır", delta_color="off")
-    c3.metric("Bizim eklediğimiz kafa", f"{kafa_param:,}".replace(",", "."), "38 sınıf için", delta_color="off")
+    c3.metric("Eklenen sınıflandırma katmanı", f"{kafa_param:,}".replace(",", "."), "38 sınıf için", delta_color="off")
     st.graphviz_chart("""
     digraph {
       rankdir=LR; bgcolor="transparent";
@@ -94,12 +94,12 @@ with t3:
     """, use_container_width=True)
     st.write("Softmax her sınıf için bir olasılık veriyor, toplamları 1. En yüksek olan tahmin, "
              "o olasılık da **güven** değeri.")
-    with st.expander("Kod: modeli kurduğumuz yer (notebooks/03_efficientnetb0_38_sinif.py)"):
+    with st.expander("Kod: modelin kurulduğu bölüm (notebooks/03_efficientnetb0_38_sinif.py)"):
         st.code(kod_parcasi("notebooks/03_efficientnetb0_38_sinif.py", "inputs = keras.Input", "def parametre_ozeti"),
                 language="python")
 
 with t4:
-    st.write("Bir yaprağı modele verip gövdenin farklı derinliklerindeki çıktılara bakıyoruz. "
+    st.write("Bir yaprak modele verilip gövdenin farklı derinliklerindeki çıktılar gösterilmektedir. "
              "Her küçük kare bir filtrenin tepkisi: parlak yerler, o filtrenin \"bir şey bulduğu\" yerler.")
     img4 = gorsel_sec("katman", "Tomato___Late_blight")
     katmanlar = {"Başta (stem)": "stem_activation", "Ortada (blok 3)": "block3b_activation",

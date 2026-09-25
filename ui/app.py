@@ -9,7 +9,7 @@ bir akışla (sırayla: bilgi gir → fotoğraf yükle → sonucu gör) veriyor.
 
 İki sekme var:
   1. "Analiz" — asıl akış: çiftçi/tarla bilgisi + görsel → /predict (CNN) →
-     agent/report.py (LLM + RAG) → db.py'ye kaydet → trend + hava riski + senaryo.
+     agent/report.py (LLM + RAG) → db.py'ye kaydet → hava durumu + PDF rapor.
   2. "Veri Analizi" — notebooks/00_veri_kesfi.py'nin Colab'da ürettiği EDA
      çıktılarını (sınıf dağılımı, boyut istatistiği, bozuk/tekrar eden görsel
      kontrolü) grafiklerle gösterir. "Bootcamp'ten istenen veri analizini nerede
@@ -51,7 +51,6 @@ EDA_DIR = os.path.join(PROJE_KOKU, "report", "eda_ciktilari")
 TUBITAK_DIR = os.path.join(PROJE_KOKU, "model", "tubitak")
 SINIF38_DIR = os.path.join(PROJE_KOKU, "model", "model_38sinif")
 
-RISK_CARPANI = {"dusuk": 0.9, "orta": 1.0, "yuksek": 1.15, "bilinmiyor": 1.0}
 
 # Bitki seçimi /predict'e `bitki` olarak gider -> tahmin o bitkinin sınıflarıyla sınırlanır
 # (kapalı sınıf sorunu, rapor Adım 37). Anahtarlar inference/app.py BITKI_ONEKLERI ile eşleşir.
@@ -116,42 +115,10 @@ def _demo_user_id(isim: str, il: str, ilce: str) -> int:
     return int(h[:8], 16)
 
 
-def _risk_skoru(hastalik: str, guven: float, hava_riski: str, kume_sayisi: int) -> float:
-    """Basit, ŞEFFAF bir sezgisel formül — ML tahmini DEĞİL.
-    hastalik saglikliysa risk dusuk baz alinir; degilse guven kendisi risk baz alinir.
-    Hava durumu (mantar riski) ve bolgesel kumelenme carpani/ek puan ekler."""
-    baz = guven if not _saglikli(hastalik) else max(5.0, 100 - guven)
-    carpan = RISK_CARPANI.get(hava_riski, 1.0)
-    kume_bonus = min(20.0, kume_sayisi * 5.0)
-    return round(min(100.0, baz * carpan + kume_bonus), 1)
 
 
-def _senaryo_tablosu(risk: float) -> pd.DataFrame:
-    """Kural tabanli, aciklamali senaryo simulasyonu (referans: 'Riski dusurmek
-    icin ne yapmali?' paneli). Katsayilar sezgiseldir, kalibre edilmemistir."""
-    senaryolar = [
-        ("Mevcut durum (hiçbir şey yapma)", 1.00, "—"),
-        ("Kültürel/biyolojik önlem uygula", 0.70, "Budama, sulama düzeni, havalandırma"),
-        ("3 gün içinde tekrar fotoğraf çek", 0.85, "Erken takip, ilerleme kontrolü"),
-        ("Ziraat mühendisine danış", 0.50, "Ruhsatlı ürün/doz uzman kararıyla"),
-    ]
-    satirlar = []
-    for ad, katsayi, not_ in senaryolar:
-        yeni_risk = round(risk * katsayi, 1)
-        fark = round(yeni_risk - risk, 1)
-        satirlar.append({"Senaryo": ad, "Modellenen risk (%)": yeni_risk,
-                          "Fark": fark, "Not": not_})
-    return pd.DataFrame(satirlar)
 
 
-def _risk_durum_kutusu(risk: float, mesaj: str) -> None:
-    """Streamlit'in native renkli kutularini kullaniyoruz — ozel CSS yok."""
-    if risk < 30:
-        st.success(mesaj)
-    elif risk < 60:
-        st.warning(mesaj)
-    else:
-        st.error(mesaj)
 
 
 # Sunum panosundan (ui/sunum.py) açılınca veri ve model sekmeleri gizlenir; o içerik
@@ -174,10 +141,8 @@ else:
 # =====================================================================
 with tab_analiz:
     st.caption(
-        "Çiftçi/tarla bilgisi + yaprak fotoğrafı → CNN sınıflandırma + RAG destekli LLM "
-        "raporu + geçmiş trend + hava durumu riski + müdahale senaryo analizi. "
-        "*(Üretimde bu akış n8n/Telegram bot üzerinden çalışır — bu ekran yerel "
-        "görselleştirme/test amaçlıdır.)*"
+        "Yaprak fotoğrafı → model tahmini → bilgi tabanına dayalı Claude raporu → hava durumu bilgisi. "
+        "*(Çiftçinin kullandığı arayüz Telegram botudur; bu ekran aynı modelin yerel gösterimidir.)*"
     )
 
     with st.sidebar:
@@ -249,15 +214,10 @@ with tab_analiz:
                             baglam={"il": il, "ilce": ilce}, ozet=rapor.get("aciklama", ""))
         gecmis = db.history(uid, fid, limit=10)
         tanimsiz = _tanimsiz(cnn["hastalik"])
-        kume_sayisi = (db.recent_cluster(cnn["hastalik"], ilce, gun=7)
-                       if not (_saglikli(cnn["hastalik"]) or tanimsiz) else 0)
 
         with st.spinner("Hava durumu kontrol ediliyor..."):
             hava = weather_summary(f"{ilce}, {il}")
 
-        # Tanımsız belirtide güven ~%0 -> formül "düşük risk" derdi; bu yanıltıcı olur, hesaplanmaz.
-        risk = None if tanimsiz else _risk_skoru(cnn["hastalik"], cnn["guven"],
-                                                 hava.get("mantar_riski", "bilinmiyor"), kume_sayisi)
 
         st.divider()
         st.header("🔎 Tespit Sonucu")
@@ -265,7 +225,7 @@ with tab_analiz:
         c1, c2, c3 = st.columns(3)
         c1.metric("Hastalık", cnn["hastalik_tr"])
         c2.metric("Model güveni", f"%{cnn['guven']}")
-        c3.metric("Risk skoru (hava + bölge dahil)", "—" if risk is None else f"%{risk}")
+        c3.metric("Uzmana yönlendirme", "Evet" if (cnn.get("uzmana_yonlendir") or tanimsiz) else "Hayır")
 
         if cnn.get("bitki"):
             st.caption(f"🌱 Bitki filtresi: **{cnn['bitki']}** — bu bitkinin sınıflarına düşen "
@@ -277,14 +237,13 @@ with tab_analiz:
                 "benzemiyor. Tanınmayan bir hastalık olabilir; sistem teşhis uydurmuyor. "
                 "⚠️ Bir ziraat mühendisine danışmanız önerilir."
             )
+        elif cnn.get("uzmana_yonlendir"):
+            st.warning(f"**{cnn['hastalik_tr']}** — model bu sonuçtan yeterince emin değil "
+                       f"(güven %70'in altında). ⚠️ Bir ziraat mühendisine danışmanız önerilir.")
+        elif _saglikli(cnn["hastalik"]):
+            st.success(f"**{cnn['hastalik_tr']}** — yaprakta hastalık belirtisi tespit edilmedi.")
         else:
-            _risk_durum_kutusu(
-                risk,
-                f"**{cnn['hastalik_tr']}** — risk seviyesi "
-                f"{'düşük' if risk < 30 else 'orta' if risk < 60 else 'yüksek'}."
-                + (" ⚠️ Bir ziraat mühendisine danışmanız önerilir."
-                   if cnn.get("uzmana_yonlendir") else ""),
-            )
+            st.info(f"**{cnn['hastalik_tr']}** — hastalık belirtisi tespit edildi. Ayrıntılar aşağıdaki raporda.")
 
         st.subheader("Açıklama")
         st.write(rapor.get("aciklama", "-"))
@@ -300,10 +259,6 @@ with tab_analiz:
             st.markdown("\n".join(f"- {madde}" for madde in onlem) or "-")
         else:
             st.markdown(onlem or "-")
-
-        if kume_sayisi > 0:
-            st.info(f"📍 Son 7 günde **{ilce}** ilçesinde aynı hastalığı bildiren "
-                    f"**{kume_sayisi} farklı çiftçi** daha var.")
 
         st.caption(rapor.get("uyari", "Bu bir ön değerlendirmedir, kesin teşhis değildir."))
         st.download_button(
@@ -324,29 +279,25 @@ with tab_analiz:
         for it in cnn["ilk3"]:
             st.progress(it["olasilik"] / 100, text=f"{it['sinif_tr']} — %{it['olasilik']}")
 
-        col_trend, col_hava = st.columns(2)
-
-        with col_trend:
-            st.subheader("📈 Geçmiş trend (bu tarla)")
-            if gecmis:
-                df = pd.DataFrame(reversed(gecmis))
-                df["tarih"] = df["ts"].str[:10]
-                df["guven_yuzde"] = df["guven"].apply(lambda g: g * 100 if g <= 1 else g)
-                st.line_chart(df.set_index("tarih")["guven_yuzde"])
-            else:
-                st.caption("Henüz geçmiş kayıt yok — bu ilk analiz.")
-
-        with col_hava:
-            st.subheader("🌦️ Hava durumu — mantar riski")
-            risk_etiket = {"dusuk": "Düşük", "orta": "Orta", "yuksek": "Yüksek",
-                            "bilinmiyor": "Bilinmiyor"}.get(hava.get("mantar_riski"), "Bilinmiyor")
-            st.metric("Mantar hastalığı riski", risk_etiket)
+        st.subheader(f"🌦️ {ilce} için 3 günlük hava durumu")
+        if hava.get("bulundu", True) and hava.get("ozet_metni"):
             st.text(hava.get("ozet_metni", "-"))
+            etiket_ = {"dusuk": "düşük", "orta": "orta", "yuksek": "yüksek"}.get(hava.get("mantar_riski"))
+            if etiket_:
+                st.caption(f"Nem ve yağışa göre mantar hastalıkları için yayılma koşulları: **{etiket_}**. "
+                           "Kaynak: Open-Meteo. Nem ve yağış mantar hastalıklarının yayılmasını kolaylaştırır; "
+                           "bu genel bir bilgidir, teşhis değildir.")
+        else:
+            st.caption("Hava durumu alınamadı.")
 
-        if risk is not None:
-            st.subheader("🎯 Riski düşürmek için ne yapmalı?")
-            st.caption("(kural tabanlı senaryo — ML tahmini DEĞİL)")
-            st.dataframe(_senaryo_tablosu(risk), width="stretch", hide_index=True)
+        if len(gecmis) >= 2:
+            st.subheader("Bu tarlada önceki analizler")
+            df = pd.DataFrame(reversed(gecmis))
+            df["Tarih"] = df["ts"].str.replace("T", " ").str[:16]
+            df["Sonuç"] = df["hastalik"].map(lambda h: _tr_adlar().get(h, h))
+            df["Güven (%)"] = df["guven"].apply(lambda g: round(g * 100 if g <= 1 else g, 1))
+            st.dataframe(df[["Tarih", "Sonuç", "Güven (%)"]], hide_index=True, width="stretch")
+            st.caption("Bu ekranda aynı çiftçi adı ve konumla yapılan analizlerin kaydıdır.")
 
         benzerler = cnn.get("benzer_gorseller", [])
         if benzerler:

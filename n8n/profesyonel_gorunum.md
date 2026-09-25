@@ -1,5 +1,29 @@
 # Botun profesyonel görünümü — uygulama rehberi
 
+## ⭐ En kolay yol: tek dosyayla içe aktarma
+
+Aşağıdaki bölümlerde anlatılan HER ŞEY (durum mesajları, yeni rapor şablonu, tanıtım mesajı, bitki
+alanı, PDF butonu, uzmana yönlendirme, takip hatırlatması) `n8n/leadleaf_tam_akis.json` dosyasında hazır.
+Bölüm 1–7'yi elle yapmaya gerek yok.
+
+1. n8n'de eski akışı açın ("LeadLeaf AI — Bitki Hastalığı Bot") → sağ üstte **Unpublish** (yayından kaldır).
+   ⚠️ Önce eskisi kaldırılmalı: Telegram bir bot için tek bir akışa mesaj gönderir.
+2. Workflows listesinde **Create / + (yeni akış)** → açılan boş akışta sağ üstteki **⋯** menüsü →
+   **Import from File…** → `LeadLeaf-AI
+8n\leadleaf_tam_akis.json` dosyasını seçin.
+3. Düğümlerde kırmızı uyarı varsa (kimlik bilgisi seçilmemiş) açıp "Telegram account 2", "Anthropic
+   account" ve "Google Sheets account"u seçin.
+4. **Save** → **Publish**.
+5. Telegram'dan deneyin: "merhaba" (tanıtım gelmeli), bir yaprak fotoğrafı (durum mesajı adım adım
+   güncellenmeli, sonra rapor ve "PDF ister misiniz?" sorusu), "Evet" (PDF gelmeli), 1 dakika sonra
+   takip mesajı (hastalıklı yaprakta).
+6. Eski akışı silmeyin; sorun olursa yeniyi Unpublish edip eskisini tekrar Publish ederek geri dönülebilir.
+
+Takip hatırlatması sunum için **1 dakika** ayarlıdır; gerçek kullanımda "Bekle (takip)" düğümünde 3 gün yapılır.
+Dosya, canlı akışın o anki hâlinden `n8n/tam_akis_olustur.py` ile yeniden üretilebilir.
+
+---
+
 Dört iş: (1) anında "inceleniyor" mesajı + ön tespit, (2) düzenli rapor mesajı, (3) bot kimliği +
 `/start` karşılama mesajı, (4) yedek demo videosu. Her adımdan sonra **Publish**.
 

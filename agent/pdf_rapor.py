@@ -53,10 +53,44 @@ def _govde(pdf: FPDF, metin: str) -> None:
     pdf.ln(2)
 
 
-def rapor_pdf_olustur(rapor: dict, hastalik_tr: str | None = None, tarih: str | None = None) -> bytes:
-    """`rapor` = Claude'un ürettiği JSON (hastalik, guven, neden, aciklama, onlem,
-    uzmana_yonlendir, uyari). `hastalik_tr`/`tarih` verilirse başlıkta ayrıca gösterilir
-    (n8n'den CNN'in ham çıktısı ve zaman damgasıyla birlikte çağrılabilir)."""
+def _yuzde(x) -> str:
+    return f"%{float(x):.1f}".replace(".", ",")
+
+
+def sonuc_nasil_olustu(ilk3: list[dict] | None, bitki: str | None = None, bitki_uyumu=None,
+                       uzmana_yonlendir: bool = False, rag_kullanildi: bool | None = None) -> list[str]:
+    """Sonucun nasıl oluştuğunu modelin kendi çıktısından (Claude'a yazdırmadan) anlatan cümleler."""
+    cumleler: list[str] = []
+    if ilk3:
+        bir = ilk3[0]
+        cumleler.append(f"Model yaprağı {_yuzde(bir['olasilik'])} olasılıkla "
+                        f"\"{bir['sinif_tr']}\" olarak sınıflandırdı.")
+        if len(ilk3) > 1 and float(ilk3[1]["olasilik"]) >= 5:
+            iki = ilk3[1]
+            cumleler.append(f"İkinci en yakın olasılık {_yuzde(iki['olasilik'])} ile \"{iki['sinif_tr']}\". "
+                            "Model bu iki sınıf arasında tam emin değil; benzer belirtiler gösterebilirler.")
+        else:
+            cumleler.append("Diğer sınıfların olasılığı çok düşük; model bu sonuçtan emin.")
+    if bitki:
+        ek = f" (bu bitkinin sınıflarına düşen toplam olasılık {_yuzde(bitki_uyumu)})" if bitki_uyumu is not None else ""
+        cumleler.append(f"Bitki bilgisi ({bitki}) kullanıldı; tahmin yalnızca bu bitkinin sınıfları arasından "
+                        f"yapıldı{ek}.")
+    if uzmana_yonlendir:
+        cumleler.append("Güven %70'in altında olduğu için sonuç kesin kabul edilmedi ve uzmana yönlendirildi.")
+    if rag_kullanildi:
+        cumleler.append("Neden ve önlem bilgileri, proje bilgi tabanındaki ilgili hastalık kaynağına dayanılarak yazıldı.")
+    cumleler.append("Model 14 bitkideki 38 sınıfı tanır ve laboratuvar fotoğraflarıyla eğitilmiştir; bu listede "
+                    "olmayan bir hastalık doğru tanınamaz.")
+    return cumleler
+
+
+def rapor_pdf_olustur(rapor: dict, hastalik_tr: str | None = None, tarih: str | None = None,
+                      ilk3: list[dict] | None = None, bitki: str | None = None, bitki_uyumu=None,
+                      rag_kullanildi: bool | None = None) -> bytes:
+    """`rapor` = Claude'un ürettiği JSON (hastalik, guven, neden, aciklama, onlem, uzmana_yonlendir,
+    uyari). `ilk3` = /predict çıktısındaki en olası 3 sınıf; verilmezse rapor["ilk3"] denenir
+    (n8n rapora ekleyip /generate-pdf'e gönderebilir)."""
+    ilk3 = ilk3 or rapor.get("ilk3")
     pdf = _pdf_hazirla()
 
     _baslik(pdf, "LeadLeaf AI — Bitki Hastalığı Ön Değerlendirme Raporu")
@@ -64,10 +98,23 @@ def rapor_pdf_olustur(rapor: dict, hastalik_tr: str | None = None, tarih: str | 
         _govde(pdf, f"Tarih: {tarih}")
 
     _baslik(pdf, f"Tespit: {rapor.get('hastalik', hastalik_tr or '-')}")
-    _govde(pdf, f"Güven düzeyi: %{str(rapor.get('guven', '-')).replace('.', ',')}")
+    _govde(pdf, f"Model güveni: %{str(rapor.get('guven', '-')).replace('.', ',')}")
+
+    if ilk3:
+        _baslik(pdf, "Modelin Diğer Yakın Olasılıkları")
+        for sira, it in enumerate(ilk3, start=1):
+            pdf.multi_cell(0, 6, f"{sira}. {it['sinif_tr']} — {_yuzde(it['olasilik'])}",
+                           new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+
+    _baslik(pdf, "Bu Sonuç Nasıl Oluştu?")
+    for cumle in sonuc_nasil_olustu(ilk3, bitki, bitki_uyumu, bool(rapor.get("uzmana_yonlendir")),
+                                    rag_kullanildi):
+        pdf.multi_cell(0, 6, f"- {cumle}", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
 
     if rapor.get("neden"):
-        _baslik(pdf, "Neden Oluyor?")
+        _baslik(pdf, "Hastalığın Nedeni")
         _govde(pdf, rapor["neden"])
 
     if rapor.get("aciklama"):
@@ -76,7 +123,7 @@ def rapor_pdf_olustur(rapor: dict, hastalik_tr: str | None = None, tarih: str | 
 
     onlem = rapor.get("onlem") or []
     if onlem:
-        _baslik(pdf, "Önerilen Önlemler")
+        _baslik(pdf, "Yayılmayı Azaltmak İçin Yapılabilecekler")
         for madde in onlem:
             pdf.multi_cell(0, 6, f"- {madde}", new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2)

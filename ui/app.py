@@ -37,7 +37,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from PIL import Image
 
-from agent.pdf_rapor import rapor_pdf_olustur
+from agent.pdf_rapor import rapor_pdf_olustur, sonuc_nasil_olustu
 from agent.report import generate_report
 from agent.weather import weather_summary
 from bot.db import DB
@@ -250,10 +250,10 @@ with tab_analiz:
 
         neden = rapor.get("neden")
         if neden:
-            st.subheader("Neden oluyor?")
+            st.subheader("Hastalığın nedeni")
             st.write(neden)
 
-        st.subheader("Önerilen kültürel/biyolojik önlemler")
+        st.subheader("Yayılmayı azaltmak için yapılabilecekler")
         onlem = rapor.get("onlem", [])
         if isinstance(onlem, list):
             st.markdown("\n".join(f"- {madde}" for madde in onlem) or "-")
@@ -264,7 +264,10 @@ with tab_analiz:
         st.download_button(
             "📄 Raporu PDF olarak indir",
             data=rapor_pdf_olustur(rapor, hastalik_tr=cnn["hastalik_tr"],
-                                   tarih=datetime.now().strftime("%d.%m.%Y %H:%M")),
+                                   tarih=datetime.now().strftime("%d.%m.%Y %H:%M"),
+                                   ilk3=cnn["ilk3"], bitki=cnn.get("bitki"),
+                                   bitki_uyumu=cnn.get("bitki_uyumu"),
+                                   rag_kullanildi=rapor.get("_rag_kullanildi")),
             file_name=f"leadleaf_rapor_{datetime.now():%Y%m%d_%H%M}.pdf",
             mime="application/pdf",
         )
@@ -275,9 +278,14 @@ with tab_analiz:
         if rapor.get("_kaynak") == "sablon":
             st.caption("*(Rapor: yerel şablon — `ANTHROPIC_API_KEY` .env'de tanımlı değil.)*")
 
-        st.subheader("İlk 3 tahmin")
+        st.subheader("Modelin diğer yakın olasılıkları")
         for it in cnn["ilk3"]:
             st.progress(it["olasilik"] / 100, text=f"{it['sinif_tr']} — %{it['olasilik']}")
+
+        st.subheader("Bu sonuç nasıl oluştu?")
+        st.markdown("\n".join(f"- {c}" for c in sonuc_nasil_olustu(
+            cnn["ilk3"], cnn.get("bitki"), cnn.get("bitki_uyumu"),
+            bool(cnn.get("uzmana_yonlendir") or tanimsiz), rapor.get("_rag_kullanildi"))))
 
         st.subheader(f"🌦️ {ilce} için 3 günlük hava durumu")
         if hava.get("bulundu", True) and hava.get("ozet_metni"):

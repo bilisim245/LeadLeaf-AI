@@ -64,7 +64,7 @@ def rapor_pdf_olustur(rapor: dict, hastalik_tr: str | None = None, tarih: str | 
         _govde(pdf, f"Tarih: {tarih}")
 
     _baslik(pdf, f"Tespit: {rapor.get('hastalik', hastalik_tr or '-')}")
-    _govde(pdf, f"Güven düzeyi: %{rapor.get('guven', '-')}")
+    _govde(pdf, f"Güven düzeyi: %{str(rapor.get('guven', '-')).replace('.', ',')}")
 
     if rapor.get("neden"):
         _baslik(pdf, "Neden Oluyor?")

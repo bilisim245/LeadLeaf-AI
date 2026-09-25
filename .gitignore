@@ -35,3 +35,6 @@ test_*.png
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Yerel veri seti kopyasi (sunum/veri analizi icin, GitHub spMohanty/PlantVillage-Dataset raw/color)
+data/

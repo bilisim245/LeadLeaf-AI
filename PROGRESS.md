@@ -2,6 +2,29 @@
 
 **Son güncelleme:** 2026-09-24 (gece)
 
+## 🎤 SUNUM = STREAMLIT PANOSU (2026-09-25 gece, Miuul bootcamp)
+
+Slayt destesi yerine **etkileşimli Streamlit panosu** ile sunulacak (kullanıcı kararı: "arkadaşlar
+arayüz kullanıyor", Power BI gibi grafik ağırlıklı, sırayla ilerleyen). Çalıştırma:
+`uvicorn inference.app:app --port 8000` + `streamlit run ui/sunum.py`. Konuşma notları ve
+"neden" soruları: **`sunum/konusma_notlari.md`** (kullanıcının seviyesine göre sade yazıldı).
+
+- 11 sayfa (`ui/sayfalar/`, sıra ve Önceki/Sonraki: `ui/ortak.py` SAYFALAR): Özet → Veri Seti (canlı
+  görsel gezinme) → Keşifsel Veri Analizi → CNN ve Transfer Learning (evrişim oyun alanı, katman
+  çıktıları) → Model Karşılaştırma → Fine-Tuning → Test Sonuçları (38 sınıf, etkileşimli karışıklık
+  matrisi, sınıf bazında metrik, güven eşiği, yanlış bilinenler) → Grad-CAM → RAG → Canlı Demo
+  (ui/app.py, PDF indirme eklendi) → Sınırlılıklar. AppTest ile 11/11 sayfa hatasız.
+- **Veri seti yerelde:** `data/plantvillage/raw/color` (GitHub spMohanty/PlantVillage-Dataset
+  sparse clone, 54.305 görsel, manifest'le birebir; git'e girmiyor).
+- **Test yeniden üretildi:** `notebooks/04_yerel_test_degerlendirme.py` → %98,98 (Colab %99,02;
+  fark 3 görsel, resize farkı). 83 hata, 70'i aynı bitki içinde; en çok mısır gri leke ↔ kuzey
+  yanıklık (17). Eşik %70: %98,8 cevap, doğruluk %99,49, 42/83 hata uzmana gidiyor.
+- **Veri kalitesi:** `notebooks/05_yerel_veri_analizi.py` → hepsi 256×256, 21 birebir tekrar,
+  9'u farklı kümelere düşmüş, **3 test görselinin kopyası eğitimde** (etki ≤%0,04).
+- **Grad-CAM bulgusu:** geç yanıklık/esca'da lekeye bakıyor; mısır pası/elma kara çürüklükte
+  doğru bildiği halde arka plana/sapa bakıyor (PlantVillage arka plan yanlılığı).
+- Slayt destesi (claude.ai artifact) artık KULLANILMIYOR.
+
 ## ☀️ SABAH İLK İŞ (2026-09-25) — n8n değişiklikleri HENÜZ YAPILMADI
 
 Kod tarafı hazır ve canlıda; n8n canlı akışı (`SuklzMNlxzUJN6xQ`) hâlâ 24 Eylül 19:56 hâlinde

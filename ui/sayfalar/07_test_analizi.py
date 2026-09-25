@@ -1,0 +1,142 @@
+import os
+
+import altair as alt
+import numpy as np
+import pandas as pd
+import streamlit as st
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
+
+from ortak import LACIVERT, M38_DIR, TURUNCU, VERI_DIR, YESIL, etiket, gezinme, test_sonuclari, veri_var
+
+st.title("Test Sonuçları — 38 Sınıf")
+
+ts = test_sonuclari()
+if ts is None:
+    st.warning("Önce `notebooks/04_yerel_test_degerlendirme.py` çalıştırılmalı.")
+    st.stop()
+
+siniflar, y_true, y_prob = ts["siniflar"], ts["y_true"], ts["y_prob"]
+y_pred, guven = y_prob.argmax(1), y_prob.max(1) * 100
+dogru = y_pred == y_true
+etiketler = [etiket(s) for s in siniflar]
+
+st.write("Test kümesi eğitimde hiç kullanılmadı. Modeli bu 8.146 görselin hepsinde **bu bilgisayarda "
+         "yeniden çalıştırdık**; aşağıdaki her şey bu gerçek tahminlerden hesaplanıyor.")
+
+p, r, f1, destek = precision_recall_fscore_support(y_true, y_pred, labels=range(len(siniflar)), zero_division=0)
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Test görseli", f"{len(y_true):,}".replace(",", "."))
+c2.metric("Doğruluk", f"%{accuracy_score(y_true, y_pred) * 100:.2f}".replace(".", ","),
+          "Colab'da %99,02", delta_color="off")
+c3.metric("Macro F1", f"{f1.mean():.4f}".replace(".", ","))
+c4.metric("Yanlış tahmin", int((~dogru).sum()))
+c5.metric("Ortalama güven", f"%{guven.mean():.1f}".replace(".", ","))
+st.caption("Colab ile aradaki küçük fark (birkaç görsel) görsellerin 224×224'e küçültülmesinde kullanılan "
+           "kütüphane farkından geliyor.")
+
+t1, t2, t3, t4, t5 = st.tabs(["Karışıklık matrisi", "Sınıf bazında", "Güven ve eşik", "Yanlış bilinenler",
+                              "Colab grafikleri"])
+
+with t1:
+    cm = confusion_matrix(y_true, y_pred, labels=range(len(siniflar)))
+    sadece_hata = st.toggle("Sadece hataları göster (köşegeni gizle)", value=True)
+    kayit = [{"Gerçek": etiketler[i], "Tahmin": etiketler[j], "Adet": int(cm[i, j]),
+              "Oran": cm[i, j] / max(cm[i].sum(), 1)}
+             for i in range(len(siniflar)) for j in range(len(siniflar))
+             if cm[i, j] > 0 and not (sadece_hata and i == j)]
+    sira = sorted(etiketler)
+    st.altair_chart(alt.Chart(pd.DataFrame(kayit)).mark_rect().encode(
+        x=alt.X("Tahmin:N", sort=sira, axis=alt.Axis(labelAngle=-60, labelLimit=200, labelFontSize=9)),
+        y=alt.Y("Gerçek:N", sort=sira, axis=alt.Axis(labelLimit=220, labelFontSize=9)),
+        color=alt.Color("Adet:Q", scale=alt.Scale(scheme="blues" if not sadece_hata else "oranges",
+                                                  type="log" if not sadece_hata else "linear"),
+                        legend=alt.Legend(title="Görsel")),
+        tooltip=["Gerçek", "Tahmin", "Adet", alt.Tooltip("Oran:Q", format=".1%")],
+    ).properties(height=760), use_container_width=True)
+    hatalar = pd.DataFrame([{"Gerçek": etiketler[i], "Tahmin": etiketler[j], "Adet": int(cm[i, j])}
+                            for i in range(len(siniflar)) for j in range(len(siniflar)) if i != j and cm[i, j]])
+    st.markdown("**En sık karışan sınıflar**")
+    st.dataframe(hatalar.sort_values("Adet", ascending=False).head(10), hide_index=True, use_container_width=True)
+    st.caption("Karışmaların çoğu aynı bitkinin kendi hastalıkları arasında. Model bitkiyi neredeyse "
+               "hiç şaşırmıyor, zorlandığı yer benzer görünen lekeler.")
+
+with t2:
+    sdf = pd.DataFrame({"Sınıf": etiketler, "Precision": p, "Recall": r, "F1": f1, "Test görseli": destek})
+    metrik = st.radio("Metrik", ["F1", "Recall", "Precision"], horizontal=True)
+    metrik = metrik or "F1"
+    st.altair_chart(alt.Chart(sdf).mark_bar().encode(
+        x=alt.X(f"{metrik}:Q", scale=alt.Scale(domain=[0.9, 1.0], clamp=True), axis=alt.Axis(format="%")),
+        y=alt.Y("Sınıf:N", sort="x", title=None, axis=alt.Axis(labelLimit=260)),
+        color=alt.condition(alt.datum[metrik] < 0.97, alt.value(TURUNCU), alt.value(LACIVERT)),
+        tooltip=["Sınıf", alt.Tooltip("Precision:Q", format=".2%"), alt.Tooltip("Recall:Q", format=".2%"),
+                 alt.Tooltip("F1:Q", format=".2%"), "Test görseli"],
+    ).properties(height=760), use_container_width=True)
+    st.caption("Turuncu: %97'nin altında kalan sınıflar. Precision: model \"bu hastalık\" dediğinde ne kadar "
+               "haklı. Recall: gerçekten o hastalıkta olanların ne kadarını yakaladı.")
+    st.dataframe(sdf.sort_values(metrik).style.format({"Precision": "{:.2%}", "Recall": "{:.2%}", "F1": "{:.2%}"}),
+                 hide_index=True, use_container_width=True)
+
+with t3:
+    gdf = pd.DataFrame({"Güven": guven, "Sonuç": np.where(dogru, "Doğru", "Yanlış")})
+    sol, sag = st.columns(2)
+    with sol:
+        st.markdown("**Doğru ve yanlış tahminlerde güven**")
+        st.altair_chart(alt.Chart(gdf).mark_bar(opacity=0.85).encode(
+            x=alt.X("Güven:Q", bin=alt.Bin(step=5), title="Güven (%)"),
+            y=alt.Y("count():Q", stack=None, scale=alt.Scale(type="symlog"), title="Görsel (log ölçek)"),
+            color=alt.Color("Sonuç:N", scale=alt.Scale(domain=["Doğru", "Yanlış"], range=[LACIVERT, TURUNCU]),
+                            legend=alt.Legend(orient="top", title=None)),
+        ).properties(height=320), use_container_width=True)
+        st.caption(f"Yanlış tahminlerde ortalama güven %{guven[~dogru].mean():.1f}, doğrularda "
+                   f"%{guven[dogru].mean():.1f}. Model yanılınca genelde daha az emin oluyor.")
+    with sag:
+        st.markdown("**Uzmana yönlendirme eşiği**")
+        esik = st.slider("Güven eşiği (%)", 30, 99, 70)
+        ustunde = guven >= esik
+        k1, k2 = st.columns(2)
+        k1.metric("Eşiğin üstünde (bot cevap verir)", f"%{ustunde.mean() * 100:.1f}")
+        k2.metric("Bu gruptaki doğruluk", f"%{dogru[ustunde].mean() * 100:.2f}" if ustunde.any() else "-")
+        k1.metric("Uzmana yönlendirilen", int((~ustunde).sum()))
+        k2.metric("Yakalanan yanlış", f"{int((~dogru & ~ustunde).sum())} / {int((~dogru).sum())}")
+        esikler = np.arange(30, 100)
+        egri = pd.DataFrame({
+            "Eşik": np.concatenate([esikler, esikler]),
+            "Değer": np.concatenate([[dogru[guven >= e].mean() for e in esikler],
+                                     [(guven < e).mean() for e in esikler]]),
+            "Ölçü": ["Cevap verilenlerde doğruluk"] * len(esikler) + ["Uzmana giden oranı"] * len(esikler),
+        })
+        st.altair_chart(alt.Chart(egri).mark_line().encode(
+            x="Eşik:Q", y=alt.Y("Değer:Q", axis=alt.Axis(format="%"), title=None),
+            color=alt.Color("Ölçü:N", scale=alt.Scale(range=[LACIVERT, YESIL]), legend=alt.Legend(orient="top", title=None)),
+        ).properties(height=220) + alt.Chart(pd.DataFrame({"x": [esik]})).mark_rule(strokeDash=[4, 4]).encode(x="x:Q"),
+            use_container_width=True)
+    st.info("Botta eşiği %70 seçtik. Eşik yükseldikçe cevap verdiğimiz tahminler daha doğru oluyor ama "
+            "daha fazla kişiyi uzmana gönderiyoruz. Bu bir denge kararı.")
+
+with t4:
+    yanlis = np.where(~dogru)[0]
+    st.write(f"Modelin yanıldığı {len(yanlis)} test görseli. Güveni en yüksek olanlar en tehlikeli hatalar: "
+             "model yanlış olduğu halde emin.")
+    sirala = st.radio("Sıralama", ["Güveni en yüksek", "Güveni en düşük"], horizontal=True)
+    yanlis = yanlis[np.argsort(-guven[yanlis] if sirala == "Güveni en yüksek" else guven[yanlis])]
+    if not veri_var():
+        st.info("Görselleri göstermek için veri seti gerekli (data/plantvillage).")
+    else:
+        for bas in range(0, min(len(yanlis), 24), 6):
+            kolonlar = st.columns(6)
+            for kolon, i in zip(kolonlar, yanlis[bas:bas + 6]):
+                kolon.image(os.path.join(VERI_DIR, ts["dosyalar"][i]), use_container_width=True)
+                kolon.markdown(f"<small>Gerçek: **{etiketler[y_true[i]]}**<br>Tahmin: {etiketler[y_pred[i]]}"
+                               f"<br>Güven: %{guven[i]:.0f}</small>", unsafe_allow_html=True)
+
+with t5:
+    k1, k2 = st.columns(2)
+    for kolon, dosya, baslik in ((k1, "ogrenme_egrisi_EfficientNetB0_38sinif.png", "Öğrenme eğrisi (eğitim / doğrulama)"),
+                                 (k2, "confusion_matrix_EfficientNetB0_38sinif.png", "Karışıklık matrisi (Colab)")):
+        yol = os.path.join(M38_DIR, dosya)
+        if os.path.exists(yol):
+            kolon.image(yol, caption=baslik, use_container_width=True)
+    st.caption("Son aşamada eğitim %98,88, doğrulama %98,92, test %99,02. Üçü birbirine çok yakın: "
+               "model ezberlememiş.")
+
+gezinme(__file__)

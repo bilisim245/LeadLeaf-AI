@@ -145,28 +145,22 @@ with tab_analiz:
         "*(Çiftçinin kullandığı arayüz Telegram botudur; bu ekran aynı modelin yerel gösterimidir.)*"
     )
 
-    with st.sidebar:
-        st.header("👤 Çiftçi ve tarla bilgisi")
-        isim = st.text_input("Çiftçi adı", value="Ahmet")
-        il = st.text_input("İl", value="Antalya")
-        ilce = st.text_input("İlçe", value="Serik")
+    st.header("📸 Fotoğraf")
+    sol, sag = st.columns([3, 2])
+    with sol:
+        yuklenen = st.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"])
+        if yuklenen:
+            st.image(yuklenen, caption="Yüklenen fotoğraf", width=220)
+    with sag:
         bitki_secimi = st.selectbox("Bitki", BITKI_SECENEKLERI, index=1)
-        st.caption("Bitki seçilirse teşhis yalnızca o bitkinin hastalıkları arasından yapılır; "
-                   "yaprak bu bitkinin bilinen sınıflarına benzemiyorsa sistem uydurma teşhis "
-                   "koymaz, uzmana yönlendirir.")
+        st.caption("Bitki seçilirse teşhis yalnızca o bitkinin hastalıkları arasından yapılır; yaprak "
+                   "bu bitkinin bilinen sınıflarına benzemiyorsa sistem teşhis uydurmaz, uzmana yönlendirir.")
+        konum = st.text_input("Konum (isteğe bağlı, hava durumu için)", placeholder="ör. Serik, Antalya")
         with st.expander("🌱 Tanınan bitki ve hastalıklar"):
             for b, h in DESTEKLENEN_HASTALIKLAR.items():
                 st.markdown(f"**{b}:** {h}")
             st.caption("14 bitki, 26 hastalık + sağlıklı yaprak. Listede olmayan hastalıklar tanınamaz.")
-        urun = "" if bitki_secimi == BITKI_SECENEKLERI[0] else bitki_secimi
-
-    st.header("📸 Fotoğraf")
-    yuklenen = st.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"])
-
-    col_img, col_btn = st.columns([1, 3])
-    with col_img:
-        if yuklenen:
-            st.image(yuklenen, caption="Yüklenen fotoğraf", width=220)
+    urun = "" if bitki_secimi == BITKI_SECENEKLERI[0] else bitki_secimi
 
     analiz_tiklandi = st.button("🔍 Analiz Et", type="primary", disabled=yuklenen is None)
 
@@ -206,17 +200,11 @@ with tab_analiz:
         with st.spinner("Rapor hazırlanıyor (RAG + LLM)..."):
             rapor = generate_report(cnn["hastalik"], cnn["hastalik_tr"], cnn["guven"])
 
-        db = get_db()
-        uid = _demo_user_id(isim, il, ilce)
-        db.upsert_user(uid, isim, il=il, ilce=ilce)
-        fid = db.get_or_create_default_field(uid, crop=(urun or "belirtilmedi").lower())
-        db.add_observation(uid, fid, hastalik=cnn["hastalik"], guven=cnn["guven"] / 100,
-                            baglam={"il": il, "ilce": ilce}, ozet=rapor.get("aciklama", ""))
-        gecmis = db.history(uid, fid, limit=10)
         tanimsiz = _tanimsiz(cnn["hastalik"])
-
-        with st.spinner("Hava durumu kontrol ediliyor..."):
-            hava = weather_summary(f"{ilce}, {il}")
+        hava = None
+        if konum.strip():
+            with st.spinner("Hava durumu kontrol ediliyor..."):
+                hava = weather_summary(konum.strip())
 
 
         st.divider()
@@ -287,25 +275,17 @@ with tab_analiz:
             cnn["ilk3"], cnn.get("bitki"), cnn.get("bitki_uyumu"),
             bool(cnn.get("uzmana_yonlendir") or tanimsiz), rapor.get("_rag_kullanildi"))))
 
-        st.subheader(f"🌦️ {ilce} için 3 günlük hava durumu")
-        if hava.get("bulundu", True) and hava.get("ozet_metni"):
-            st.text(hava.get("ozet_metni", "-"))
-            etiket_ = {"dusuk": "düşük", "orta": "orta", "yuksek": "yüksek"}.get(hava.get("mantar_riski"))
-            if etiket_:
-                st.caption(f"Nem ve yağışa göre mantar hastalıkları için yayılma koşulları: **{etiket_}**. "
-                           "Kaynak: Open-Meteo. Nem ve yağış mantar hastalıklarının yayılmasını kolaylaştırır; "
-                           "bu genel bir bilgidir, teşhis değildir.")
-        else:
-            st.caption("Hava durumu alınamadı.")
-
-        if len(gecmis) >= 2:
-            st.subheader("Bu tarlada önceki analizler")
-            df = pd.DataFrame(reversed(gecmis))
-            df["Tarih"] = df["ts"].str.replace("T", " ").str[:16]
-            df["Sonuç"] = df["hastalik"].map(lambda h: _tr_adlar().get(h, h))
-            df["Güven (%)"] = df["guven"].apply(lambda g: round(g * 100 if g <= 1 else g, 1))
-            st.dataframe(df[["Tarih", "Sonuç", "Güven (%)"]], hide_index=True, width="stretch")
-            st.caption("Bu ekranda aynı çiftçi adı ve konumla yapılan analizlerin kaydıdır.")
+        if hava is not None:
+            st.subheader(f"🌦️ {konum.strip()} için 3 günlük hava durumu")
+            if hava.get("bulundu", True) and hava.get("ozet_metni"):
+                st.text(hava.get("ozet_metni", "-"))
+                etiket_ = {"dusuk": "düşük", "orta": "orta", "yuksek": "yüksek"}.get(hava.get("mantar_riski"))
+                if etiket_:
+                    st.caption(f"Nem ve yağışa göre mantar hastalıkları için yayılma koşulları: **{etiket_}**. "
+                               "Kaynak: Open-Meteo. Nem ve yağış mantar hastalıklarının yayılmasını "
+                               "kolaylaştırır; bu genel bir bilgidir, teşhis değildir.")
+            else:
+                st.caption("Hava durumu alınamadı; konum adı kontrol edilmelidir.")
 
         benzerler = cnn.get("benzer_gorseller", [])
         if benzerler:

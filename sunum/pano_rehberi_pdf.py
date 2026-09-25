@@ -109,9 +109,9 @@ SAYFALAR = [
          "İlaç markası ve doz verilmez; güven düşükse uzmana yönlendirilir; kötü niyetli mesajlar uygulanmaz."),
     ]),
     ("10. Canlı Demo", "Sistemin çalışırken gösterilmesi.", [
-        ("Fotoğraf yükle → Analiz Et", "Model tahmini, durum kutusu, Claude raporu, en yakın 3 olasılık, 'bu sonuç nasıl oluştu', hava durumu.",
+        ("Fotoğraf yükle → Analiz Et", "Model tahmini, durum kutusu, Claude raporu, en yakın 3 olasılık, 'bu sonuç nasıl oluştu'; konum yazılırsa hava durumu.",
          "Telegram'daki akışın aynısı ekranda adım adım görülür. Rapor PDF olarak indirilebilir."),
-        ("Bitki seçimi (sol menü)", "Seçilen bitkiye göre tahmin yalnızca o bitkinin hastalıkları arasından yapılır.",
+        ("Bitki seçimi (fotoğrafın yanında)", "Seçilen bitkiye göre tahmin yalnızca o bitkinin hastalıkları arasından yapılır.",
          "Tanımsız bir hastalıkta sistem teşhis uydurmaz, uzmana yönlendirir (şeftali örneği)."),
     ]),
     ("11. Sınırlılıklar ve Sonraki Adım", "Sistemin neyi yapamadığının dürüstçe söylenmesi.", [

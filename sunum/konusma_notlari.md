@@ -179,10 +179,10 @@ Sonra **Mısır — Yaygın Pas** (örnek 1): doğru bildiği halde sol alttaki 
 
 ## 10. Canlı Demo
 
-Soldan bitkiyi seç, fotoğraf yükle, "Analiz Et"e bas. Rapor gelince **PDF'i indir** butonunu
+Fotoğrafı yükle, yanındaki kutudan bitkiyi seç (istersen konum yaz, ör. Serik, Antalya), "Analiz Et"e bas. Rapor gelince **PDF'i indir** butonunu
 göster. Sonra telefondan Telegram botuna bir fotoğraf at.
-> Streamlit'te aynı modeli ek analizlerle görüyoruz: hava durumuna göre mantar riski, bu tarlanın
-> geçmişi. Çiftçinin kullandığı yer ise Telegram.
+> Streamlit'te aynı model adım adım görülüyor: tahmin, rapor, en yakın olasılıklar ve sonucun
+> nasıl oluştuğu. Konum yazılırsa hava durumu da ekleniyor. Çiftçinin kullandığı yer ise Telegram.
 
 ---
 

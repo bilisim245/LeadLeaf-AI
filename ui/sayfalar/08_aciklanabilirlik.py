@@ -53,9 +53,11 @@ if kaynak == "Test kümesinden seç":
         grup = k1.radio("Hangi tahminler?", ["Doğru bilinenler", "Yanlış bilinenler"], horizontal=True)
         adaylar = np.where(dogru if grup == "Doğru bilinenler" else ~dogru)[0]
         siniflar = sorted({ts["y_true"][i] for i in adaylar}, key=lambda i: etiket(ts["siniflar"][i]))
-        sinif = k2.selectbox("Gerçek sınıf", siniflar, format_func=lambda i: etiket(ts["siniflar"][i]))
+        sinif = k2.selectbox("Gerçek sınıf", siniflar, format_func=lambda i: etiket(ts["siniflar"][i]),
+                             key=f"gc_sinif_{grup}")
         secenekler = [i for i in adaylar if ts["y_true"][i] == sinif]
-        sira = st.slider("Örnek", 1, len(secenekler), 1) if len(secenekler) > 1 else 1
+        sira = (st.slider("Örnek", 1, len(secenekler), 1, key=f"gc_ornek_{grup}_{sinif}")
+                if len(secenekler) > 1 else 1)
         i = secenekler[sira - 1]
         img = Image.open(os.path.join(VERI_DIR, ts["dosyalar"][i])).convert("RGB")
         st.caption(f"Gerçek sınıf: **{etiket(ts['siniflar'][ts['y_true'][i]])}**")

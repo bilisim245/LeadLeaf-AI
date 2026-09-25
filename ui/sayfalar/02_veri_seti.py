@@ -2,7 +2,8 @@ import os
 
 import streamlit as st
 
-from ortak import VERI_DIR, etiket, gezinme, ornek_dosyalar, sinif_tablosu, veri_var, veri_yok_uyarisi
+from ortak import (VERI_DIR, etiket, gezinme, ornek_dosyalar, sinif_tablosu, tr_sirala, veri_var,
+                   veri_yok_uyarisi)
 
 st.title("Veri Seti: PlantVillage")
 st.write("Laboratuvarda, sade bir arka plan önünde çekilmiş yaprak fotoğrafları. "
@@ -22,10 +23,14 @@ if not veri_var():
 st.subheader("Görsellere bakalım")
 sol, sag = st.columns([1, 3])
 with sol:
-    bitkiler = sorted(df["Bitki"].unique())
+    bitkiler = sorted(df["Bitki"].unique(), key=tr_sirala)
     secili_bitki = st.selectbox("Bitki", bitkiler, index=bitkiler.index("Domates"))
     alt = df[df["Bitki"] == secili_bitki].sort_values("Toplam", ascending=False)
-    secili = st.radio("Sınıf", alt["Sınıf"].tolist(), format_func=lambda s: etiket(s).split(" — ")[1])
+    # key bitkiye bağlı: bitki değişince önceki bitkinin sınıf seçimi taşınmasın
+    secili = st.radio("Sınıf", alt["Sınıf"].tolist(), format_func=lambda s: etiket(s).split(" — ")[1],
+                      key=f"sinif_{secili_bitki}")
+    if secili not in alt["Sınıf"].values:
+        secili = alt["Sınıf"].iloc[0]
     adet = int(alt.loc[alt["Sınıf"] == secili, "Toplam"].iloc[0])
     st.metric("Bu sınıftaki görsel", f"{adet:,}".replace(",", "."))
     if "tohum" not in st.session_state:

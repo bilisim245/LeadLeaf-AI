@@ -5,7 +5,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from ortak import ACIK, DURUM_RENK, LACIVERT, M38_DIR, etiket, gezinme, manifest, sinif_tablosu
+from ortak import ACIK, DURUM_RENK, LACIVERT, M38_DIR, VERI_DIR, etiket, gezinme, manifest, sinif_tablosu
 
 st.title("Keşifsel Veri Analizi")
 
@@ -126,6 +126,15 @@ with t4:
                      for i, g in enumerate(va["farkli_kumede_ornekler"]) for x in g],
                     hide_index=True, use_container_width=True,
                 )
-        st.caption("Bozuk ya da açılamayan görsel yok: 54.305 görselin hepsi açıldı ve boyutu okundu.")
+        st.caption("Bozuk ya da açılamayan görsel yok: 54.305 görselin hepsi tam olarak açılıp okundu.")
+        farkli = [f"{c}/{d}" for c in sorted(os.listdir(VERI_DIR)) if os.path.isdir(os.path.join(VERI_DIR, c))
+                  for d in os.listdir(os.path.join(VERI_DIR, c))
+                  if not d.lower().endswith((".jpg", ".jpeg"))] if os.path.isdir(VERI_DIR) else []
+        if farkli:
+            st.warning(f"**Bulgu:** {len(farkli)} dosya fotoğraf değil, ekran görüntüsü (PNG): "
+                       f"`{farkli[0]}`. Veri setine yanlışlıkla girmiş ve test kümesine düşmüş. Model bunu %69,1 "
+                       "güvenle 'domates erken yanıklık' sandı; güven %70'in altında olduğu için bot uzmana "
+                       "yönlendirirdi.")
+            st.image(os.path.join(VERI_DIR, farkli[0]), width=260)
 
 gezinme(__file__)

@@ -60,6 +60,13 @@ def gezinme(dosya: str) -> None:
         st.switch_page(SAYFALAR[i + 1][0])
 
 
+def tr_sirala(metin: str) -> str:
+    """Türkçe alfabetik sıralama anahtarı (Ç, Ğ, İ, Ö, Ş, Ü doğru yere gelsin)."""
+    alfabe = "abcçdefgğhıijklmnoöprsştuüvyz"
+    return "".join(chr(0x100 + alfabe.index(h)) if h in alfabe else h
+                   for h in metin.replace("I", "ı").replace("İ", "i").lower())
+
+
 def bitki(sinif: str) -> str:
     return BITKI_TR.get(sinif.split("___")[0], sinif.split("___")[0])
 

@@ -68,6 +68,9 @@ Grafikte bir bitkiye tıklayınca o bitkinin sınıfları renkli kalıyor, bunu 
 > var. Bunlardan 3 tanesinin bir kopyası eğitimde, bir kopyası testte kalmış. Yani modelin
 > testte gördüğü 3 görseli aslında eğitimde de görmüş. 8 bin test görselinde bu çok küçük bir
 > etki ama bölmeden önce tekrarları temizlemek daha doğru olurdu. Bunu kendimiz bulduk.
+> Bir de ilginç bir şey çıktı: biber klasöründe bir dosya fotoğraf değil, bir ekran görüntüsü.
+> Veri setine yanlışlıkla girmiş ve test kümesine düşmüş. Model onu yüzde 69 güvenle domates
+> erken yanıklık sandı. Güven yüzde 70'in altında olduğu için bot bu durumda uzmana yönlendirirdi.
 
 ---
 

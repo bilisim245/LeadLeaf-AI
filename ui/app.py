@@ -42,6 +42,9 @@ from agent.report import generate_report
 from agent.weather import weather_summary
 from bot.db import DB
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ortak import bulgu  # noqa: E402
+
 load_dotenv()
 
 INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:8000")
@@ -145,22 +148,22 @@ with tab_analiz:
         "*(Çiftçinin kullandığı arayüz Telegram botudur; bu ekran aynı modelin yerel gösterimidir.)*"
     )
 
-    st.header("📸 Fotoğraf")
-    sol, sag = st.columns([3, 2])
-    with sol:
-        yuklenen = st.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"])
-        if yuklenen:
-            st.image(yuklenen, caption="Yüklenen fotoğraf", width=220)
-    with sag:
+    with st.sidebar:
+        st.header("🌱 Analiz ayarları")
         bitki_secimi = st.selectbox("Bitki", BITKI_SECENEKLERI, index=1)
-        st.caption("Bitki seçilirse teşhis yalnızca o bitkinin hastalıkları arasından yapılır; yaprak "
-                   "bu bitkinin bilinen sınıflarına benzemiyorsa sistem teşhis uydurmaz, uzmana yönlendirir.")
-        konum = st.text_input("Konum (isteğe bağlı, hava durumu için)", placeholder="ör. Serik, Antalya")
-        with st.expander("🌱 Tanınan bitki ve hastalıklar"):
+        st.caption("Bitki seçildiğinde teşhis yalnızca o bitkinin hastalıkları arasından yapılır; yaprak "
+                   "bilinen sınıflara benzemiyorsa teşhis uydurulmaz, uzmana yönlendirilir.")
+        konum = st.text_input("Konum (hava durumu için)", placeholder="ör. Serik, Antalya")
+        with st.expander("Tanınan bitki ve hastalıklar"):
             for b, h in DESTEKLENEN_HASTALIKLAR.items():
                 st.markdown(f"**{b}:** {h}")
             st.caption("14 bitki, 26 hastalık + sağlıklı yaprak. Listede olmayan hastalıklar tanınamaz.")
     urun = "" if bitki_secimi == BITKI_SECENEKLERI[0] else bitki_secimi
+
+    st.header("📸 Yaprak fotoğrafı")
+    yuklenen = st.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    if yuklenen:
+        st.image(yuklenen, caption="Yüklenen fotoğraf", width=240)
 
     analiz_tiklandi = st.button("🔍 Analiz Et", type="primary", disabled=yuklenen is None)
 
@@ -286,20 +289,34 @@ with tab_analiz:
                     "Yağış olasılığı (%)": g["yagis_olasilik"],
                 } for g in hava["gunler"]]), hide_index=True, width="stretch")
                 seviye = {"dusuk": "düşük", "orta": "orta", "yuksek": "yüksek"}.get(hava.get("mantar_riski"), "bilinmiyor")
+                nemler = [g["nem_ort"] for g in hava["gunler"] if g["nem_ort"] is not None]
+                ort_nem = sum(nemler) / len(nemler) if nemler else 0
+                top_yagis = sum(g["yagis_mm"] or 0 for g in hava["gunler"])
+                neden_ = {
+                    "yuksek": f"ortalama nem %{ort_nem:.0f} ve toplam yağış {top_yagis:.1f} mm; nem %80'in ya da "
+                              "yağış 10 mm'nin üzerinde olduğu için",
+                    "orta": f"ortalama nem %{ort_nem:.0f} ve toplam yağış {top_yagis:.1f} mm; nem %65'in ya da "
+                            "yağış 2 mm'nin üzerinde, ancak yüksek eşiğin altında olduğu için",
+                    "dusuk": f"ortalama nem %{ort_nem:.0f} (%65 eşiğinin altında) ve toplam yağış {top_yagis:.1f} mm "
+                             "(2 mm eşiğinin altında) olduğu için",
+                }.get(hava.get("mantar_riski"), "").replace(".", ",")
                 sinif = cnn["hastalik"]
                 if _saglikli(sinif) or tanimsiz:
-                    st.caption(f"Önümüzdeki günlerde nem ve yağışa bağlı hastalıkların yayılma koşulları: "
-                               f"**{seviye}**. Nemli dönemlerde yapraklar daha sık kontrol edilmelidir.")
+                    bulgu(f"Önümüzdeki 3 günde {neden_} nem ve yağışa bağlı hastalıkların yayılma koşulları "
+                          f"<b>{seviye}</b> olarak değerlendirilmiştir. Nemli dönemlerde yapraklar daha sık "
+                          "kontrol edilmelidir.", "Hava durumu değerlendirmesi")
                 elif "Spider_mites" in sinif:
-                    st.caption("Kırmızı örümcek bir zararlıdır; nemli havada değil, **sıcak ve kuru havada** artar. "
-                               "Kuru ve sıcak günlerde yaprakların alt yüzü daha sık kontrol edilmelidir.")
+                    bulgu("Kırmızı örümcek bir zararlıdır; nemli havada değil, <b>sıcak ve kuru havada</b> artar. "
+                          "Kuru ve sıcak günlerde yaprakların alt yüzü daha sık kontrol edilmelidir.",
+                          "Hava durumu değerlendirmesi")
                 elif "virus" in sinif.lower() or "Haunglongbing" in sinif:
-                    st.caption("Bu hastalığın yayılması nem ve yağışla doğrudan ilişkili değildir; böcekler ve "
-                               "bulaşık bitki materyaliyle taşınır. Hava durumu bilgi amaçlı gösterilmektedir.")
+                    bulgu("Bu hastalığın yayılması nem ve yağışla doğrudan ilişkili değildir; böcekler ve bulaşık "
+                          "bitki materyaliyle taşınır. Hava durumu bilgi amaçlı gösterilmektedir.",
+                          "Hava durumu değerlendirmesi")
                 else:
-                    st.caption(f"Bu hastalık nemli ve yağışlı havada daha kolay yayılır. Önümüzdeki 3 günün nem ve "
-                               f"yağışına göre yayılma koşulları: **{seviye}**. (Kural: nem %80+ veya yağış 10 mm+ "
-                               "yüksek; nem %65+ veya yağış 2 mm+ orta.) Kaynak: Open-Meteo. Genel bilgidir, teşhis değildir.")
+                    bulgu(f"Bu hastalık nemli ve yağışlı havada daha kolay yayılır. Önümüzdeki 3 günde {neden_} "
+                          f"yayılma koşulları <b>{seviye}</b> olarak değerlendirilmiştir. Kaynak: Open-Meteo. "
+                          "Genel bilgidir, teşhis değildir.", "Hava durumu değerlendirmesi")
             else:
                 st.caption("Hava durumu alınamadı; konum adı kontrol edilmelidir.")
 
@@ -317,7 +334,7 @@ with tab_analiz:
             st.json(cnn)
 
     elif not yuklenen:
-        st.info("👆 Başlamak için bir yaprak fotoğrafı yükle.")
+        st.info("👆 Analiz için bir yaprak fotoğrafı yüklenmelidir.")
 
 if not SUNUM_MODU:
     # =====================================================================
@@ -652,7 +669,7 @@ if not SUNUM_MODU:
             with st.expander("🔧 Ham API çıktısı (debug)"):
                 st.json(karsilastirma)
         elif not karsilastirma_foto:
-            st.info("👆 Başlamak için bir yaprak fotoğrafı yükle.")
+            st.info("👆 Analiz için bir yaprak fotoğrafı yüklenmelidir.")
 
 if SUNUM_MODU:
     from ortak import gezinme

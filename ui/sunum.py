@@ -12,10 +12,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st  # noqa: E402
 
-from ortak import SAYFALAR, uretim_modeli  # noqa: E402
+from ortak import SAYFALAR, STIL, uretim_modeli  # noqa: E402
 
 st.set_page_config(page_title="LeadLeaf AI", page_icon="🌿", layout="wide")
 st.session_state["sunum_modu"] = True  # app.py (Canlı Demo) sadece analiz akışını göstersin
+st.logo(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png"), size="large")
+st.markdown(STIL, unsafe_allow_html=True)
+st.sidebar.caption("Miuul Bootcamp · DL + LLM-Agent + n8n · 2026")
 
 # Model bir kez, pano açılırken yüklensin; sunum ortasında CNN sayfasında beklemeyelim
 with st.spinner("Model yükleniyor..."):
@@ -30,4 +33,4 @@ gruplar = {
     "Sistem": ["sayfalar/09_rag.py", "app.py"],
     "Sonuç": ["sayfalar/10_sinirliliklar.py"],
 }
-st.navigation({g: [sayfa[y] for y in yollar] for g, yollar in gruplar.items()}).run()
+st.navigation({g: [sayfa[y] for y in yollar] for g, yollar in gruplar.items()}, expanded=True).run()

@@ -60,8 +60,6 @@ with t1:
             "tıklanınca yalnızca o bitkinin sınıfları renkli kalır.",
             "En büyük sınıf (portakal HLB, 5.507) en küçükten (sağlıklı patates, 152) yaklaşık 36 kat büyüktür. "
             "Bu dengesizlik yüzünden yalnızca doğruluğa değil, her sınıfı eşit sayan macro F1 skoruna da bakılmıştır.")
-    st.info("Sınıflar dengesiz. Bu yüzden sadece doğruluğa değil, her sınıfı eşit sayan "
-            "**macro F1** skoru da raporlanmıştır.")
 
 with t2:
     m = manifest()

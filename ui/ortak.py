@@ -67,10 +67,38 @@ def tr_sirala(metin: str) -> str:
                    for h in metin.replace("I", "ı").replace("İ", "i").lower())
 
 
-def nasil_okunur(ne: str, nasil: str, soyle: str) -> None:
-    """Grafiğin altına kapalı bir açıklama kutusu: ne gösteriyor, nasıl okunur, ana fikir."""
-    with st.expander("📖 Bu grafik nasıl okunur?"):
-        st.markdown(f"**Ne gösteriyor:** {ne}\n\n**Nasıl okunur:** {nasil}\n\n**Söylenecek:** {soyle}")
+def nasil_okunur(ne: str, nasil: str, bulgu_: str) -> None:
+    """Grafiğin altına nesnel bir açıklama satırı ve 'Bulgu' kartı (analiz raporlarındaki gibi).
+    `nasil` parametresi geriye dönük uyumluluk için duruyor; ekranda gösterilmiyor."""
+    st.caption(ne)
+    bulgu(bulgu_)
+
+
+def bulgu(metin: str, baslik: str = "Bulgu") -> None:
+    st.markdown(f"<div class='ll-bulgu'><span class='ll-bulgu-baslik'>{baslik}</span>{metin}</div>",
+                unsafe_allow_html=True)
+
+
+STIL = """
+<style>
+  [data-testid="stToolbar"], [data-testid="stDecoration"], footer {visibility: hidden; height: 0;}
+  .block-container {padding-top: 2.2rem; max-width: 1280px;}
+  h1 {color: #0F2347; font-weight: 700; letter-spacing: -0.5px; border-bottom: 3px solid #1B3A6B;
+      padding-bottom: .35rem; margin-bottom: .8rem;}
+  h2, h3 {color: #0F2347;}
+  div[data-testid="stMetric"] {background: #FFFFFF; border: 1px solid #D5DEEB; border-top: 4px solid #1B3A6B;
+      border-radius: 10px; padding: .8rem 1rem; box-shadow: 0 1px 3px rgba(15,35,71,.06);}
+  div[data-testid="stMetricLabel"] p {color: #5A6B85; font-size: .85rem; text-transform: uppercase;
+      letter-spacing: .4px;}
+  div[data-testid="stMetricValue"] {color: #0F2347; font-weight: 700;}
+  .ll-bulgu {background: #F4F7FB; border-left: 4px solid #1B3A6B; border-radius: 6px; padding: .7rem 1rem;
+      margin: .3rem 0 1.4rem 0; color: #1E2B40; font-size: .95rem; line-height: 1.5;}
+  .ll-bulgu-baslik {display: block; font-size: .72rem; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; color: #2E5A9A; margin-bottom: .2rem;}
+  button[data-baseweb="tab"] p {font-weight: 600;}
+  [data-testid="stSidebarNav"] span {font-size: .95rem;}
+</style>
+"""
 
 
 def bitki(sinif: str) -> str:

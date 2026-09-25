@@ -39,21 +39,6 @@ Telegram cevabı · PDF rapor · Google Sheets · güven < %70 → uzman · taki
 }
 """, use_container_width=True)
 
-st.subheader("Görevin karşılanma durumu")
-st.dataframe(
-    {
-        "Seviye": ["Temel", "Orta", "Orta", "İleri", "İleri"],
-        "Beklenen": ["Görsel → sınıflandırma → rapor", "Güvene göre yönlendirme (düşükse insana)",
-                     "RAG ile zenginleştirilmiş öneri", "Otomatik takip hatırlatması",
-                     "Geçmiş raporlarla trend / zaman içi karşılaştırma"],
-        "Projede": ["Karşılandı", "Karşılandı (n8n IF dalı + uzman bildirimi)", "Karşılandı (Chroma, 197 parça)",
-                    "Karşılandı (3 gün sonra Telegram mesajı)", "Kısmen (kayıtlar Sheets'te, analiz yok)"],
-    },
-    hide_index=True, use_container_width=True,
-)
-st.caption("Görevde istenen ilaç dozu ve bekleme süresi bilinçli olarak üretilmemektedir: yanlış doz zarar "
-           "verebilir, bu karar ruhsatlı ziraat mühendisine bırakılmıştır.")
-
 st.subheader("Kullanılan araçlar")
 st.dataframe(
     {

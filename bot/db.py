@@ -69,7 +69,9 @@ class DB:
     def __init__(self, yol: str = VARSAYILAN_YOL):
         self.yol = yol
         os.makedirs(os.path.dirname(os.path.abspath(yol)), exist_ok=True)
-        self.conn = sqlite3.connect(yol)
+        # check_same_thread=False: Streamlit bağlantıyı önbellekte tutuyor ve her rerun farklı
+        # bir thread'de çalışabiliyor. Demo tek kullanıcılı, yazmalar sırayla geliyor.
+        self.conn = sqlite3.connect(yol, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SEMA)
         self.conn.commit()

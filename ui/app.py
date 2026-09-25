@@ -277,13 +277,29 @@ with tab_analiz:
 
         if hava is not None:
             st.subheader(f"🌦️ {konum.strip()} için 3 günlük hava durumu")
-            if hava.get("bulundu", True) and hava.get("ozet_metni"):
-                st.text(hava.get("ozet_metni", "-"))
-                etiket_ = {"dusuk": "düşük", "orta": "orta", "yuksek": "yüksek"}.get(hava.get("mantar_riski"))
-                if etiket_:
-                    st.caption(f"Nem ve yağışa göre mantar hastalıkları için yayılma koşulları: **{etiket_}**. "
-                               "Kaynak: Open-Meteo. Nem ve yağış mantar hastalıklarının yayılmasını "
-                               "kolaylaştırır; bu genel bir bilgidir, teşhis değildir.")
+            if hava.get("bulundu", True) and hava.get("gunler"):
+                st.dataframe(pd.DataFrame([{
+                    "Tarih": g["tarih"],
+                    "Sıcaklık (°C)": f"{g['tmin']} – {g['tmax']}".replace(".", ","),
+                    "Ort. nem (%)": g["nem_ort"],
+                    "Yağış (mm)": g["yagis_mm"],
+                    "Yağış olasılığı (%)": g["yagis_olasilik"],
+                } for g in hava["gunler"]]), hide_index=True, width="stretch")
+                seviye = {"dusuk": "düşük", "orta": "orta", "yuksek": "yüksek"}.get(hava.get("mantar_riski"), "bilinmiyor")
+                sinif = cnn["hastalik"]
+                if _saglikli(sinif) or tanimsiz:
+                    st.caption(f"Önümüzdeki günlerde nem ve yağışa bağlı hastalıkların yayılma koşulları: "
+                               f"**{seviye}**. Nemli dönemlerde yapraklar daha sık kontrol edilmelidir.")
+                elif "Spider_mites" in sinif:
+                    st.caption("Kırmızı örümcek bir zararlıdır; nemli havada değil, **sıcak ve kuru havada** artar. "
+                               "Kuru ve sıcak günlerde yaprakların alt yüzü daha sık kontrol edilmelidir.")
+                elif "virus" in sinif.lower() or "Haunglongbing" in sinif:
+                    st.caption("Bu hastalığın yayılması nem ve yağışla doğrudan ilişkili değildir; böcekler ve "
+                               "bulaşık bitki materyaliyle taşınır. Hava durumu bilgi amaçlı gösterilmektedir.")
+                else:
+                    st.caption(f"Bu hastalık nemli ve yağışlı havada daha kolay yayılır. Önümüzdeki 3 günün nem ve "
+                               f"yağışına göre yayılma koşulları: **{seviye}**. (Kural: nem %80+ veya yağış 10 mm+ "
+                               "yüksek; nem %65+ veya yağış 2 mm+ orta.) Kaynak: Open-Meteo. Genel bilgidir, teşhis değildir.")
             else:
                 st.caption("Hava durumu alınamadı; konum adı kontrol edilmelidir.")
 

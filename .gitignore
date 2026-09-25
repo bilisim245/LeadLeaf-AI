@@ -38,3 +38,6 @@ Thumbs.db
 
 # Yerel veri seti kopyasi (sunum/veri analizi icin, GitHub spMohanty/PlantVillage-Dataset raw/color)
 data/
+
+# Grafik rehberi icin alinan pano ekran goruntuleri (PDF icinde zaten var)
+sunum/ekran_goruntuleri/

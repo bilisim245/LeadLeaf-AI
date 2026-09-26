@@ -30,6 +30,8 @@ kullanıyor ama işleri farklı.
   Claude artık **ezberinden değil, bizim doğruladığımız metinden** konuşuyor.
 - Benzetme: TR_ADLAR = **sözlük**, RAG = **kütüphaneden ilgili kitabın ilgili sayfasını getiren kütüphaneci**.
 
+![RAG'in iki aşaması](sunum/sistem_gorselleri/rag_akisi.png)
+
 **Projede:** `inference/app.py` → `TR_ADLAR`; `rag/build_index.py` (indeksi kurar),
 `agent/rag.py` → `retrieve_context()` (sorguda getirir), embedding modeli
 `paraphrase-multilingual-MiniLM-L12-v2` (Türkçeyi anladığı için seçildi). Panoda: **RAG** sayfası.
@@ -200,6 +202,8 @@ Panoda iki farklı ısı haritası var, karıştırılmamalı:
 **Kısa cevap:** n8n akışında sırayla: CNN'e fotoğraf gönderilir → RAG'den o hastalığın bilgisi
 alınır → ikisi birlikte Claude'a verilir → Claude raporu yazar.
 
+![Bileşenler ve veri depoları](sunum/sistem_gorselleri/mimari.png)
+
 **HTTP Request nedir?** Bir programın başka bir programa internet (ya da aynı bilgisayar) üzerinden
 "şunu yap, cevabı bana ver" demesi. Tarayıcıya adres yazmak da bir HTTP isteği. n8n'deki
 "HTTP Request" düğümü bunu yapan kutu.
@@ -264,6 +268,78 @@ aktarıyor (**tünel**).
 **Bedeli:** bilgisayar kapanınca veya internet gidince bot durur. Okul (FATİH) ağında SSL denetimi
 yüzünden ngrok bağlanamıyor → sunumda telefon hotspot'u. Ayrıntı: `report/kod_notlarim.md` → 26 Eylül bölümü.
 
+### n8n nedir, akışımız nasıl çalışıyor? (sıfırdan)
+
+**n8n**, kod yazmadan "kutuları birbirine bağlayarak" otomasyon kurulan bir araç. Tarayıcıda
+`http://localhost:5678` adresinden açılıyor. Beş kavram yeter:
+
+| Kavram | Anlamı | Bizde örnek |
+|---|---|---|
+| **Akış (workflow)** | Bir işi baştan sona yapan kutular zinciri | "LeadLeaf AI — Bitki Hastalığı Bot (tam v2)", 35 kutu |
+| **Düğüm (node)** | Tek bir iş yapan kutu | "Fotoğrafı İndir", "Basic LLM Chain" |
+| **Tetikleyici (trigger)** | Akışı başlatan düğüm | "Telegram Trigger": bota bir şey gelince akış başlar |
+| **İfade (expression)** | Bir alanın önceki düğümlerin verisinden hesaplanması: `{{ ... }}` | `{{ $json.hastalik }}` = önceki düğümün çıktısındaki hastalık |
+| **Kimlik bilgisi (credential)** | Bir hizmete bağlanmak için şifreli anahtar | "Telegram account 2", Anthropic anahtarı, Google hesabı |
+
+Akış **yayınlandığında (Publish)** n8n, Telegram'a "bu bota gelen her şeyi şu adrese gönder" diye
+kayıt yapar (webhook). Her mesaj akışı bir kez çalıştırır; buna **çalıştırma (execution)** denir ve
+kaydı n8n'in veritabanında tutulur (bkz. 11).
+
+**Veri düğümden düğüme nasıl geçiyor?** Her düğüm bir JSON çıktısı üretir, bir sonraki düğüm onu
+`$json` olarak görür. Daha geriye ulaşmak için adla çağrılır: `$('Telegram Trigger').item.json.message.chat.id`
+= "tetikleyiciye gelen mesajın sohbet numarası" (cevabı doğru kişiye göndermek için her Telegram düğümü bunu kullanır).
+
+![n8n akışı](sunum/sistem_gorselleri/n8n_akisi.png)
+
+**Dört dal var:** (A) fotoğraf → teşhis ve rapor, (B) yazı → selamlama / bitki düzeltmesi / sohbet,
+(C) PDF butonu, (D) rapordan sonra paralel işler (kayıt, uzman, takip). Numaralar şemadakilerle aynı:
+
+| No | Düğüm | Ne yapar |
+|---|---|---|
+| 1 | Telegram Trigger | Bota gelen mesajı, fotoğrafı ya da buton tıklamasını yakalar; akışı başlatır |
+| 2 | Buton mu? | Gelen şey bir buton tıklaması mı ("PDF ister misiniz?")? Evet → C dalı |
+| 3 | Fotoğraf var mı? | Mesajda fotoğraf var mı? Evet → A dalı, hayır → B dalı |
+| 4 | Telegram - İnceleniyor | "📥 Fotoğrafınız alındı, inceleniyor…" mesajı (düzeltmede "🔁 … yeniden inceleniyor") |
+| 5 | Fotoğrafı İndir | Fotoğrafı Telegram sunucusundan kimliğiyle (file_id) indirir |
+| 6 | HTTP Request - Predict CNN | Fotoğrafı FastAPI `/predict`'e gönderir (bitki adı, sohbet no, fotoğraf kimliği ile); CNN sonucu gelir |
+| 7 | Telegram - Ön Tespit | 4'teki mesajı düzenler: model sonucu + güven + fotoğraf ipucu |
+| 8 | HTTP Request - RAG Context | FastAPI `/rag-context`: bu hastalığın 2 bilgi parçası (Chroma) |
+| 9 | Basic LLM Chain | Claude'a sistem promptu + CNN sonucu + RAG metnini verir, JSON rapor ister |
+| 10 | Anthropic Chat Model | 9'a takılı "model" alt düğümü: hangi Claude modeli (claude-sonnet-5) ve API anahtarı |
+| 11 | Rapor JSON'unu Ayrıştır | Kod: Claude'un JSON'unu okur, Telegram mesajını hazırlar; güven düşükse "bitki yanlış mı?" ipucu |
+| 12 | Telegram - Durum: Hazır | Durum mesajını "✅ Rapor hazırlandı 👇" yapar |
+| 13 | Telegram - Cevap Gönder | Raporu çiftçiye gönderir |
+| 14 | Google Sheets - Kaydet | Tabloya bir satır ekler (10 sütun, bkz. 11) |
+| 15 | HTTP Request - Raporu Kaydet | FastAPI `/rapor-kaydet`: raporu `data/raporlar/`'a yazar, 12 haneli numara döner |
+| 16 | Telegram - PDF Sorusu | "📄 PDF ister misiniz?" + Evet/Hayır butonları (butonda rapor numarası saklı) |
+| 17 | Güven < %70 mi? | Model emin değil mi? Evet → 18 |
+| 18 | Telegram - Uzmana Bildir | "🔔 Uzman incelemesi gerekiyor" mesajı: çiftçi, tarih, tahmin, güven |
+| 19 | Hastalık var mı? | Sonuç "sağlıklı" değilse → takip |
+| 20 | Bekle (takip) | Bekler: sunum için 1 dakika (gerçek kullanımda 3 gün) |
+| 21 | Telegram - Takip Hatırlatması | "Bitkinizin durumu nasıl? Yeni fotoğraf gönderebilirsiniz" hatırlatması |
+| 22 | Selamlaşma mı? | merhaba / selam / /start / yardım mı? Evet → 23 |
+| 23 | Telegram - Tanıtım | Sabit tanıtım mesajı: nasıl kullanılır, tanınan 14 bitki |
+| 24 | HTTP Request - Son Fotoğraf | FastAPI `/son-foto`: "bu yazı son fotoğraf için bir bitki düzeltmesi mi?" |
+| 25 | Bitki düzeltmesi mi? | Evet → 26, hayır → 27 (sohbet) |
+| 26 | Yeniden Değerlendirme Hazırla | Kod: yazıyı "son fotoğrafın kimliğini taşıyan fotoğraf mesajına" çevirir → 4 ve 5'e döner |
+| 27 | Basic LLM Chain - Sohbet | Genel sohbet (kısa cevap, güvenlik kuralları, marka/doz yok) |
+| 28 | Anthropic Chat Model - Sohbet | 27'nin model alt düğümü |
+| 29 | Telegram - Sohbet Cevabı | Sohbet cevabını gönderir |
+| 30 | Telegram - Butonu Onayla | Telegram'a "butona basıldı" der (butondaki dönen simge durur) |
+| 31 | PDF istendi mi? | "Evet, PDF gönder" mi "Hayır" mı? |
+| 32 | Telegram - PDF Hazırlanıyor | "📄 PDF raporunuzu hazırlıyorum…" |
+| 33 | HTTP Request - PDF Oluştur | FastAPI `/rapor-pdf/{numara}`: kayıtlı rapordan PDF üretir |
+| 34 | Telegram - PDF Gönder | PDF'i belge olarak gönderir |
+| 35 | Telegram - PDF İstenmedi | "Tamam. Başka bir yaprak fotoğrafı gönderebilirsiniz 🌿" |
+
+**Bir fotoğrafın yolculuğu (A dalı, ~15–20 sn):** 1 → 2 (buton değil) → 3 (fotoğraf var) → 4 ve 5
+aynı anda → 6 (CNN) → 7 ve 8 aynı anda → 9+10 (Claude) → 11 → 12–19 aynı anda (cevap, kayıt,
+PDF sorusu, uzman kontrolü, takip). En uzun adım Claude (~15 sn).
+
+**n8n'de "kod" var mı?** Evet, iki "Code" düğümü (11 ve 26) JavaScript çalıştırıyor. Kalanı
+ayarlardan ve `{{ }}` ifadelerinden oluşuyor. Akışın tamamı `n8n/leadleaf_tam_akis.json`
+dosyasında; bu dosya n8n'e "Import from File" ile yüklendi.
+
 ---
 
 ## 10) Veri setinde kabak (ve bazı bitkiler) — sağlıklı kabak yok
@@ -315,6 +391,60 @@ Panoda: **Sınırlılıklar** sayfası.
 uygulamalar için yeterli. Yedek almak = dosyayı kopyalamak (değişikliklerden önce
 `database.sqlite.bak_...` yedekleri alındı).
 
+### Projedeki bütün veritabanları ve veri dosyaları (26 Eylül'deki gerçek içerik)
+
+![Bileşenler ve veri depoları](sunum/sistem_gorselleri/mimari.png)
+
+| # | Ne | Türü | Nerede | İçinde ne var (26 Eylül) | Kim yazar / kim okur |
+|---|---|---|---|---|---|
+| 1 | **Chroma** (RAG bilgi tabanı) | Vektör veritabanı | `rag/chroma_db/` (1,9 MB) | 197 metin parçası, her biri 384 sayılık vektörüyle | `rag/build_index.py` bir kez yazar; FastAPI `/rag-context` okur |
+| 2 | **n8n veritabanı** | SQLite | `~/.n8n/database.sqlite` (4,4 MB) | 4 akış, 4 kimlik bilgisi (şifreli), 67 çalıştırma kaydı | n8n'in kendisi |
+| 3 | **Google Sheets** | Bulut tablo | Google Drive'da | Her fotoğraf analizi bir satır, 10 sütun | n8n yazar (düğüm 14); sen okursun |
+| 4 | **Raporlar** | JSON dosyaları | `data/raporlar/` | 7 rapor (her biri 12 haneli numarayla) | FastAPI yazar; PDF butonuna basılınca okur |
+| 5 | **Son fotoğraflar** | JSON dosyası | `data/son_fotolar.json` | Her sohbetin son fotoğraf kimliği, 30 dk | FastAPI `/predict` yazar, `/son-foto` okur |
+| 6 | **Tarla defteri** | SQLite | `bot/tarla_defteri.sqlite` | 3 kullanıcı, 2 tarla, 5 gözlem | Streamlit Canlı Demo (eski "Tarla 360" geçmişi) |
+| 7 | **CNN modeli** | Model dosyası | `model/model.keras` (31,6 MB) | ~4 milyon öğrenilmiş ağırlık | Colab'da eğitildi; FastAPI okur |
+| — | *Görsel RAG indeksi* | *NumPy dosyası* | *`rag/image_embeddings.npz`* | ***Kurulmadı: dosya yok*** | *Kodu hazır (`rag/build_image_index.py`) ama çalıştırılmadı → "benzer referans görseller" özelliği şu an pasif* |
+
+**Google Sheets sütunları:** tarih (İstanbul saati), hastalik (Türkçe), sinif (İngilizce sınıf adı),
+guven, onlem (önlemler " | " ile), uzmana_yonlendir, telegram_chat_id, ilk3_tahmin, model_versiyonu, neden.
+
+### Chroma'nın içi — bir kayıt neye benziyor?
+
+Her kayıt 4 şeyden oluşur: **kimlik**, **metin**, **etiket (metadata)** ve **vektör**. İlk 3 kayıt:
+
+| Kimlik | Etiket: sinif | Metin (başı) | Vektör (384 sayının ilk 3'ü) |
+|---|---|---|---|
+| Apple___Apple_scab__0 | Apple___Apple_scab | "# Elma Karalekesi (Apple Scab) — Venturia inaequalis…" | 0,029 · −0,215 · 0,208 … |
+| Apple___Apple_scab__1 | Apple___Apple_scab | "## Belirtiler — Yapraklarda zeytin yeşili/koyu, kadifemsi…" | 0,028 · −0,290 · 0,195 … |
+| Apple___Apple_scab__2 | Apple___Apple_scab | "## Uygun koşullar — SERİN ve YAĞMURLU ilkbahar havası…" | 0,145 · 0,014 · 0,189 … |
+
+Parçalar nasıl oluştu: her bilgi dosyası `## ` başlıklarından bölündü (Belirtiler, Uygun koşullar,
+Önlemler...). 38 dosya → 197 parça. Her parça, çok dilli embedding modeliyle
+(`paraphrase-multilingual-MiniLM-L12-v2`) 384 sayıya çevrildi. Anlamca benzer metinlerin sayıları da
+birbirine yakın çıkıyor.
+
+![Chroma'daki parçaların haritası](sunum/sistem_gorselleri/vektor_haritasi.png)
+
+**Haritadan çıkan ders:** Parçalar **bitkiye göre değil, konu başlığına göre** kümeleniyor. Bütün
+"Belirtiler" parçaları bir arada, bütün "Kaynak notu" parçaları bir arada. Ölçtük: aynı başlıktaki
+parçaların dağınıklığı 0,06–0,27, aynı bitkinin parçalarınınki ortalama 0,86. Bu yüzden aramada
+**sınıf filtresi** (`where={"sinif": ...}`) şart. Filtre olmasaydı "geç yanıklık belirtileri"
+sorusuna başka bir hastalığın "Belirtiler" parçası gelebilirdi.
+
+### Neden Chroma? SQLite yetmez miydi?
+
+- **SQLite satırları tam eşleşmeyle bulur:** `WHERE sinif = 'Tomato___Late_blight'`. "Anlamca en
+  yakın metni bul" diye bir komutu yok.
+- **Chroma bir vektör veritabanı:** sorguyu 384 sayıya çevirip kayıtlı vektörler arasından en
+  yakınları bulur (**benzerlik araması**). Hızlı arama için kendi indeksini (HNSW) tutar.
+- **İşin ilginç yanı:** Chroma içeride SQLite de kullanıyor. `rag/chroma_db/chroma.sqlite3` dosyası
+  metinleri ve etiketleri tutuyor, yanındaki klasörler vektör indeksini. Yani **Chroma = SQLite +
+  vektör arama katmanı**.
+- **Dürüst not:** 197 parçada, SQLite'a vektörleri kaydedip hepsiyle tek tek mesafe hesaplamak da
+  çalışırdı. Chroma'yı seçtik çünkü benzerlik araması + sınıf filtresi hazır geliyor, bilgi tabanı
+  büyüdüğünde (binlerce parça) yavaşlamıyor ve ücretsiz, yerel çalışıyor (ayrı sunucu gerekmiyor).
+
 ---
 
 ## 12) Başkaları "PDF yükleyerek eğitmiş" — o ne?
@@ -339,6 +469,15 @@ PDF yüklemek RAG'dir.
 (tablolar, sayfa düzeni) gürültülü olur; ayrıca ilaç dozu gibi vermek istemediğimiz bilgiler
 içerebilir. Kendi yazdığımız dosyalarda her cümleyi kontrol ettik, pestisit politikamıza
 (marka/doz yok) uygun.
+
+**Yani PDF kullandık mı?** Hayır. Bilgi kaynağı `agent/knowledge/` klasöründeki 38 metin (markdown)
+dosyası; her sınıf için bir tane (ör. `Tomato___Late_blight.md`: etken, belirtiler, uygun koşullar,
+karıştırılabilecek hastalıklar, önlemler, kaynak notu).
+
+**Dürüst olunması gereken nokta:** Bu 38 dosya **yapay zekâ yardımıyla hazırlandı** ve bir **ziraat
+mühendisine kontrol ettirilmedi**. Jüri sorarsa: "Bilgi dosyaları genel kaynaklara göre hazırlandı,
+uzman doğrulaması yapılmadı; gerçek kullanımdan önce bir ziraat mühendisinin gözden geçirmesi
+sonraki adım." Sistem bu yüzden her raporda "kesin teşhis değildir" uyarısı veriyor.
 
 ---
 
@@ -556,6 +695,10 @@ bilen ve sebebini açıklayan ekip, "her şey mükemmel" diyen ekipten daha çok
 9. **Eğitim tarafı:** tek bir eğitim koşusu (farklı seed'lerle tekrar yok, sonuçların oynaklığı
    bilinmiyor), hiperparametre araması yok, aşamalar üst sınıra kadar koştu (bkz. 18).
 10. **Hava durumu riski sezgisel:** nem/yağış eşikleri kalibre edilmedi; sadece bilgi amaçlı.
+11. **Bilgi tabanı uzman onaylı değil:** 38 bilgi dosyası yapay zekâ yardımıyla hazırlandı, bir
+    ziraat mühendisi gözden geçirmedi (bkz. 12).
+12. **Görsel RAG pasif:** "benzer referans görseller" özelliğinin kodu var ama indeksi
+    (`rag/image_embeddings.npz`) hiç kurulmadı; ekranda bu bölüm görünmüyor (bkz. 11).
 
 ### Kullanıcı (çiftçi) gözüyle
 | Güzel olan | Zorlayan / eksik |
@@ -567,11 +710,42 @@ bilen ve sebebini açıklayan ekip, "her şey mükemmel" diyen ekipten daha çok
 | Selamlaşmada ne yapacağını anlatıyor | İnternet şart; kırsalda bağlantı zayıf olabilir |
 
 ### Sunumdan önce yapılacaklar (kontrol listesi)
-- [ ] n8n "tam v2" ile Telegram'dan açıklamasız fotoğraf + "Domates" testi
-- [ ] Değişikliklerin commit edilmesi
+- [x] n8n "tam v2" ile Telegram'dan açıklamasız fotoğraf + "Domates" testi (26 Eylül, çalıştı)
+- [x] Değişikliklerin commit edilmesi
 - [ ] Telefon hotspot'u ile tam prova (okul ağında çalışmaz)
 - [ ] **Yedek demo videosu** (ağ ya da bilgisayar sorun çıkarırsa sunum kurtulur)
 - [ ] Bu rehberdeki 2, 2b, 3, 8, 15, 18. soruların sesli tekrarı
+
+---
+
+## 20) Anthropic (Claude) anahtarı olmadan RAG yapamaz mıydım?
+
+**Kısa cevap:** RAG'in **arama** kısmı için anahtar gerekmiyor, zaten bilgisayarda ücretsiz
+çalışıyor. Anahtar sadece **raporu yazan dil modeli** (Claude) için gerekiyor. (Ve yine: RAG ile bir
+şey "eğitilmez", bkz. 12.)
+
+RAG'i iki parçaya ayırın:
+
+| Parça | Ne yapar | Anahtar gerekir mi? |
+|---|---|---|
+| **Arama (retrieval)** | Hastalık adına göre en ilgili 2 bilgi parçasını bulur | **Hayır.** Embedding modeli ve Chroma bilgisayarda çalışıyor, ücretsiz |
+| **Yazma (generation)** | Bulunan parçalara dayanarak çiftçiye sade bir rapor yazar | **Evet**, Claude kullanıldığı için |
+
+**Anahtar olmasaydı seçenekler:**
+1. **Şablon rapor (projede zaten var):** anahtar yoksa ya da Claude hata verirse `agent/report.py`
+   sabit bir şablonla rapor üretiyor. Sistem çökmüyor ama rapor kişiselleşmiyor.
+2. **Bulunan metni doğrudan göstermek:** RAG'in bulduğu parçalar hiç LLM'e verilmeden çiftçiye
+   gösterilebilir. Anahtar gerekmez, ama metin sadeleştirilmemiş, uzun ve teknik olur.
+3. **Yerel, açık kaynak bir dil modeli** (ör. Ollama ile bilgisayarda çalışan Llama/Qwen gibi
+   modeller): ücretsiz ve anahtarsız. Bedeli: güçlü bir bilgisayar ister, yavaş çalışır, Türkçesi ve
+   kurallara (marka/doz verme) uyumu Claude kadar güvenilir değil.
+
+**Biz neden Claude'u seçtik?** Türkçesi güçlü, verilen kurallara (JSON biçimi, doz yok, adı ve güveni
+değiştirme) iyi uyuyor, n8n'de hazır düğümü var. Maliyeti: rapor başına kuruşlar düzeyinde, deneme
+kredisiyle karşılandı.
+
+**Jüriye:** "RAG'in arama kısmı tamamen yerel ve ücretsiz. Sadece raporu sade dille yazdırmak için
+Claude kullanıyoruz. Claude'a ulaşılamazsa sistem çökmüyor, şablon rapora düşüyor."
 
 ---
 

@@ -100,7 +100,7 @@ JURI_SAYFA = {0: "01", 1: "03", 2: "05", 3: "07", 4: "09", 5: "app", 6: "10"}
 KARAR_SAYFA = {0: "02", 1: "04", 2: "06", 3: "07", 4: "09", 5: "app"}
 # Çalışma rehberindeki sorular -> pano sayfası (19 = değerlendirme, kitapçığın sonunda)
 REHBER_SAYFA = {"01": ["14"], "02": ["10"], "03": ["2"], "04": ["3", "4", "5"], "05": ["8"],
-                "06": ["2b", "18"], "07": ["15", "6"], "08": [], "09": ["1", "7", "12", "13"],
+                "06": ["2b", "18"], "07": ["15", "6"], "08": [], "09": ["1", "7", "12", "13", "20"],
                 "app": ["17", "9", "11"], "10": ["16"]}
 
 # Ekranda gösterilen kodlar: (başlık, dosya, başlangıç, bitiş, [(kod parçası, sade açıklama)])
@@ -216,7 +216,7 @@ def temiz(metin: str) -> str:
 
 def sade(metin: str) -> str:
     """Markdown işaretlerini (**, `) kaldırır."""
-    return temiz(metin.replace("**", "").replace("`", ""))
+    return temiz(metin.replace("**", "").replace("*", "").replace("`", ""))
 
 
 class Belge(FPDF):
@@ -224,14 +224,22 @@ class Belge(FPDF):
         self.set_y(-12)
         self.set_font("Arial", "", 8)
         self.set_text_color(*GRI)
-        self.cell(0, 6, f"LeadLeaf AI · Sunum kitapçığı · {self.page_no()}", align="C")
+        self.cell(0, 6, f"LeadLeaf AI · {self.altbilgi} · {self.page_no()}", align="C")
 
 
-pdf = Belge()
-pdf.add_font("Arial", "", r"C:\Windows\Fonts\arial.ttf")
-pdf.add_font("Arial", "B", r"C:\Windows\Fonts\arialbd.ttf")
-pdf.set_margins(16, 14, 16)
-pdf.set_auto_page_break(True, margin=16)
+def yeni_belge(altbilgi: str) -> Belge:
+    """Yeni bir PDF belgesi. Aşağıdaki yardımcılar (yaz, markdown, ...) modül düzeyindeki `pdf`'i kullanır;
+    ikinci belge (soru-cevap) için `pdf` bununla yeniden atanır."""
+    b = Belge()
+    b.altbilgi = altbilgi
+    b.add_font("Arial", "", r"C:\Windows\Fonts\arial.ttf")
+    b.add_font("Arial", "B", r"C:\Windows\Fonts\arialbd.ttf")
+    b.set_margins(16, 14, 16)
+    b.set_auto_page_break(True, margin=16)
+    return b
+
+
+pdf = yeni_belge("Sunum kitapçığı")
 SOL = 16
 
 
@@ -282,7 +290,9 @@ def tablo(satirlar):
     pdf.set_font("Arial", "", 8.6)
     pdf.set_text_color(*METIN)
     pdf.set_draw_color(200, 205, 215)
-    with pdf.table(text_align="LEFT", line_height=4.4, padding=1.2,
+    # Sütun genişliği içeriğe göre: en uzun hücrenin uzunluğu (kısa sütunlar dar, metin sütunları geniş)
+    genislik = [min(max(max(len(r[k]) for r in satirlar), 10), 60) for k in range(n)]
+    with pdf.table(text_align="LEFT", line_height=4.4, padding=1.2, col_widths=genislik,
                    headings_style=_BASLIK_STILI, first_row_as_headings=True) as t:
         for r in satirlar:
             satir = t.row()
@@ -342,7 +352,14 @@ def markdown(metin: str):
             tablo(tablo_satir)
             continue
         i += 1
-        if not s.strip() or s.strip() == "---":
+        gorsel = re.match(r"!\[(.*?)\]\((.*?)\)", s.strip())
+        if gorsel:  # ![açıklama](yol) -> tam genişlikte görsel + altında açıklama
+            yol = os.path.join(KOK, gorsel.group(2))
+            if os.path.exists(yol):
+                ekran_goruntusu(yol, genislik=178)
+                yaz(gorsel.group(1), 8.5, renk=GRI, ara=4.5)
+                pdf.ln(1.5)
+        elif not s.strip() or s.strip() == "---":
             pdf.ln(1.5)
         elif s.startswith("# "):
             ara_baslik(sade(s[2:]), boyut=14)
@@ -454,6 +471,9 @@ pdf.start_section("Büyük resim", 1)
 ara_baslik("Büyük resim")
 yaz(PANO["GIRIS"], 10)
 pdf.ln(1)
+ekran_goruntusu(os.path.join(KLASOR, "sistem_gorselleri", "mimari.png"), genislik=178)
+yaz("Bileşenler ve veri depoları: kim kime bağlanıyor, veri nerede duruyor.", 8.5, renk=GRI, ara=4.5)
+pdf.ln(1.5)
 for p in PANO["BUYUK_RESIM"]:
     kalinli("• " + p, girinti=2)
 pdf.start_section("Ezberlenecek sayılar", 1)
@@ -621,7 +641,44 @@ if bas >= 0:
     markdown(notlar[bas:].split("\n", 1)[1])
 
 pdf.output(CIKTI)
+print("Kaydedildi:", CIKTI, "·", pdf.page_no(), "sayfa")
+
+# =====================================================================================================
+# İkinci belge: kâğıttaki sorular ve cevapları (report/calisma_rehberi.md'nin tamamı, kendi sırasıyla)
+SORU_CEVAP = os.path.join(KLASOR, "soru_cevap.pdf")
+pdf = yeni_belge("Sorular ve cevaplar")
+with open(os.path.join(KOK, "report", "calisma_rehberi.md"), encoding="utf-8") as f:
+    giris = f.read().split("\n## ", 1)[0]
+pdf.add_page()
+pdf.ln(24)
+yaz("LeadLeaf AI", 30, True, LACIVERT, 14)
+yaz("Sorularım ve Cevapları", 20, True, LACIVERT, 11)
+pdf.ln(4)
+yaz("Elle yazılan 16 soru ve sonradan eklenen sorular: RAG, veri bölme, CNN, transfer learning, "
+    "fine-tuning, ısı haritaları, n8n (her düğümüyle), projedeki bütün veritabanları, metrikler, "
+    "'Mısır' hatası, proje değerlendirmesi. Her cevap: kısa cevap → sade açıklama → projede nerede.",
+    11, renk=GRI, ara=6)
+pdf.ln(6)
+markdown(giris.split("\n", 1)[1] if giris.startswith("# ") else giris)
+pdf.add_page()
+pdf.insert_toc_placeholder(icindekiler, pages=1)
+for anahtar_, (baslik_, metin_) in REHBER.items():
+    pdf.add_page()
+    no = re.match(r"(\w+)\)\s*(.*)", baslik_)
+    # "4) ..." gibi eşsiz ')' yer imi (outline) başlığını bozuyor (fpdf2 ASCII başlıkta kaçışlamıyor)
+    pdf.start_section(f"Soru {no.group(1)} — {no.group(2)}" if no else baslik_, 0)
+    if no:
+        yaz(f"Soru {no.group(1)}", 10, True, GRI, 5.5)
+        yaz(no.group(2), 17, True, LACIVERT, 8.5)
+    else:
+        yaz(baslik_, 17, True, LACIVERT, 8.5)
+    pdf.set_draw_color(*LACIVERT)
+    pdf.line(SOL, pdf.get_y() + 1, 210 - SOL, pdf.get_y() + 1)
+    pdf.ln(4)
+    markdown(metin_)
+pdf.output(SORU_CEVAP)
+print("Kaydedildi:", SORU_CEVAP, "·", pdf.page_no(), "sayfa")
+
 for f in glob.glob(os.path.join(GECICI, "*.jpg")):
     os.remove(f)
 os.rmdir(GECICI)
-print("Kaydedildi:", CIKTI, "·", pdf.page_no(), "sayfa")

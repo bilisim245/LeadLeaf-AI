@@ -2,7 +2,16 @@
 
 **Son güncelleme:** 2026-09-24 (gece)
 
-## ▶ KALDIĞIMIZ YER (2026-09-26)
+## ▶ KALDIĞIMIZ YER (2026-09-26 akşam) — sunum 28 Eylül
+
+- Canlı n8n: "tam v2" (`dQBrU83zcBTa9zVr`), bitki düzeltmesi Telegram'da test edildi; rapor promptu "bitki yaprağı" düzeltmesi canlıda yayında.
+- Pano: yeni **n8n Akışı** sayfası (tıklanabilir, `ui/sayfalar/09b_n8n_akisi.py`, plotly), sol menüde Önceki/Sonraki,
+  Veri Seti'nde en çok karışan çiftler, Canlı Demo "Bitki doğru mu?" akışı.
+- Çalışma PDF'leri (`sunum/`): **soru_cevap.pdf** (asıl çalışma, 26 soru), **streamlit_senaryosu.pdf** (sunumda elde),
+  sunum_kitapcigi.pdf (97 sf, ekranda prova). Hepsi `sunum/sunum_kitapcigi_pdf.py` ile `report/calisma_rehberi.md`'den üretilir.
+- Kalan: prova (hotspot ile), yedek demo videosu.
+
+## ▶ Önceki not (2026-09-26 öğlen)
 
 - Canlı akış: "LeadLeaf AI — Bitki Hastalığı Bot (tam)" (`wcbehfCDFv8Qb3Wj`, aktif) — `leadleaf_tam_akis.json`
   içe aktarılmış, "merhaba" ve fotoğraf testleri çalışıyor.

@@ -111,8 +111,11 @@ SAYFALAR = [
     ("10. Canlı Demo", "Sistemin çalışırken gösterilmesi.", [
         ("Fotoğraf yükle → Analiz Et", "Model tahmini, durum kutusu, Claude raporu, en yakın 3 olasılık, 'bu sonuç nasıl oluştu'; konum yazılırsa hava durumu.",
          "Telegram'daki akışın aynısı ekranda adım adım görülür. Rapor PDF olarak indirilebilir."),
-        ("Bitki seçimi (fotoğrafın yanında)", "Seçilen bitkiye göre tahmin yalnızca o bitkinin hastalıkları arasından yapılır.",
-         "Tanımsız bir hastalıkta sistem teşhis uydurmaz, uzmana yönlendirir (şeftali örneği)."),
+        ("'Bitki doğru mu?' sorusu (sonucun altında)", "Bitki önceden seçtirilmez; model önce tahmin eder, sonra "
+         "'Model bu yaprağı Mısır yaprağı olarak değerlendirdi. Doğru mu?' diye sorulur. 'Hayır' denip doğru bitki "
+         "seçilirse aynı fotoğraf yalnızca o bitkinin hastalıkları arasından yeniden değerlendirilir.",
+         "Sonuç önceden yapılan bir seçimle yönlendirilmez. Tanımsız bir hastalıkta sistem teşhis uydurmaz, uzmana "
+         "yönlendirir (şeftali örneği). Telegram'da da aynı mantık var: fotoğraftan sonra bitki adı yazılabilir."),
     ]),
     ("11. Sınırlılıklar ve Sonraki Adım", "Sistemin neyi yapamadığının dürüstçe söylenmesi.", [
         ("Şeftali örneği", "Veri setinde olmayan bir hastalığın yanlış ama emin şekilde tahmin edilmesi.",

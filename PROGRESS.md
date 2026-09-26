@@ -2,6 +2,19 @@
 
 **Son güncelleme:** 2026-09-24 (gece)
 
+## ▶ KALDIĞIMIZ YER (2026-09-26)
+
+- Canlı akış: "LeadLeaf AI — Bitki Hastalığı Bot (tam)" (`wcbehfCDFv8Qb3Wj`, aktif) — `leadleaf_tam_akis.json`
+  içe aktarılmış, "merhaba" ve fotoğraf testleri çalışıyor.
+- **Bitki düzeltmesi eklendi, n8n'e HENÜZ ALINMADI:** açıklamasız domates fotoğrafı %29 "mısır" çıktı;
+  sonra yazılan "Domates" sohbet dalına düşüp alakasız cevap aldı. Düzeltme: FastAPI son fotoğrafın
+  `file_id`'sini saklıyor (`/son-foto`), kısa bitki adı yazılınca aynı fotoğraf o bitkiyle yeniden
+  değerlendiriliyor; "bu mısır değil" olumsuzluğu tanınıyor. Yeni dosya `n8n/leadleaf_tam_akis.json`
+  ("tam v2", üreten betik `n8n/bitki_duzeltme_ekle.py`) → **içe aktar, eski "tam"ı yayından kaldır,
+  v2'yi Publish, Telegram'dan açıklamasız fotoğraf + "Domates" ile test.**
+- Tüm ayrıntı (öğretici anlatım + jüri cevapları): `report/kod_notlarim.md` → "26 Eylül 2026" bölümü.
+- Okul/FATİH ağında SSL denetimi var → ngrok/n8n/Claude çalışmıyor; sunumda hotspot kullan.
+
 ## 🎤 SUNUM = STREAMLIT PANOSU (2026-09-25 gece, Miuul bootcamp)
 
 Slayt destesi yerine **etkileşimli Streamlit panosu** ile sunulacak (kullanıcı kararı: "arkadaşlar

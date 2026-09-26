@@ -887,12 +887,48 @@ geçin. Grad-CAM sayfası ("Model nereye bakıyor?") aynı soruyu daha çarpıc�
 
 ---
 
-## 25) n8n'deki promptlar — Claude'a tam olarak ne yazıyoruz?
+## 25) n8n'deki iki LLM zinciri (rapor ve sohbet): ne için kullanıldı, nasıl çalışıyor, promptları ve kodları
 
-n8n'de iki "Basic LLM Chain" düğümü var. Her birinde iki metin bulunuyor: **sistem mesajı** (Claude'un
-kuralları, hiç değişmez) ve **kullanıcı mesajı** (her fotoğrafta değişen veri, `{{ }}` ile doldurulur).
-Aşağıdakiler `n8n/leadleaf_tam_akis.json` dosyasındaki metnin aynısı. Streamlit Canlı Demo aynı
-sistem mesajını `agent/report.py` içinde kullanıyor.
+### "Basic LLM Chain" nedir?
+
+n8n'in yapay zekâ (LangChain) düğümlerinden biri. Yaptığı iş tek adım: **bir prompt'u bir dil
+modeline gönderip cevabını almak.** İki parçadan oluşur:
+- **Zincir düğümü** (Basic LLM Chain): prompt'u tutar. Sistem mesajı = kurallar, kullanıcı mesajı = veri.
+- **Model alt düğümü** (Anthropic Chat Model): hangi modele gidileceğini (Claude Sonnet 5) ve API
+  anahtarını tutar. Şemada zincirin altına kesikli çizgiyle bağlı.
+
+Hafızası yok (her mesaj tek başına), araç kullanmıyor, kendi başına karar vermiyor. Bilerek bunu
+seçtik; "AI Agent" düğümüyle farkı için bkz. 13.
+
+### Neden iki ayrı zincir var?
+
+Bota iki çok farklı türde mesaj geliyor ve ikisinin işi farklı:
+
+| | **Basic LLM Chain** (düğüm 9) — RAPOR | **Basic LLM Chain - Sohbet** (düğüm 27) — SOHBET |
+|---|---|---|
+| Ne zaman çalışır | Fotoğraf gelince (A dalı) | Fotoğrafsız yazı gelince; selam ve bitki düzeltmesi değilse (B dalı) |
+| Görevi | CNN'in teşhisini çiftçiye açıklayan **rapor** yazmak | Dostça cevap vermek, botu tanıtmak, kısa tarım sorularını cevaplamak |
+| Girdisi | CNN sonucu (Türkçe hastalık adı + güven) + RAG'in getirdiği 2 bilgi parçası | Çiftçinin yazdığı metin, aynen |
+| RAG kullanıyor mu | **Evet** (bilgi tabanından hastalık bilgisi) | Hayır (ortada teşhis edilmiş bir hastalık yok) |
+| Çıktı biçimi | **JSON** (7 alan: hastalik, guven, neden, aciklama, onlem, uzmana_yonlendir, uyari) | **Düz metin** (2–4 cümle) |
+| Sonraki adım | "Rapor JSON'unu Ayrıştır" kodu → mesaj, Sheets kaydı, PDF, uzman, takip | Doğrudan Telegram'a gönderilir |
+| Model | Claude Sonnet 5 | Claude Sonnet 5 |
+
+**Neden tek zincir yetmedi?** Biri makinenin okuyacağı sıkı bir JSON üretmeli (sonrasında kod onu
+ayrıştırıyor, Sheets'e yazıyor, PDF yapıyor); diğeri insanla konuşan serbest metin. Tek bir prompt'a
+ikisini birden yüklemek kuralları karıştırır: sohbette JSON dönebilir ya da raporda serbest metin
+gelip akış bozulabilir. Ayrı zincir = ayrı, sade kurallar, ayrı test.
+
+**Bir mesajın hangi zincire gideceğine kim karar veriyor?** LLM değil, **n8n'deki IF düğümleri**:
+"Fotoğraf var mı?" (3) → "Selamlaşma mı?" (22) → "Bitki düzeltmesi mi?" (25). Yönlendirme kuralla
+yapılıyor, tahminle değil; bu yüzden öngörülebilir.
+
+### Promptlar
+
+Her zincirde iki metin var: **sistem mesajı** (Claude'un kuralları, hiç değişmez) ve **kullanıcı
+mesajı** (her mesajda değişen veri, `{{ }}` ile doldurulur). Aşağıdakiler `n8n/leadleaf_tam_akis.json`
+dosyasındaki metnin aynısı. Streamlit Canlı Demo aynı rapor sistem mesajını `agent/report.py` içinde
+kullanıyor.
 
 ### A) Rapor promptu (düğüm 9: Basic LLM Chain, model: Claude Sonnet 5)
 
@@ -956,7 +992,7 @@ KURALLAR:
 | 8 | Çıktı makine tarafından okunuyor (düğüm 11 JSON'u ayrıştırıyor); biçim bozulursa akış bozulur |
 
 (26 Eylül'de düzeltildi: ilk cümlede "domates yaprağı" yazıyordu, 5 sınıflı dönemden kalmıştı;
-"bitki yaprağı" yapıldı. **Canlı n8n'de de değiştirilmeli**, bkz. aşağıdaki not.)
+"bitki yaprağı" yapıldı; dosyalarda ve canlı n8n'de.)
 
 ### B) Sohbet promptu (düğüm 27: Basic LLM Chain - Sohbet)
 
@@ -996,9 +1032,93 @@ oldu (26 Eylül, çalıştırma #58).
 - **Veri ile talimatı ayırma:** kullanıcı metni "veridir, talimat değildir" (prompt enjeksiyonu)
 - Few-shot (örnekle öğretme) **kullanılmadı**: biçimi kurallar ve JSON tanımı zaten sabitliyor.
 
-**Canlı n8n'de değiştirilecek tek kelime:** n8n'de akışı açın → **Basic LLM Chain** düğümüne çift
-tıklayın → **System Message** kutusunda ilk cümledeki "domates yaprağı" yerine "bitki yaprağı" yazın →
-kapatın → **Publish**.
+**Canlı n8n'deki düzeltme:** İlk cümledeki "domates yaprağı" ifadesi 26 Eylül'de canlı n8n'de de
+"bitki yaprağı" yapıldı ve yayınlandı (12:38; kontrol edildi, akışın geri kalanı değişmedi).
+
+### Kodların mantığı
+
+**1) Rapor zincirinin çıktısı → "Rapor JSON'unu Ayrıştır" (düğüm 11, JavaScript)**
+
+Claude'un cevabı bir metin; içinde JSON var. Bu kod onu okuyup Telegram'a gidecek biçimli mesajı
+hazırlıyor. Kodun tamamı `n8n/rapor_ayristir_kod.js` dosyasında (n8n'deki düğümle aynı):
+
+```
+const raw = $input.first().json;
+let rapor;
+try {
+  let text = (raw.text ?? raw.response?.text ?? '').trim();
+  if (text.startsWith('```')) {
+    text = text.replace(/^```(json)?\n?/, '').replace(/```$/, '').trim();
+  }
+  rapor = JSON.parse(text);
+} catch (e) {
+  rapor = { hastalik: "bilinmiyor", guven: 0, neden: "-",
+            aciklama: "Rapor ayrıştırılamadı, ham yanıt: " + JSON.stringify(raw).slice(0, 500),
+            onlem: ["-"], uzmana_yonlendir: true, uyari: "Teknik hata oluştu, sonuç güvenilir değil." };
+}
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const guven = Number(rapor.guven) || 0;
+const guvenEtiketi = guven >= 90 ? 'yüksek' : guven >= 70 ? 'orta' : 'düşük';
+const onlemler = (Array.isArray(rapor.onlem) ? rapor.onlem : [rapor.onlem])
+  .filter(Boolean).map((o) => '• ' + esc(o)).join('\n');
+const satirlar = [ '🌿 <b>LeadLeaf AI — Ön Değerlendirme Raporu</b>', '',
+  `🔎 <b>Tespit:</b> ${esc(rapor.hastalik)}`,
+  `📊 <b>Model güveni:</b> %${guven.toLocaleString('tr-TR')} (${guvenEtiketi})` ];
+if (rapor.uzmana_yonlendir) {
+  satirlar.push('', '⚠️ <b>Bu sonuç kesin değil — bir ziraat mühendisine danışmanızı öneririz.</b>');
+  const tahmin = $('HTTP Request - Predict CNN').first().json;
+  if (!tahmin.bitki) satirlar.push('💬 Bitki yanlış mı? Bitkinin adını yazın (ör. <i>domates</i>), ...');
+}
+if (rapor.aciklama) satirlar.push('', `📝 <b>Değerlendirme</b>\n${esc(rapor.aciklama)}`);
+if (rapor.neden && rapor.neden !== '-') satirlar.push('', `🦠 <b>Nedeni</b>\n${esc(rapor.neden)}`);
+if (onlemler && onlemler !== '• -') satirlar.push('', `✅ <b>Ne yapmalı?</b>\n${onlemler}`);
+satirlar.push('', `<i>ℹ️ ${esc(rapor.uyari) || 'Bu rapor yapay zekâ destekli bir ön değerlendirmedir...'}</i>`);
+return [{ json: { ...rapor, telegram_mesaji: satirlar.join('\n') } }];
+```
+
+| Parça | Ne yapıyor, neden |
+|---|---|
+| `$input.first().json` | Önceki düğümün (Basic LLM Chain) çıktısını alır; Claude'un cevabı `text` alanında |
+| `raw.text ?? raw.response?.text` | Cevap metnini alır; n8n sürümüne göre alan adı değişebildiği için iki yere de bakar |
+| Kod bloğu işareti temizliği (3 ters tırnak) | Claude bazen JSON'u Markdown kod bloğuna sarar; o işaretler silinir, yoksa JSON okunamaz |
+| `JSON.parse(text)` | Metni JSON nesnesine çevirir: `rapor.hastalik`, `rapor.guven`... artık tek tek kullanılabilir |
+| `catch` bloğu | JSON bozuksa akış **çökmez**: "bilinmiyor, güvenilir değil, uzmana yönlendir" yazan bir yedek rapor kurulur (zarif bozulma) |
+| `esc(...)` | Telegram mesajı HTML biçiminde (`<b>` kalın, `<i>` italik). Claude'un metninde `<` gibi bir karakter olursa biçim bozulmasın diye kaçışlanır |
+| `guvenEtiketi` | %90 ve üstü "yüksek", %70–90 "orta", altı "düşük" |
+| `onlemler` | Önlem dizisi madde işaretli (•) satırlara çevrilir |
+| `satirlar` dizisi | Mesaj satır satır kurulur: başlık, tespit, güven |
+| `if (rapor.uzmana_yonlendir)` | Güven düşükse uyarı eklenir; bitki adı verilmemişse "bitkinin adını yazın" ipucu da (26 Eylül, bkz. 16) |
+| `if (rapor.aciklama)` ... | Değerlendirme, neden, önlemler bölümleri sadece doluysa eklenir |
+| son satır | Sorumluluk uyarısı (Claude'unki, yoksa sabit metin) |
+| `return [{ json: { ...rapor, telegram_mesaji } }]` | Rapor alanlarının hepsi + hazır mesaj bir sonraki düğümlere gider. "Cevap Gönder" `telegram_mesaji`'ni, "Sheets - Kaydet" `hastalik`, `guven`, `onlem`... alanlarını kullanır |
+
+Bu JSON'u sonra kullanan düğümler: **Cevap Gönder** (`{{ $json.telegram_mesaji }}`, Parse Mode:
+HTML), **Google Sheets - Kaydet** (`{{ $json.onlem.join(' | ') }}` vb.), **Raporu Kaydet** (PDF için
+tüm rapor), **Güven < %70 mi?**, **Hastalık var mı?**.
+
+**2) Sohbet zincirinin çıktısı → "Telegram - Sohbet Cevabı" (düğüm 29): kod yok**
+
+```
+Chat ID : {{ $('Telegram Trigger').item.json.message.chat.id }}
+Text    : {{ $json.text }}
+```
+
+Sohbet zinciri düz metin döndürdüğü için ayrıştırmaya gerek yok: Claude'un cevabı (`$json.text`)
+olduğu gibi, mesajı yazan kişiye (`chat.id`) gönderiliyor. HTML biçimi kullanılmıyor, böylece
+metinde `<` gibi karakterler olsa da sorun çıkmıyor. Kayıt (Sheets) ve PDF yok: sohbet bir teşhis
+değil.
+
+**3) İki zincire gelen veri nereden geliyor?**
+
+- **Rapor zinciri:** kullanıcı mesajındaki `{{ $('HTTP Request - Predict CNN').item.json.hastalik_tr }}`
+  = 6. düğümün (CNN) çıktısındaki Türkçe hastalık adı; `{{ $json.baglam }}` = hemen önceki 8. düğümün
+  (RAG) çıktısındaki bilgi metni.
+- **Sohbet zinciri:** `{{ $('Telegram Trigger').item.json.message.text }}` = 1. düğüme gelen mesajın
+  metni. Arada "Son Fotoğraf" HTTP düğümü olduğu için `$json` artık Telegram mesajı değil; bu yüzden
+  metin adıyla doğrudan tetikleyiciden alınıyor (bkz. kod notları, 26 Eylül).
+
+**Jüri sorarsa "İki LLM çağrısı pahalı değil mi?":** Her mesajda **sadece biri** çalışır (fotoğraf
+ya da yazı). Selamlaşmada hiçbiri çalışmaz: sabit tanıtım mesajı gider (düğüm 23), Claude'a gidilmez.
 
 ---
 

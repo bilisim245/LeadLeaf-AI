@@ -37,6 +37,7 @@ SAYFALAR = [
     ("sayfalar/07_test_analizi.py", "Test Sonuçları (38 Sınıf)", "🎯"),
     ("sayfalar/08_aciklanabilirlik.py", "Model Nereye Bakıyor?", "🔎"),
     ("sayfalar/09_rag.py", "RAG ve Rapor", "📚"),
+    ("sayfalar/09b_n8n_akisi.py", "n8n Akışı", "🔀"),
     ("app.py", "Canlı Demo — Tarla 360", "🌿"),
     ("sayfalar/10_sinirliliklar.py", "Sınırlılıklar ve Sonraki Adım", "🧭"),
 ]

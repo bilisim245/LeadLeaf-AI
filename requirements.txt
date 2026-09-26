@@ -26,6 +26,7 @@ sentence-transformers
 # (2026-09-16: Gradio yerine Streamlit — daha native/akıcı görünüm, ozel CSS gerekmiyor)
 streamlit
 pandas
+plotly  # sunum panosu: tıklanabilir n8n akış şeması (ui/sayfalar/09b_n8n_akisi.py)
 
 # Yardımcılar
 python-dotenv

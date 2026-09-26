@@ -108,7 +108,15 @@ SAYFALAR = [
         ("Kurallar ve örnek rapor", "Claude'a verilen güvenlik kuralları ve gerçek bir rapor.",
          "İlaç markası ve doz verilmez; güven düşükse uzmana yönlendirilir; kötü niyetli mesajlar uygulanmaz."),
     ]),
-    ("10. Canlı Demo", "Sistemin çalışırken gösterilmesi.", [
+    ("10. n8n Akışı", "Telegram botunun arkasındaki akışın tıklanabilir şeması: her düğüm ne yapıyor.", [
+        ("Şema (35 kutu)", "n8n'deki akışın aynısı; renkler düğüm türünü, yeşil/kırmızı oklar IF'in evet/hayır çıkışını gösterir.",
+         "Mesajın hangi dala gideceğine LLM değil IF düğümleri karar verir; akış öngörülebilirdir."),
+        ("Kutuya tıklama", "Tıklanan düğümün ne yaptığı, nereden gelip nereye gittiği ve n8n'deki ayarları (URL, koşul, prompt, kod).",
+         "n8n'in 'kod yazmadan' kurulan bir akış olduğu, ama her kutunun arkasında açık bir ayar/ifade bulunduğu görülür."),
+        ("Senaryo + ▶", "Fotoğraf, 'Domates' düzeltmesi, sohbet, 'merhaba', PDF butonu için mesajın izlediği yol adım adım.",
+         "Bir fotoğrafın yolculuğu: Telegram → CNN → RAG → Claude → rapor, kayıt, PDF, uzman, takip."),
+    ]),
+    ("11. Canlı Demo", "Sistemin çalışırken gösterilmesi.", [
         ("Fotoğraf yükle → Analiz Et", "Model tahmini, durum kutusu, Claude raporu, en yakın 3 olasılık, 'bu sonuç nasıl oluştu'; konum yazılırsa hava durumu.",
          "Telegram'daki akışın aynısı ekranda adım adım görülür. Rapor PDF olarak indirilebilir."),
         ("'Bitki doğru mu?' sorusu (sonucun altında)", "Bitki önceden seçtirilmez; model önce tahmin eder, sonra "
@@ -117,7 +125,7 @@ SAYFALAR = [
          "Sonuç önceden yapılan bir seçimle yönlendirilmez. Tanımsız bir hastalıkta sistem teşhis uydurmaz, uzmana "
          "yönlendirir (şeftali örneği). Telegram'da da aynı mantık var: fotoğraftan sonra bitki adı yazılabilir."),
     ]),
-    ("11. Sınırlılıklar ve Sonraki Adım", "Sistemin neyi yapamadığının dürüstçe söylenmesi.", [
+    ("12. Sınırlılıklar ve Sonraki Adım", "Sistemin neyi yapamadığının dürüstçe söylenmesi.", [
         ("Şeftali örneği", "Veri setinde olmayan bir hastalığın yanlış ama emin şekilde tahmin edilmesi.",
          "Model 'bilmiyorum' diyemez. Bitki filtresi bu riski azaltır."),
         ("Sınırlılık tablosu ve yol haritası", "Bilinen eksikler ve sonraki adımlar.",

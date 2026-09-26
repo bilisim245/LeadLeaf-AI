@@ -86,8 +86,8 @@ REHBER = md_bolumleri("report/calisma_rehberi.md")
 
 # Sayfa anahtarı: "sayfalar/04_cnn.py" -> "04", "app.py" -> "app"
 def anahtar(dosya: str) -> str:
-    ad = os.path.basename(dosya)
-    return ad[:2] if ad[:2].isdigit() else "app"
+    ad = os.path.basename(dosya).split("_")[0]  # "04_cnn.py" -> "04", "09b_n8n_akisi.py" -> "09b"
+    return ad if ad[:1].isdigit() else "app"
 
 
 # Senaryo adımındaki sayfa adı -> pano sayfası
@@ -100,8 +100,8 @@ JURI_SAYFA = {0: "01", 1: "03", 2: "05", 3: "07", 4: "09", 5: "app", 6: "10"}
 KARAR_SAYFA = {0: "02", 1: "04", 2: "06", 3: "07", 4: "09", 5: "app"}
 # Çalışma rehberindeki sorular -> pano sayfası (19 = değerlendirme, kitapçığın sonunda)
 REHBER_SAYFA = {"01": ["14"], "02": ["23", "10"], "03": ["2"], "04": ["24", "3", "4", "5"], "05": ["8"],
-                "06": ["2b", "18"], "07": ["15", "22", "6"], "08": [], "09": ["1", "7", "25", "26", "12", "13", "20"],
-                "app": ["17", "9", "11", "21"], "10": ["16"]}
+                "06": ["2b", "18"], "07": ["15", "22", "6"], "08": [], "09": ["1", "7", "26", "12", "13", "20"], "09b": ["9", "25"],
+                "app": ["17", "11", "21"], "10": ["16"]}
 
 # Ekranda gösterilen kodlar: (başlık, dosya, başlangıç, bitiş, [(kod parçası, sade açıklama)])
 KODLAR = {
@@ -495,7 +495,9 @@ for sira, (dosya, baslik, _ikon) in enumerate(SAYFALAR, 1):
     pdf.start_section(f"{sira}. {baslik}", 0)
     yaz(f"Pano sayfası {sira} / {len(SAYFALAR)}", 9, renk=GRI, ara=5)
     yaz(baslik, 20, True, LACIVERT, 11)
-    pano_baslik, amac, ogeler = PANO["SAYFALAR"][sira - 1]
+    # Pano rehberindeki kayıt başlıkla eşlenir ("10. Canlı Demo" -> "Canlı Demo — Tarla 360")
+    _, amac, ogeler = next((e for e in PANO["SAYFALAR"] if baslik.startswith(re.sub(r"^\d+\.\s*", "", e[0]))),
+                           ("", "", []))
     yaz(amac, 10.5, renk=GRI, ara=5.6)
 
     # Sunumda (senaryo)

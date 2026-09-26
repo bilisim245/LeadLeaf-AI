@@ -72,6 +72,11 @@ ADIMLAR = [
     ("9:20", "RAG ve Rapor", "'Canlı arama' sekmesinde 'Bilgi tabanında ara'ya basılır.",
      "Claude'a giden kaynak metni.",
      "Rapor ezberden değil, kaynaktan yazılır. İlaç markası ve doz verilmez; güven düşükse uzmana yönlendirilir."),
+    ("9:40", "n8n Akışı", "Senaryo: 'Fotoğraf gönderildi' seçilir; ▶ ile birkaç adım ilerlenir (6: Predict CNN, 9: Claude).",
+     "Mesajın izlediği yolu ve tıklanan düğümün ayarlarını (URL, prompt).",
+     "Telegram botunun arkasında 35 düğümlük bir n8n akışı var. Fotoğraf önce CNN'e, sonra bilgi tabanına, sonra "
+     "Claude'a gidiyor; rapor kaydediliyor, güven düşükse uzmana haber veriliyor. Yönlendirmeyi yapay zekâ değil, "
+     "kurallar (IF düğümleri) yapıyor."),
     ("10:00", "Canlı Demo", "Sol menüde konum 'Antalya' yazılır; domates fotoğrafı yüklenir; 'Analiz Et'. "
      "Sonucun altındaki 'Model bu yaprağı ... olarak değerlendirdi. Doğru mu?' sorusunda 'Evet'e basılır.",
      "Tespit, 'Bitki doğru mu?' sorusu, rapor, en yakın 3 olasılık, 'bu sonuç nasıl oluştu', hava durumu, PDF indirme.",

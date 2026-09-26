@@ -30,7 +30,7 @@ gruplar = {
     "Veri": ["sayfalar/02_veri_seti.py", "sayfalar/03_veri_analizi.py"],
     "Model": ["sayfalar/04_cnn.py", "sayfalar/05_model_secimi.py", "sayfalar/06_fine_tuning.py",
               "sayfalar/07_test_analizi.py", "sayfalar/08_aciklanabilirlik.py"],
-    "Sistem": ["sayfalar/09_rag.py", "app.py"],
+    "Sistem": ["sayfalar/09_rag.py", "sayfalar/09b_n8n_akisi.py", "app.py"],
     "Sonuç": ["sayfalar/10_sinirliliklar.py"],
 }
 st.navigation({g: [sayfa[y] for y in yollar] for g, yollar in gruplar.items()}, expanded=True).run()

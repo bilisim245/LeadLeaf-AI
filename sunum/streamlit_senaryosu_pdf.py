@@ -71,8 +71,10 @@ ADIMLAR = [
     ("9:20", "RAG ve Rapor", "'Canlı arama' sekmesinde 'Bilgi tabanında ara'ya basılır.",
      "Claude'a giden kaynak metni.",
      "Rapor ezberden değil, kaynaktan yazılır. İlaç markası ve doz verilmez; güven düşükse uzmana yönlendirilir."),
-    ("10:00", "Canlı Demo", "Domates fotoğrafı yüklenir, bitki 'Domates', konum 'Antalya'; 'Analiz Et'.",
-     "Tespit, rapor, en yakın 3 olasılık, 'bu sonuç nasıl oluştu', hava durumu, PDF indirme.",
+    ("10:00", "Canlı Demo", "Sol menüde konum 'Antalya' yazılır; domates fotoğrafı yüklenir; 'Analiz Et'. "
+     "Sonucun altındaki 'Model bu yaprağı ... olarak değerlendirdi. Doğru mu?' sorusunda 'Evet'e basılır.",
+     "Tespit, 'Bitki doğru mu?' sorusu, rapor, en yakın 3 olasılık, 'bu sonuç nasıl oluştu', hava durumu, PDF indirme.",
+     "Bitki önceden seçtirilmez: model önce kendi kararını verir, kullanıcı sonra doğrular ya da düzeltir. "
      "Telegram'daki akışın aynısı burada adım adım görülmektedir. Rapor PDF olarak da indirilebilir."),
     ("10:50", "Telegram (telefon)", "Telefondan bota aynı fotoğraf gönderilir; PDF sorusunda 'Evet'.",
      "Adım adım durum mesajını, raporu ve gelen PDF'i.",

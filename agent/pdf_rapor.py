@@ -61,6 +61,23 @@ def sonuc_nasil_olustu(ilk3: list[dict] | None, bitki: str | None = None, bitki_
                        uzmana_yonlendir: bool = False, rag_kullanildi: bool | None = None) -> list[str]:
     """Sonucun nasıl oluştuğunu modelin kendi çıktısından (Claude'a yazdırmadan) anlatan cümleler."""
     cumleler: list[str] = []
+    # Bitki verildi ama o bitkinin sınıflarına düşen olasılık eşiğin (inference/app.py BITKI_UYUM_ESIGI
+    # = %50) altında -> teşhis konmadı. `ilk3` filtresiz tahmindir; bunu ayrıca ve çelişkisiz anlat.
+    if bitki and bitki_uyumu is not None and float(bitki_uyumu) < 50 and ilk3:
+        bir = ilk3[0]
+        cumleler += [
+            f"Bitki bilgisi olmadan bakıldığında model yaprağı en çok \"{bir['sinif_tr']}\" sınıfına "
+            f"benzetti ({_yuzde(bir['olasilik'])}).",
+            f"Bitki {bitki} olarak belirtildi; ancak modelin {bitki} sınıflarına verdiği toplam olasılık "
+            f"yalnızca {_yuzde(bitki_uyumu)} (eşik %50). Bu yüzden teşhis konmadı, uzmana yönlendirildi.",
+            f"İki olasılık var: fotoğraf başka bir bitkiye ait olabilir ya da yaprakta sistemin "
+            f"{bitki} için tanımadığı bir belirti vardır.",
+        ]
+        if rag_kullanildi:
+            cumleler.append("Genel önlem bilgileri proje bilgi tabanına dayanılarak yazıldı.")
+        cumleler.append("Model 14 bitkideki 38 sınıfı tanır ve laboratuvar fotoğraflarıyla eğitilmiştir; bu "
+                        "listede olmayan bir hastalık doğru tanınamaz.")
+        return cumleler
     if ilk3:
         bir = ilk3[0]
         cumleler.append(f"Model yaprağı {_yuzde(bir['olasilik'])} olasılıkla "

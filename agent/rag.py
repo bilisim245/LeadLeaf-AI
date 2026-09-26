@@ -63,6 +63,10 @@ def retrieve_context(hastalik: str, ek_sorgu: str = "", k: int = 2) -> str:
     parçaları getirmek (küçük, iyi organize bilgi tabanında en güvenilir yöntem).
     `ek_sorgu` verilirse (ör. çiftçinin serbest metin açıklaması) semantik aramaya dahil edilir.
     """
+    # "Tanımsız belirti" / "desteklenmeyen bitki" bilgi tabanında bir hastalık değil: arama yapılırsa
+    # alakasız parçalar (ör. "sağlıklı soya") gelir ve LLM "yaprak sağlıklı olabilir" diye yanıltır.
+    if hastalik.endswith("___Tanimsiz") or hastalik == "Desteklenmeyen_bitki":
+        return ""
     if not _yukle():
         return ""
 

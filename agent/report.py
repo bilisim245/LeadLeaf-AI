@@ -71,19 +71,20 @@ KURALLAR:
 """
 
 
-def _sablon_rapor(hastalik_tr: str, guven: float) -> dict:
-    """ANTHROPIC_API_KEY yokken / API hatasında kullanılan sabit yedek rapor."""
+def _sablon_rapor(hastalik_tr: str, guven: float, sebep: str = "ANTHROPIC_API_KEY tanımlı olmadığı için") -> dict:
+    """ANTHROPIC_API_KEY yokken / API hatasında kullanılan sabit yedek rapor. `sebep` ekranda
+    gerçek nedeni söyler (eskiden API hatasında da yanlışlıkla "anahtar tanımlı değil" yazıyordu)."""
     uzman = guven < 70
     return {
         "hastalik": hastalik_tr,
         "guven": guven,
         "neden": (
-            "(Bu, LLM raporu değil — ANTHROPIC_API_KEY tanımlı olmadığı için "
+            f"(Bu, LLM raporu değil — {sebep} "
             "nedeni analiz edilemedi, şablon yanıt gösteriliyor.)"
         ),
         "aciklama": (
             f"Görseldeki yaprakta '{hastalik_tr}' bulgusu tespit edildi. "
-            "(Bu, LLM raporu değil — ANTHROPIC_API_KEY tanımlı olmadığı için "
+            f"(Bu, LLM raporu değil — {sebep} "
             "şablon yanıt gösteriliyor.)"
         ),
         "onlem": [
@@ -124,11 +125,13 @@ def generate_report(hastalik: str, hastalik_tr: str, guven: float) -> dict:
         )
         resp = client.messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=1024,
+            max_tokens=4096,  # model önce "thinking" bloğu yazabiliyor; 1024 bazen JSON'u yarıda kesiyordu
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_msg}],
         )
-        text = resp.content[0].text.strip()
+        # Yanıt birden fazla bloktan oluşabilir (model önce bir "thinking" bloğu döndürebilir);
+        # ilk blok her zaman metin değildir -> metin bloğunu türüne göre seç.
+        text = next(b.text for b in resp.content if b.type == "text").strip()
         # Claude bazen ```json ... ``` bloğuyla sarabilir — temizle.
         if text.startswith("```"):
             text = text.strip("`")
@@ -140,7 +143,7 @@ def generate_report(hastalik: str, hastalik_tr: str, guven: float) -> dict:
         rapor["_rag_kullanildi"] = bool(rag_baglam)
         return rapor
     except Exception as e:
-        rapor = _sablon_rapor(hastalik_tr, guven)
+        rapor = _sablon_rapor(hastalik_tr, guven, "LLM çağrısı başarısız olduğu için")
         rapor["_hata"] = str(e)
         rapor["_rag_kullanildi"] = bool(rag_baglam)
         return rapor

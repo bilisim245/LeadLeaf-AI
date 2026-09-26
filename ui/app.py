@@ -55,11 +55,12 @@ TUBITAK_DIR = os.path.join(PROJE_KOKU, "model", "tubitak")
 SINIF38_DIR = os.path.join(PROJE_KOKU, "model", "model_38sinif")
 
 
-# Bitki seçimi /predict'e `bitki` olarak gider -> tahmin o bitkinin sınıflarıyla sınırlanır
-# (kapalı sınıf sorunu, rapor Adım 37). Anahtarlar inference/app.py BITKI_ONEKLERI ile eşleşir.
-BITKI_SECENEKLERI = ["Belirtmek istemiyorum", "Domates", "Patates", "Biber", "Elma", "Şeftali",
-                     "Kiraz", "Üzüm", "Mısır", "Çilek", "Portakal", "Ahududu", "Soya", "Kabak",
-                     "Yaban mersini"]
+# Bitki önceden SEÇTİRİLMEZ: model önce filtresiz tahmin eder, sonra kullanıcıya "bitki doğru mu?"
+# diye sorulur. Kullanıcı düzeltirse bu ad /predict'e `bitki` olarak gider -> aynı fotoğraf o bitkinin
+# sınıflarıyla yeniden değerlendirilir (kapalı sınıf sorunu, rapor Adım 37; Telegram'daki
+# "Domates" düzeltmesiyle aynı mantık). Adlar inference/app.py BITKI_ONEKLERI ile eşleşir.
+BITKILER = ["Domates", "Patates", "Biber", "Elma", "Şeftali", "Kiraz", "Üzüm", "Mısır", "Çilek",
+            "Portakal", "Ahududu", "Soya", "Kabak", "Yaban mersini"]
 DESTEKLENEN_HASTALIKLAR = {
     "Domates": "erken yanıklık, geç yanıklık, bakteriyel leke, septoria yaprak lekesi, yaprak küfü, "
                "kırmızı örümcek, hedef leke, sarı yaprak kıvırcıklığı virüsü, mozaik virüsü",
@@ -149,16 +150,12 @@ with tab_analiz:
     )
 
     with st.sidebar:
-        st.header("🌱 Analiz ayarları")
-        bitki_secimi = st.selectbox("Bitki", BITKI_SECENEKLERI, index=1)
-        st.caption("Bitki seçildiğinde teşhis yalnızca o bitkinin hastalıkları arasından yapılır; yaprak "
-                   "bilinen sınıflara benzemiyorsa teşhis uydurulmaz, uzmana yönlendirilir.")
-        konum = st.text_input("Konum (hava durumu için)", placeholder="ör. Serik, Antalya")
+        st.header("🌦️ Hava durumu")
+        konum = st.text_input("Konum (isteğe bağlı)", placeholder="ör. Serik, Antalya")
         with st.expander("Tanınan bitki ve hastalıklar"):
             for b, h in DESTEKLENEN_HASTALIKLAR.items():
                 st.markdown(f"**{b}:** {h}")
             st.caption("14 bitki, 26 hastalık + sağlıklı yaprak. Listede olmayan hastalıklar tanınamaz.")
-    urun = "" if bitki_secimi == BITKI_SECENEKLERI[0] else bitki_secimi
 
     st.header("📸 Yaprak fotoğrafı")
     yuklenen = st.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
@@ -167,32 +164,44 @@ with tab_analiz:
 
     analiz_tiklandi = st.button("🔍 Analiz Et", type="primary", disabled=yuklenen is None)
 
+    # Sonuç oturumda saklanır: "Bitki doğru mu?" sorusuna cevap verilince Streamlit sayfayı baştan
+    # çalıştırır; sonuç kaybolmasın ve aynı fotoğraf seçilen bitkiyle yeniden değerlendirilebilsin.
     if analiz_tiklandi and yuklenen is not None:
-        image = Image.open(yuklenen)
+        st.session_state["analiz"] = {"foto": yuklenen.getvalue(), "dosya": yuklenen.name, "bitki": "",
+                                      "onay": False}
+    analiz = st.session_state.get("analiz")
+    if analiz and (yuklenen is None or yuklenen.name != analiz["dosya"]):
+        analiz = st.session_state["analiz"] = None  # fotoğraf kaldırıldı ya da değişti
 
-        with st.spinner("Görsel analiz ediliyor..."):
-            try:
-                buf = io.BytesIO()
-                image.convert("RGB").save(buf, format="JPEG")
-                buf.seek(0)
-                r = requests.post(
-                    f"{INFERENCE_URL}/predict",
-                    files={"file": ("yaprak.jpg", buf, "image/jpeg")},
-                    data={"bitki": urun},
-                    timeout=30,
-                )
-                r.raise_for_status()
-                cnn = r.json()
-            except requests.exceptions.ConnectionError:
-                st.error(
-                    f"❌ Inference servisine ulaşılamadı ({INFERENCE_URL}).\n\n"
-                    "Önce şunu ayrı bir terminalde çalıştır:\n"
-                    "`.venv\\Scripts\\python.exe -m uvicorn inference.app:app --port 8000`"
-                )
-                st.stop()
-            except Exception as e:
-                st.error(f"❌ Hata: {e}")
-                st.stop()
+    if analiz:
+        if "cnn" not in analiz:
+            with st.spinner("Görsel analiz ediliyor..."):
+                try:
+                    buf = io.BytesIO()
+                    Image.open(io.BytesIO(analiz["foto"])).convert("RGB").save(buf, format="JPEG")
+                    buf.seek(0)
+                    r = requests.post(
+                        f"{INFERENCE_URL}/predict",
+                        files={"file": ("yaprak.jpg", buf, "image/jpeg")},
+                        data={"bitki": analiz["bitki"]},
+                        timeout=30,
+                    )
+                    r.raise_for_status()
+                    analiz["cnn"] = r.json()
+                except requests.exceptions.ConnectionError:
+                    st.error(
+                        f"❌ Inference servisine ulaşılamadı ({INFERENCE_URL}).\n\n"
+                        "Önce şunu ayrı bir terminalde çalıştır:\n"
+                        "`.venv\\Scripts\\python.exe -m uvicorn inference.app:app --port 8000`"
+                    )
+                    st.stop()
+                except Exception as e:
+                    st.error(f"❌ Hata: {e}")
+                    st.stop()
+            with st.spinner("Rapor hazırlanıyor (RAG + LLM)..."):
+                c = analiz["cnn"]
+                analiz["rapor"] = generate_report(c["hastalik"], c["hastalik_tr"], c["guven"])
+        cnn, rapor = analiz["cnn"], analiz["rapor"]
 
         if cnn.get("demo_mode"):
             st.warning(
@@ -200,15 +209,15 @@ with tab_analiz:
                 "(Colab eğitimi tamamlanmadı). Sınıflandırma sonucu RASTGELE üretildi."
             )
 
-        with st.spinner("Rapor hazırlanıyor (RAG + LLM)..."):
-            rapor = generate_report(cnn["hastalik"], cnn["hastalik_tr"], cnn["guven"])
-
         tanimsiz = _tanimsiz(cnn["hastalik"])
-        hava = None
-        if konum.strip():
-            with st.spinner("Hava durumu kontrol ediliyor..."):
-                hava = weather_summary(konum.strip())
-
+        # Konum sonradan yazılırsa/değişirse sadece hava durumu yeniden alınır, analiz tekrarlanmaz
+        if analiz.get("hava_konum") != konum.strip():
+            analiz["hava_konum"] = konum.strip()
+            analiz["hava"] = None
+            if konum.strip():
+                with st.spinner("Hava durumu kontrol ediliyor..."):
+                    analiz["hava"] = weather_summary(konum.strip())
+        hava = analiz["hava"]
 
         st.divider()
         st.header("🔎 Tespit Sonucu")
@@ -218,9 +227,28 @@ with tab_analiz:
         c2.metric("Model güveni", f"%{cnn['guven']}")
         c3.metric("Uzmana yönlendirme", "Evet" if (cnn.get("uzmana_yonlendir") or tanimsiz) else "Hayır")
 
-        if cnn.get("bitki"):
-            st.caption(f"🌱 Bitki filtresi: **{cnn['bitki']}** — bu bitkinin sınıflarına düşen "
-                       f"toplam olasılık %{cnn.get('bitki_uyumu')}")
+        # Bitki kullanıcıya SONUÇTAN SONRA sorulur (önceden seçtirmek sonucu yönlendirirdi)
+        tahmin_bitki = BITKI_TR.get(cnn["hastalik"].split("___")[0])
+        if analiz["bitki"]:
+            st.caption(f"🔁 Kullanıcının belirttiği bitkiyle yeniden değerlendirildi: **{analiz['bitki']}** — "
+                       f"teşhis yalnızca bu bitkinin sınıfları arasından yapıldı; bu sınıflara düşen toplam "
+                       f"olasılık %{cnn.get('bitki_uyumu')}")
+        elif analiz["onay"]:
+            st.caption(f"✅ Bitki kullanıcı tarafından doğrulandı: **{tahmin_bitki}**")
+        elif tahmin_bitki:
+            with st.container(border=True):
+                st.markdown(f"**Model bu yaprağı _{tahmin_bitki}_ yaprağı olarak değerlendirdi. Doğru mu?**")
+                e1, e2, e3 = st.columns([1, 1.4, 1.2], vertical_alignment="bottom")
+                if e1.button(f"✅ Evet, {tahmin_bitki}", use_container_width=True):
+                    analiz["onay"] = True
+                    st.rerun()
+                dogru_bitki = e2.selectbox("Hayır, bu bir:", [b for b in BITKILER if b != tahmin_bitki],
+                                           index=None, placeholder="Bitkiyi seçin")
+                if e3.button("🔁 Bu bitkiyle yeniden değerlendir", disabled=dogru_bitki is None,
+                             use_container_width=True):
+                    st.session_state["analiz"] = {"foto": analiz["foto"], "dosya": analiz["dosya"],
+                                                  "bitki": dogru_bitki, "onay": True}
+                    st.rerun()
 
         if tanimsiz:
             st.error(
@@ -228,6 +256,18 @@ with tab_analiz:
                 "benzemiyor. Tanınmayan bir hastalık olabilir; sistem teşhis uydurmuyor. "
                 "⚠️ Bir ziraat mühendisine danışmanız önerilir."
             )
+            # Model filtresiz bakınca başka bir bitkiye güçlü şekilde benzetiyorsa bunu açıkça söyle
+            ilk = cnn["ilk3"][0] if cnn.get("ilk3") else None
+            benzettigi = BITKI_TR.get(ilk["sinif"].split("___")[0]) if ilk else None
+            if benzettigi and benzettigi != analiz["bitki"] and ilk["olasilik"] >= 50:
+                st.info(f"Model bu fotoğrafı bitki bilgisi olmadan **%{ilk['olasilik']}** olasılıkla "
+                        f"**{ilk['sinif_tr']}** olarak görüyor. Fotoğraf {benzettigi} yaprağıysa aşağıdan "
+                        f"{benzettigi} olarak değerlendirin; {analiz['bitki'] or cnn.get('bitki')} olduğundan "
+                        "eminseniz bu, sistemin tanımadığı bir belirti olabilir.")
+                if st.button(f"🔁 {benzettigi} olarak yeniden değerlendir"):
+                    st.session_state["analiz"] = {"foto": analiz["foto"], "dosya": analiz["dosya"],
+                                                  "bitki": benzettigi, "onay": True}
+                    st.rerun()
         elif cnn.get("uzmana_yonlendir"):
             st.warning(f"**{cnn['hastalik_tr']}** — model bu sonuçtan yeterince emin değil "
                        f"(güven %70'in altında). ⚠️ Bir ziraat mühendisine danışmanız önerilir.")
@@ -264,12 +304,15 @@ with tab_analiz:
         )
         if rapor.get("_rag_kullanildi"):
             st.caption("🔗 Bu açıklama doğrulanmış kaynak dokümandan (RAG) getirilen bağlama dayanıyor.")
+        elif tanimsiz:
+            st.caption("ℹ️ Teşhis konmadığı için bilgi tabanı (RAG) kullanılmadı; rapor genel bilgidir.")
         else:
             st.caption("⚠️ RAG bağlamı bulunamadı — `rag/build_index.py` çalıştırılmamış olabilir.")
         if rapor.get("_kaynak") == "sablon":
-            st.caption("*(Rapor: yerel şablon — `ANTHROPIC_API_KEY` .env'de tanımlı değil.)*")
+            st.caption(f"*(Rapor: yerel şablon — {'LLM hatası: ' + rapor['_hata'] if rapor.get('_hata') else '`ANTHROPIC_API_KEY` .env içinde tanımlı değil'}.)*")
 
-        st.subheader("Modelin diğer yakın olasılıkları")
+        st.subheader("Bitki bilgisi olmadan modelin en yakın tahminleri" if tanimsiz
+                     else "Modelin diğer yakın olasılıkları")
         for it in cnn["ilk3"]:
             st.progress(it["olasilik"] / 100, text=f"{it['sinif_tr']} — %{it['olasilik']}")
 

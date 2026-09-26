@@ -39,6 +39,12 @@ const satirlar = [
 ];
 if (rapor.uzmana_yonlendir) {
   satirlar.push('', '⚠️ <b>Bu sonuç kesin değil — bir ziraat mühendisine danışmanızı öneririz.</b>');
+  // Bitki adı verilmediyse model 38 sınıfın hepsi arasında tahmin etti; adı yazılırsa aynı fotoğraf
+  // sadece o bitkinin sınıflarıyla yeniden değerlendirilir (n8n sohbet dalı → /son-foto)
+  const tahmin = $('HTTP Request - Predict CNN').first().json;
+  if (!tahmin.bitki) {
+    satirlar.push('💬 Bitki yanlış mı? Bitkinin adını yazın (ör. <i>domates</i>), aynı fotoğrafı ona göre yeniden değerlendireyim.');
+  }
 }
 if (rapor.aciklama) satirlar.push('', `📝 <b>Değerlendirme</b>\n${esc(rapor.aciklama)}`);
 if (rapor.neden && rapor.neden !== '-') satirlar.push('', `🦠 <b>Nedeni</b>\n${esc(rapor.neden)}`);

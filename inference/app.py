@@ -22,7 +22,9 @@ import io
 import json
 import os
 import random
+import re
 import sys
+import time
 from collections import Counter
 from typing import Optional
 
@@ -116,9 +118,11 @@ def _bitki_bul(metin: str) -> tuple[Optional[str], Optional[str]]:
     """Serbest metinden (Telegram fotoğraf açıklaması) bitkiyi bulur -> (türkçe ad, sınıf öneki)."""
     # "İ".lower() -> "i" + birleşik nokta (U+0307); önce onu at, sonra Türkçe harfleri sadeleştir
     sade = metin.lower().replace("̇", "").translate(str.maketrans("şçğıöüâ", "scgioua"))
+    # "bu mısır değil, domates" -> mısır reddedilmiş, domates alınır (olumsuzlanan ad atlanır)
     for ad in sorted(BITKI_ONEKLERI, key=len, reverse=True):
-        if ad in sade:
-            return ad, BITKI_ONEKLERI[ad]
+        for m in re.finditer(re.escape(ad), sade):
+            if not re.match(r"\w*\s*degil", sade[m.end():]):
+                return ad, BITKI_ONEKLERI[ad]
     return None, None
 
 # TÜBİTAK model karşılaştırması (notebooks/01_train_model_colab.py çıktısı) —
@@ -354,6 +358,46 @@ def rag_context(hastalik: str, ek_sorgu: str = "") -> dict:
 RAPOR_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raporlar")
 
 
+# Sohbette düzeltme: çiftçi fotoğraftan sonra sadece "domates" yazarsa, AYNI fotoğraf o bitkiyle
+# yeniden değerlendirilir. Bunun için her sohbetin son fotoğrafının Telegram file_id'si saklanır
+# (görselin kendisi değil — Telegram dosyayı kendi sunucusunda tutuyor, n8n file_id ile yeniden indirir).
+SON_FOTO_YOLU = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "son_fotolar.json")
+SON_FOTO_SURESI = 30 * 60  # saniye; daha eski fotoğraf için bitki adı sohbet olarak ele alınır
+SON_FOTO_EN_COK_KELIME = 6  # "domates", "bu mısır değil domates" gibi kısa düzeltmeler; uzun soru sohbettir
+
+
+def _son_fotolar() -> dict:
+    try:
+        with open(SON_FOTO_YOLU, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _son_foto_kaydet(chat_id: str, file_id: str) -> None:
+    kayit = {k: v for k, v in _son_fotolar().items() if time.time() - v["zaman"] < SON_FOTO_SURESI}
+    kayit[chat_id] = {"file_id": file_id, "zaman": time.time()}
+    os.makedirs(os.path.dirname(SON_FOTO_YOLU), exist_ok=True)
+    with open(SON_FOTO_YOLU, "w", encoding="utf-8") as f:
+        json.dump(kayit, f)
+
+
+@app.get("/son-foto/{chat_id}")
+def son_foto(chat_id: str, metin: str = "") -> dict:
+    """n8n sohbet dalı sorar: bu yazı, son fotoğrafı bir bitki adıyla yeniden değerlendirme isteği mi?
+    `yeniden: true` ise n8n, `file_id`'deki fotoğrafı fotoğraf dalından tekrar geçirir."""
+    bitki_ad, _ = _bitki_bul(metin)
+    kayit = _son_fotolar().get(chat_id)
+    if not bitki_ad:
+        return {"yeniden": False, "neden": "metinde bitki adı yok"}
+    if len(metin.split()) > SON_FOTO_EN_COK_KELIME:
+        return {"yeniden": False, "neden": "uzun mesaj, sohbet olarak ele alınır"}
+    if not kayit or time.time() - kayit["zaman"] > SON_FOTO_SURESI:
+        return {"yeniden": False, "neden": "son 30 dakikada fotoğraf yok"}
+    return {"yeniden": True, "file_id": kayit["file_id"],
+            "bitki": BITKI_GORUNEN_AD.get(bitki_ad, bitki_ad.capitalize())}
+
+
 @app.post("/rapor-kaydet")
 def rapor_kaydet(veri: dict = Body(...)) -> dict:
     """n8n'den gelen Claude raporu + model çıktısı (ilk3, bitki, ...) saklanır, numarası döner."""
@@ -416,11 +460,16 @@ def _gercek_predict(img: Image.Image) -> np.ndarray:
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...), bitki: str = Form("")) -> dict:
+async def predict(file: UploadFile = File(...), bitki: str = Form(""),
+                  chat_id: str = Form(""), file_id: str = Form("")) -> dict:
     """`bitki`: isteğe bağlı serbest metin (Telegram fotoğraf açıklaması, ör. "şeftali ağacım").
-    İçinde desteklenen bir bitki adı geçerse tahmin o bitkinin sınıflarıyla sınırlanır."""
+    İçinde desteklenen bir bitki adı geçerse tahmin o bitkinin sınıflarıyla sınırlanır.
+    `chat_id` + `file_id` (isteğe bağlı, n8n gönderir): sonradan "domates" gibi bir düzeltme
+    yazılırsa aynı fotoğrafın bulunabilmesi için saklanır (bkz. /son-foto)."""
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(400, "Sadece görsel dosyası kabul edilir (image/*).")
+    if chat_id and file_id:
+        _son_foto_kaydet(chat_id, file_id)
 
     raw = await file.read()
     try:

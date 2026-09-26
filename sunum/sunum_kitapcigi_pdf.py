@@ -99,9 +99,9 @@ SENARYO_SAYFA = {"Proje Özeti": "01", "Veri Seti": "02", "Keşifsel Veri Analiz
 JURI_SAYFA = {0: "01", 1: "03", 2: "05", 3: "07", 4: "09", 5: "app", 6: "10"}
 KARAR_SAYFA = {0: "02", 1: "04", 2: "06", 3: "07", 4: "09", 5: "app"}
 # Çalışma rehberindeki sorular -> pano sayfası (19 = değerlendirme, kitapçığın sonunda)
-REHBER_SAYFA = {"01": ["14"], "02": ["10"], "03": ["2"], "04": ["3", "4", "5"], "05": ["8"],
-                "06": ["2b", "18"], "07": ["15", "6"], "08": [], "09": ["1", "7", "12", "13", "20"],
-                "app": ["17", "9", "11"], "10": ["16"]}
+REHBER_SAYFA = {"01": ["14"], "02": ["23", "10"], "03": ["2"], "04": ["24", "3", "4", "5"], "05": ["8"],
+                "06": ["2b", "18"], "07": ["15", "22", "6"], "08": [], "09": ["1", "7", "25", "26", "12", "13", "20"],
+                "app": ["17", "9", "11", "21"], "10": ["16"]}
 
 # Ekranda gösterilen kodlar: (başlık, dosya, başlangıç, bitiş, [(kod parçası, sade açıklama)])
 KODLAR = {
@@ -257,6 +257,7 @@ def kalinli(metin, boyut=10, renk=METIN, ara=5.2, girinti=0.0):
     pdf.set_x(SOL + girinti)
     pdf.set_text_color(*renk)
     for i, parca in enumerate(temiz(metin.replace("`", "")).split("**")):
+        parca = parca.replace("*", "")  # markdown italik işareti (*...*) düz metinde görünmesin
         if parca:
             pdf.set_font("Arial", "B" if i % 2 else "", boyut)
             pdf.write(ara, parca)

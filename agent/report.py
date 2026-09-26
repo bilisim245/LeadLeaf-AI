@@ -28,7 +28,7 @@ ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
 # agent/prompt_taslagi.md'deki "Sistem promptu (system)" ile BİREBİR AYNI OLMALI.
 # n8n'de prompt geliştirilirken buradaki metni de güncel tutun (rapor için not: PROGRESS.md).
 SYSTEM_PROMPT = """\
-Sen bir tarım asistanısın. Görevin, bir yapay zekâ modelinin domates yaprağı fotoğrafından
+Sen bir tarım asistanısın. Görevin, bir yapay zekâ modelinin bitki yaprağı fotoğrafından
 ürettiği tahmini çiftçi için anlaşılır bir ön değerlendirme raporuna dönüştürmek.
 
 KURALLAR:

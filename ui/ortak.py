@@ -43,12 +43,20 @@ SAYFALAR = [
 
 
 def gezinme(dosya: str) -> None:
-    """Sayfanın altına Önceki / Sonraki butonları koyar (sunumda sırayla gitmek için)."""
+    """Önceki / Sonraki butonları: hem sol menüde (aşağı kaydırmadan geçmek için) hem sayfanın altında."""
     yollar = [s[0] for s in SAYFALAR]
     anahtar = os.path.relpath(dosya, os.path.join(KOK, "ui")).replace("\\", "/")
     if anahtar not in yollar:
         return
     i = yollar.index(anahtar)
+    with st.sidebar:
+        st.divider()
+        st.caption(f"Sunum sırası: {i + 1} / {len(SAYFALAR)}")
+        if i > 0 and st.button(f"← {SAYFALAR[i - 1][1]}", key="yan_onceki", use_container_width=True):
+            st.switch_page(SAYFALAR[i - 1][0])
+        if i < len(SAYFALAR) - 1 and st.button(f"{SAYFALAR[i + 1][1]} →", key="yan_sonraki", type="primary",
+                                               use_container_width=True):
+            st.switch_page(SAYFALAR[i + 1][0])
     st.divider()
     sol, orta, sag = st.columns([1, 2, 1])
     if i > 0 and sol.button(f"← {SAYFALAR[i - 1][1]}", use_container_width=True):
@@ -67,11 +75,12 @@ def tr_sirala(metin: str) -> str:
                    for h in metin.replace("I", "ı").replace("İ", "i").lower())
 
 
-def nasil_okunur(ne: str, nasil: str, bulgu_: str) -> None:
+def nasil_okunur(ne: str, nasil: str, bulgu_: str, baslik: str = "Bulgu") -> None:
     """Grafiğin altına nesnel bir açıklama satırı ve 'Bulgu' kartı (analiz raporlarındaki gibi).
-    `nasil` parametresi geriye dönük uyumluluk için duruyor; ekranda gösterilmiyor."""
+    `nasil` parametresi geriye dönük uyumluluk için duruyor; ekranda gösterilmiyor.
+    `baslik`: veriden çıkan bir sonuç değil de kavram anlatımıysa (CNN sayfası) 'Ne anlama geliyor?'."""
     st.caption(ne)
-    bulgu(bulgu_)
+    bulgu(bulgu_, baslik)
 
 
 def bulgu(metin: str, baslik: str = "Bulgu") -> None:

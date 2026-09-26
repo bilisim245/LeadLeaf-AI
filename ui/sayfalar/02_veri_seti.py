@@ -2,8 +2,10 @@ import os
 
 import streamlit as st
 
-from ortak import (VERI_DIR, etiket, gezinme, ornek_dosyalar, sinif_tablosu, tr_sirala, veri_var,
-                   veri_yok_uyarisi)
+from sklearn.metrics import confusion_matrix
+
+from ortak import (VERI_DIR, bulgu, etiket, gezinme, ornek_dosyalar, sinif_tablosu, test_sonuclari, tr_sirala,
+                   veri_var, veri_yok_uyarisi)
 
 st.title("Veri Seti: PlantVillage")
 st.write("Laboratuvarda, sade bir arka plan önünde çekilmiş yaprak fotoğrafları. "
@@ -46,15 +48,39 @@ with sag:
     st.caption(f"Klasör: {secili} · Görseller 256×256 piksel")
 
 st.subheader("İki sınıfın karşılaştırılması")
-st.write("Bazı hastalıklar birbirine çok benzemektedir; modelin işini zorlaştıran da budur.")
+st.write("Bazı hastalıklar birbirine çok benzemektedir; modelin işini zorlaştıran da budur. Hazır seçenekler, "
+         "test setinde modelin en çok karıştırdığı çiftlerdir.")
 siniflar = df.sort_values("Etiket")["Sınıf"].tolist()
+ts = test_sonuclari()
+karisma = None
+if ts:  # testte gerçek karışma sayıları: cm[i, j] = gerçekte i olup j denenler
+    cm = confusion_matrix(ts["y_true"], ts["y_prob"].argmax(1), labels=range(len(ts["siniflar"])))
+    karisma = {(ts["siniflar"][i], ts["siniflar"][j]): int(cm[i, j])
+               for i in range(len(cm)) for j in range(len(cm)) if i != j and cm[i, j]}
+    ciftler = sorted({tuple(sorted(k)) for k in karisma},
+                     key=lambda c: -(karisma.get(c, 0) + karisma.get(c[::-1], 0)))[:3]
+    hazir = {f"{etiket(x)}  ↔  {etiket(y)} ({karisma.get((x, y), 0) + karisma.get((y, x), 0)} hata)": (x, y)
+             for x, y in ciftler}
+    secim = st.radio("Hazır çift", list(hazir), horizontal=False, label_visibility="collapsed")
+    varsayilan = hazir[secim]
+else:
+    varsayilan = ("Tomato___Early_blight", "Tomato___Target_Spot")
 k1, k2 = st.columns(2)
-a = k1.selectbox("Birinci sınıf", siniflar, index=siniflar.index("Tomato___Early_blight"), format_func=etiket)
-b = k2.selectbox("İkinci sınıf", siniflar, index=siniflar.index("Tomato___Target_Spot"), format_func=etiket)
+a = k1.selectbox("Birinci sınıf", siniflar, index=siniflar.index(varsayilan[0]), format_func=etiket,
+                  key=f"a_{varsayilan}")
+b = k2.selectbox("İkinci sınıf", siniflar, index=siniflar.index(varsayilan[1]), format_func=etiket,
+                  key=f"b_{varsayilan}")
 for kolon, sinif in ((k1, a), (k2, b)):
     ic = kolon.columns(3)
     for k, yol in zip(ic, ornek_dosyalar(sinif, 3, 7)):
         k.image(yol, use_container_width=True)
+if karisma is not None and a != b:
+    ab, ba = karisma.get((a, b), 0), karisma.get((b, a), 0)
+    bulgu(f"Test setinde (8.146 görsel) gerçekte <b>{etiket(a)}</b> olan {ab} görsel <b>{etiket(b)}</b> sanıldı, "
+          f"gerçekte <b>{etiket(b)}</b> olan {ba} görsel <b>{etiket(a)}</b> sanıldı. "
+          + ("Model bu iki sınıfı birbirinden ayırabiliyor." if ab + ba == 0 else
+             "Bu karışmalar Test Sonuçları sayfasındaki karışıklık matrisinde de görülür; güven düşükse "
+             "sistem bu tür durumlarda uzmana yönlendirir."))
 
 with st.expander("Tüm sınıflar ve görsel sayıları"):
     st.dataframe(df[["Etiket", "Sınıf", "Toplam"]].sort_values("Toplam", ascending=False),

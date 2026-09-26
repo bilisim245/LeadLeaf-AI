@@ -34,9 +34,10 @@ ADIMLAR = [
     ("1:40", "Veri Seti", "Bitki: Domates → sınıf: Geç Yanıklık; 'Başka örnekler göster'e bir kez basılır.",
      "Gerçek yaprak görsellerini.",
      "Veri seti PlantVillage'dır: 14 bitki, 38 sınıf, 54.305 görsel. Görseller laboratuvarda, düz zemin önünde çekilmiştir."),
-    ("2:20", "Veri Seti", "Aşağıdaki 'İki sınıfın karşılaştırılması' gösterilir.",
-     "Erken yanıklık ve hedef lekeyi yan yana.",
-     "Bazı hastalıklar göz için bile çok benzerdir; modelin en çok zorlandığı yer burasıdır."),
+    ("2:20", "Veri Seti", "Aşağıdaki 'İki sınıfın karşılaştırılması'nda hazır çiftlerden ilki (en çok karışan) açıktır.",
+     "Mısır gri yaprak lekesi ile kuzey yaprak yanıklığını yan yana ve altındaki Bulgu kartını (testte 9 + 8 = 17 hata).",
+     "Bazı hastalıklar göz için bile çok benzerdir; modelin en çok zorlandığı yer burasıdır. Hazır çiftler test "
+     "setinde en çok karışan çiftlerdir; 83 hatanın 70'i aynı bitkinin hastalıkları arasındadır."),
     ("2:50", "Keşifsel Veri Analizi", "'Sınıf dağılımı' sekmesi; sağdaki grafikte bir bitkiye tıklanır.",
      "Dengesizliği (36 kat).",
      "Veri dengesizdir: en büyük sınıf 5.507, en küçük 152 görseldir. Bu yüzden her sınıfı eşit sayan macro F1 de raporlanmıştır."),

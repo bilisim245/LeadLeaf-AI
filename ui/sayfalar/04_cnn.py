@@ -56,7 +56,8 @@ with t1:
     nasil_okunur(
         "Seçilen yaprak (ortada) ve üzerine 3×3'lük bir filtre uygulanmış hâli (sağda).",
         "Sağdaki görselde parlak yerler filtrenin aradığı desenin bulunduğu yerlerdir. Dikey kenar filtresi dikey çizgileri, yatay kenar filtresi yatay çizgileri parlatır.",
-        "CNN'in temel işlemi budur: küçük bir filtre görselin üzerinde gezer ve belirli desenleri öne çıkarır. Gerçek modelde bu filtreler elle yazılmaz, eğitim sırasında öğrenilir.")
+        "CNN'in temel işlemi budur: küçük bir filtre görselin üzerinde gezer ve belirli desenleri öne çıkarır. Gerçek modelde bu filtreler elle yazılmaz, eğitim sırasında öğrenilir.",
+        baslik="Ne anlama geliyor?")
 with t2:
     st.write("İki yol vardı: sıfırdan bir CNN yazıp eğitmek ya da daha önce milyonlarca görselle "
              "eğitilmiş bir modeli alıp bu veriye uyarlamak (transfer learning). Projede ikincisi tercih edilmiştir.")

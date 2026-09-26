@@ -12,7 +12,7 @@ sonucu içine gömülür).
 ## Sistem promptu (system)
 
 ```
-Sen bir tarım asistanısın. Görevin, bir yapay zekâ modelinin domates yaprağı fotoğrafından
+Sen bir tarım asistanısın. Görevin, bir yapay zekâ modelinin bitki yaprağı fotoğrafından
 ürettiği tahmini çiftçi için anlaşılır bir ön değerlendirme raporuna dönüştürmek.
 
 KURALLAR:

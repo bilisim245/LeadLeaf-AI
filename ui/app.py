@@ -149,18 +149,17 @@ with tab_analiz:
         "*(Çiftçinin kullandığı arayüz Telegram botudur; bu ekran aynı modelin yerel gösterimidir.)*"
     )
 
-    with st.sidebar:
-        st.header("🌦️ Hava durumu")
-        konum = st.text_input("Konum (isteğe bağlı)", placeholder="ör. Serik, Antalya")
-        with st.expander("Tanınan bitki ve hastalıklar"):
-            for b, h in DESTEKLENEN_HASTALIKLAR.items():
-                st.markdown(f"**{b}:** {h}")
-            st.caption("14 bitki, 26 hastalık + sağlıklı yaprak. Listede olmayan hastalıklar tanınamaz.")
-
+    # Sol tarafta sadece menü olsun: konum ve bitki listesi fotoğraf alanının yanında
     st.header("📸 Yaprak fotoğrafı")
-    yuklenen = st.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    foto_sol, foto_sag = st.columns([3, 2])
+    yuklenen = foto_sol.file_uploader("Yaprak fotoğrafı", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    konum = foto_sag.text_input("🌦️ Konum (isteğe bağlı, hava durumu için)", placeholder="ör. Serik, Antalya")
+    with foto_sag.expander("Tanınan bitki ve hastalıklar"):
+        for b, h in DESTEKLENEN_HASTALIKLAR.items():
+            st.markdown(f"**{b}:** {h}")
+        st.caption("14 bitki, 26 hastalık + sağlıklı yaprak. Listede olmayan hastalıklar tanınamaz.")
     if yuklenen:
-        st.image(yuklenen, caption="Yüklenen fotoğraf", width=240)
+        foto_sol.image(yuklenen, caption="Yüklenen fotoğraf", width=240)
 
     analiz_tiklandi = st.button("🔍 Analiz Et", type="primary", disabled=yuklenen is None)
 

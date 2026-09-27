@@ -18,7 +18,6 @@ st.set_page_config(page_title="LeadLeaf AI", page_icon="🌿", layout="wide")
 st.session_state["sunum_modu"] = True  # app.py (Canlı Demo) sadece analiz akışını göstersin
 st.logo(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png"), size="large")
 st.markdown(STIL, unsafe_allow_html=True)
-st.sidebar.caption("Miuul Bootcamp · DL + LLM-Agent + n8n · 2026")
 
 # Model bir kez, pano açılırken yüklensin; sunum ortasında CNN sayfasında beklemeyelim
 with st.spinner("Model yükleniyor..."):
@@ -32,7 +31,6 @@ gruplar = {
                                "sayfalar/05_model_secimi.py", "sayfalar/06_fine_tuning.py",
                                "sayfalar/07_test_analizi.py", "sayfalar/08_aciklanabilirlik.py"],
     "2 · LLM-Agent: Karar": ["sayfalar/09_rag.py"],
-    "3 · n8n: Aksiyon": ["sayfalar/09b_n8n_akisi.py"],
     "Uçtan uca": ["app.py"],
     "Sonuç": ["sayfalar/10_sinirliliklar.py"],
 }

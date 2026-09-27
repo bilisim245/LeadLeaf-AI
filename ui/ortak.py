@@ -37,27 +37,18 @@ SAYFALAR = [
     ("sayfalar/07_test_analizi.py", "Test Sonuçları (38 Sınıf)", "🎯"),
     ("sayfalar/08_aciklanabilirlik.py", "Model Nereye Bakıyor?", "🔎"),
     ("sayfalar/09_rag.py", "RAG ve Rapor", "📚"),
-    ("sayfalar/09b_n8n_akisi.py", "n8n Akışı", "🔀"),
     ("app.py", "Canlı Demo — Tarla 360", "🌿"),
     ("sayfalar/10_sinirliliklar.py", "Sınırlılıklar ve Sonraki Adım", "🧭"),
 ]
 
 
 def gezinme(dosya: str) -> None:
-    """Önceki / Sonraki butonları: hem sol menüde (aşağı kaydırmadan geçmek için) hem sayfanın altında."""
+    """Sayfanın altına Önceki / Sonraki butonları koyar (sunumda sırayla gitmek için). Sol tarafta sadece menü var."""
     yollar = [s[0] for s in SAYFALAR]
     anahtar = os.path.relpath(dosya, os.path.join(KOK, "ui")).replace("\\", "/")
     if anahtar not in yollar:
         return
     i = yollar.index(anahtar)
-    with st.sidebar:
-        st.divider()
-        st.caption(f"Sunum sırası: {i + 1} / {len(SAYFALAR)}")
-        if i > 0 and st.button(f"← {SAYFALAR[i - 1][1]}", key="yan_onceki", use_container_width=True):
-            st.switch_page(SAYFALAR[i - 1][0])
-        if i < len(SAYFALAR) - 1 and st.button(f"{SAYFALAR[i + 1][1]} →", key="yan_sonraki", type="primary",
-                                               use_container_width=True):
-            st.switch_page(SAYFALAR[i + 1][0])
     st.divider()
     sol, orta, sag = st.columns([1, 2, 1])
     if i > 0 and sol.button(f"← {SAYFALAR[i - 1][1]}", use_container_width=True):

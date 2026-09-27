@@ -24,7 +24,7 @@ c1.markdown("**MobileNetV2**  \nTelefonlar için tasarlanmış, hafif ve hızlı
 c2.markdown("**MobileNetV3Small**  \nMobileNet'in daha da küçük hali. \"En küçük model ne kadar iyi olur?\" "
             "sorusunun cevabı için.")
 c3.markdown("**EfficientNetB0**  \nAz parametreyle yüksek doğruluk için tasarlanmış. Literatürde bitki "
-            "hastalığı sınıflandırmada iyi sonuç veriyor.")
+            "hastalığı sınıflandırmada iyi sonuçlar raporlanmıştır.")
 st.caption("Üçü de ücretsiz Colab GPU'sunda makul sürede eğitilebilecek kadar küçük modeller.")
 
 metrikler = {"Doğruluk": "dogruluk", "Macro F1": "macro_f1", "Macro Precision": "macro_precision",

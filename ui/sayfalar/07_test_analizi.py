@@ -58,8 +58,8 @@ with t1:
                             for i in range(len(siniflar)) for j in range(len(siniflar)) if i != j and cm[i, j]])
     st.markdown("**En sık karışan sınıflar**")
     st.dataframe(hatalar.sort_values("Adet", ascending=False).head(10), hide_index=True, use_container_width=True)
-    st.caption("Karışmaların çoğu aynı bitkinin kendi hastalıkları arasında. Model bitkiyi neredeyse "
-               "hiç şaşırmıyor, zorlandığı yer benzer görünen lekeler.")
+    st.caption("Karışmaların çoğu aynı bitkinin kendi hastalıkları arasındadır. Bitki neredeyse hiç "
+               "karıştırılmamaktadır; zorlanılan yer benzer görünen lekelerdir.")
     nasil_okunur(
         "Karışıklık matrisi: satırlar gerçek sınıf, sütunlar modelin tahmini. 'Sadece hataları göster' açıkken yalnızca yanlış tahminler çizilir.",
         "Bir kare, o satırdaki gerçek sınıfın o sütundaki sınıfla kaç kez karıştırıldığını gösterir; renk koyulaştıkça karışma artar. Fare kareye getirilince sayı görünür.",

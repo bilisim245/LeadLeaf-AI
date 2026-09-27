@@ -48,8 +48,8 @@ with sag:
     st.caption(f"Klasör: {secili} · Görseller 256×256 piksel")
 
 st.subheader("İki sınıfın karşılaştırılması")
-st.write("Bazı hastalıklar birbirine çok benzemektedir; modelin işini zorlaştıran da budur. Hazır seçenekler, "
-         "test setinde modelin en çok karıştırdığı çiftlerdir.")
+st.write("Bazı hastalıklar birbirine çok benzemektedir; modelin en çok zorlandığı yer de burasıdır. Hazır "
+         "seçenekler, test setinde en çok karıştırılan çiftlerdir.")
 siniflar = df.sort_values("Etiket")["Sınıf"].tolist()
 ts = test_sonuclari()
 karisma = None
@@ -78,9 +78,9 @@ if karisma is not None and a != b:
     ab, ba = karisma.get((a, b), 0), karisma.get((b, a), 0)
     bulgu(f"Test setinde (8.146 görsel) gerçekte <b>{etiket(a)}</b> olan {ab} görsel <b>{etiket(b)}</b> sanıldı, "
           f"gerçekte <b>{etiket(b)}</b> olan {ba} görsel <b>{etiket(a)}</b> sanıldı. "
-          + ("Model bu iki sınıfı birbirinden ayırabiliyor." if ab + ba == 0 else
-             "Bu karışmalar Test Sonuçları sayfasındaki karışıklık matrisinde de görülür; güven düşükse "
-             "sistem bu tür durumlarda uzmana yönlendirir."))
+          + ("Bu iki sınıf model tarafından birbirinden ayrılabilmektedir." if ab + ba == 0 else
+             "Bu karışmalar Test Sonuçları sayfasındaki karışıklık matrisinde de görülmektedir; bu tür "
+             "durumlarda güven düşükse kullanıcı uzmana yönlendirilir."))
 
 with st.expander("Tüm sınıflar ve görsel sayıları"):
     st.dataframe(df[["Etiket", "Sınıf", "Toplam"]].sort_values("Toplam", ascending=False),

@@ -63,7 +63,7 @@ with t2:
              "eğitilmiş bir modeli alıp bu veriye uyarlamak (transfer learning). Projede ikincisi tercih edilmiştir.")
     st.table(pd.DataFrame({
         "": ["Başlangıç", "Gereken veri", "Eğitim süresi", "Ezberleme riski", "Projenin koşulları"],
-        "Sıfırdan CNN": ["Rastgele ağırlıklar, hiçbir şey bilmiyor", "Çok fazla", "Uzun",
+        "Sıfırdan CNN": ["Rastgele ağırlıklar, öğrenilmiş bilgi yok", "Çok fazla", "Uzun",
                          "Yüksek", "Colab'ın ücretsiz GPU'su ve kısıtlı süre"],
         "Transfer learning": ["ImageNet'te (1,28 milyon görsel, 1000 sınıf) eğitilmiş",
                               "Daha az yeter", "Kısa", "Daha düşük",
@@ -97,8 +97,8 @@ with t3:
       a -> b -> c -> d -> e -> f;
     }
     """, use_container_width=True)
-    st.write("Softmax her sınıf için bir olasılık veriyor, toplamları 1. En yüksek olan tahmin, "
-             "o olasılık da **güven** değeri.")
+    st.write("Softmax ile her sınıf için bir olasılık üretilir; olasılıkların toplamı 1'dir. En yüksek "
+             "olasılığa sahip sınıf tahmin, o olasılık da **güven** değeri olarak alınır.")
     with st.expander("Kod: modelin kurulduğu bölüm (notebooks/03_efficientnetb0_38_sinif.py)"):
         st.code(kod_parcasi("notebooks/03_efficientnetb0_38_sinif.py", "inputs = keras.Input", "def parametre_ozeti"),
                 language="python")
@@ -129,9 +129,9 @@ with t4:
             h = (h - h.min()) / (np.ptp(h) + 1e-6)
             kolon.image(Image.fromarray((h * 255).astype(np.uint8)).resize((112, 112), Image.NEAREST),
                         use_container_width=True)
-    st.caption("Başta çıktı büyük (112×112) ve yaprağın şekli seçiliyor. Derine indikçe çıktı küçülüyor "
-               "(14×14), filtre sayısı artıyor ve neyi gördüğü insan gözüyle zor anlaşılıyor: model "
-               "artık şekil yerine leke, doku gibi soyut özelliklere bakıyor.")
+    st.caption("Başta çıktı büyüktür (112×112) ve yaprağın şekli seçilebilmektedir. Derine inildikçe çıktı "
+               "küçülür (14×14), filtre sayısı artar ve görülen şey insan gözüyle zor anlaşılır: şekil yerine "
+               "leke, doku gibi soyut özellikler öne çıkar.")
     nasil_okunur(
         "Aynı yaprağın modelin başındaki, ortasındaki ve derinindeki katmanlarda nasıl göründüğü. Her kare bir filtrenin çıktısıdır.",
         "Parlak yerler filtrenin bir şey bulduğu yerlerdir. Aşağı inildikçe kareler bulanıklaşır, çünkü çözünürlük düşer (112 → 28 → 14).",

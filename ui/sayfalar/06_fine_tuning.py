@@ -58,9 +58,9 @@ nasil_okunur(
     "Eğitim kademeli yapılmıştır: önce yalnızca son katman, sonra gövdenin son %15, %30 ve %40'ı. Böylece modelin ImageNet'ten getirdiği bilgi bir anda bozulmamıştır.")
 
 st.markdown("""
-Her aşamada iki yardımcı var:
-- **ReduceLROnPlateau:** doğrulama kaybı 2 epoch düzelmezse öğrenme oranını yarıya indiriyor.
-- **EarlyStopping:** doğrulama doğruluğu 5 epoch artmazsa duruyor ve en iyi epoch'un ağırlıklarına geri dönüyor.
+Her aşamada iki yardımcı kullanılmıştır:
+- **ReduceLROnPlateau:** doğrulama kaybı 2 epoch düzelmezse öğrenme oranı yarıya indirilir.
+- **EarlyStopping:** doğrulama doğruluğu 5 epoch artmazsa eğitim durdurulur ve en iyi epoch'un ağırlıklarına geri dönülür.
 
 Bir de **BatchNormalization** tuzağı var: gövdeyi açınca bu katmanlar kendi istatistiklerini küçük
 batch'lere göre değiştirmeye başlar ve model sessizce bozulur. Gövde `training=False` ile
@@ -99,8 +99,8 @@ for kolon, yol, baslik in (
 ):
     if os.path.exists(yol):
         kolon.image(yol, caption=baslik, use_container_width=True)
-st.caption("Kesikli çizgiler aşama geçişleri. Her geçişte küçük bir sıçrama var ama eğitim ve doğrulama "
-           "çizgileri birbirinden ayrılmıyor.")
+st.caption("Kesikli çizgiler aşama geçişlerini gösterir. Her geçişte küçük bir sıçrama görülmektedir; ancak "
+           "eğitim ve doğrulama çizgileri birbirinden ayrılmamaktadır.")
 nasil_okunur(
     "Kademeli fine-tuning ile eğitimin epoch epoch ilerleyişi: solda 5 sınıf deneyi, sağda 38 sınıflı üretim modeli.",
     "Mavi eğitim, turuncu doğrulama. Kesikli çizgiler yeni bir aşamanın başladığı yerlerdir. Çizgilerin birlikte yükselmesi iyi, birbirinden ayrılması ezberleme belirtisidir.",

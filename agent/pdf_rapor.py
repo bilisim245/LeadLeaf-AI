@@ -66,38 +66,40 @@ def sonuc_nasil_olustu(ilk3: list[dict] | None, bitki: str | None = None, bitki_
     if bitki and bitki_uyumu is not None and float(bitki_uyumu) < 50 and ilk3:
         bir = ilk3[0]
         cumleler += [
-            f"Bitki bilgisi olmadan bakıldığında model yaprağı en çok \"{bir['sinif_tr']}\" sınıfına "
-            f"benzetti ({_yuzde(bir['olasilik'])}).",
-            f"Bitki {bitki} olarak belirtildi; ancak modelin {bitki} sınıflarına verdiği toplam olasılık "
-            f"yalnızca {_yuzde(bitki_uyumu)} (eşik %50). Bu yüzden teşhis konmadı, uzmana yönlendirildi.",
-            f"İki olasılık var: fotoğraf başka bir bitkiye ait olabilir ya da yaprakta sistemin "
-            f"{bitki} için tanımadığı bir belirti vardır.",
+            f"Bitki bilgisi olmadan bakıldığında yaprak en çok \"{bir['sinif_tr']}\" sınıfına "
+            f"benzetilmiştir ({_yuzde(bir['olasilik'])}).",
+            f"Bitki {bitki} olarak belirtilmiştir; ancak {bitki} sınıflarına verilen toplam olasılık "
+            f"yalnızca {_yuzde(bitki_uyumu)} düzeyindedir (eşik %50). Bu nedenle teşhis konulmamış ve "
+            f"uzmana yönlendirilmiştir.",
+            f"İki olasılık bulunmaktadır: fotoğraf başka bir bitkiye ait olabilir ya da yaprakta {bitki} "
+            f"için sistemde tanımlı olmayan bir belirti bulunmaktadır.",
         ]
         if rag_kullanildi:
-            cumleler.append("Genel önlem bilgileri proje bilgi tabanına dayanılarak yazıldı.")
-        cumleler.append("Model 14 bitkideki 38 sınıfı tanır ve laboratuvar fotoğraflarıyla eğitilmiştir; bu "
-                        "listede olmayan bir hastalık doğru tanınamaz.")
+            cumleler.append("Genel önlem bilgileri proje bilgi tabanına dayanılarak yazılmıştır.")
+        cumleler.append("Modelde 14 bitkiye ait 38 sınıf tanımlıdır ve model laboratuvar fotoğraflarıyla "
+                        "eğitilmiştir; bu listede olmayan bir hastalık doğru tanınamaz.")
         return cumleler
     if ilk3:
         bir = ilk3[0]
-        cumleler.append(f"Model yaprağı {_yuzde(bir['olasilik'])} olasılıkla "
-                        f"\"{bir['sinif_tr']}\" olarak sınıflandırdı.")
+        cumleler.append(f"Yaprak, model tarafından {_yuzde(bir['olasilik'])} olasılıkla "
+                        f"\"{bir['sinif_tr']}\" olarak sınıflandırılmıştır.")
         if len(ilk3) > 1 and float(ilk3[1]["olasilik"]) >= 5:
             iki = ilk3[1]
-            cumleler.append(f"İkinci en yakın olasılık {_yuzde(iki['olasilik'])} ile \"{iki['sinif_tr']}\". "
-                            "Model bu iki sınıf arasında tam emin değil; benzer belirtiler gösterebilirler.")
+            cumleler.append(f"İkinci en yakın olasılık {_yuzde(iki['olasilik'])} ile \"{iki['sinif_tr']}\" "
+                            "sınıfına aittir. Bu iki sınıf arasında kesin bir ayrım yapılamamıştır; benzer "
+                            "belirtiler gösterebilmektedirler.")
         else:
-            cumleler.append("Diğer sınıfların olasılığı çok düşük; model bu sonuçtan emin.")
+            cumleler.append("Diğer sınıfların olasılığı çok düşüktür; sonuç yüksek güvenle elde edilmiştir.")
     if bitki:
         ek = f" (bu bitkinin sınıflarına düşen toplam olasılık {_yuzde(bitki_uyumu)})" if bitki_uyumu is not None else ""
-        cumleler.append(f"Bitki bilgisi ({bitki}) kullanıldı; tahmin yalnızca bu bitkinin sınıfları arasından "
-                        f"yapıldı{ek}.")
+        cumleler.append(f"Bitki bilgisi ({bitki}) kullanılmıştır; tahmin yalnızca bu bitkinin sınıfları "
+                        f"arasından yapılmıştır{ek}.")
     if uzmana_yonlendir:
-        cumleler.append("Güven %70'in altında olduğu için sonuç kesin kabul edilmedi ve uzmana yönlendirildi.")
+        cumleler.append("Güven %70'in altında olduğu için sonuç kesin kabul edilmemiş ve uzmana yönlendirilmiştir.")
     if rag_kullanildi:
-        cumleler.append("Neden ve önlem bilgileri, proje bilgi tabanındaki ilgili hastalık kaynağına dayanılarak yazıldı.")
-    cumleler.append("Model 14 bitkideki 38 sınıfı tanır ve laboratuvar fotoğraflarıyla eğitilmiştir; bu listede "
-                    "olmayan bir hastalık doğru tanınamaz.")
+        cumleler.append("Neden ve önlem bilgileri, proje bilgi tabanındaki ilgili hastalık kaynağına dayanılarak yazılmıştır.")
+    cumleler.append("Modelde 14 bitkiye ait 38 sınıf tanımlıdır ve model laboratuvar fotoğraflarıyla "
+                    "eğitilmiştir; bu listede olmayan bir hastalık doğru tanınamaz.")
     return cumleler
 
 

@@ -8,9 +8,9 @@ import streamlit as st
 from ortak import KNOWLEDGE_DIR, KOK, LACIVERT, etiket, gezinme, kod_parcasi, nasil_okunur
 
 st.title("RAG ve Rapor")
-st.write("Model sadece bir sınıf adı ve güven değeri veriyor. Çiftçiye anlaşılır bir rapor lazım. "
-         "Rapor Claude tarafından yazılır, ama **ezberden değil**: önce proje için hazırlanan bilgi tabanından o "
-         "hastalığa ait metin bulunuyor (RAG), Claude raporu bu metne dayanarak yazıyor.")
+st.write("Model yalnızca bir sınıf adı ve güven değeri üretir; çiftçi için ise anlaşılır bir rapor gerekir. "
+         "Rapor Claude tarafından yazılır, ancak **ezberden değil**: önce proje için hazırlanan bilgi tabanından o "
+         "hastalığa ait metin bulunur (RAG), rapor bu metne dayanılarak yazılır.")
 
 st.graphviz_chart("""
 digraph {

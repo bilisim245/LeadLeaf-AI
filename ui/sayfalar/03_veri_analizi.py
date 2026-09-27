@@ -146,9 +146,9 @@ with t4:
             st.warning(
                 f"**Bulgu:** {va['tekrar_grubu']} tekrar grubundan {va['farkli_kumede_tekrar']} tanesinin "
                 f"kopyaları farklı kümelere düşmüş. Bunlardan **{n_test} test görselinin** birebir aynısı "
-                f"eğitim kümesinde var. Yani model bu {n_test} görseli aslında eğitimde gördü. 8.146 test "
-                f"görselinin içinde bu en fazla %{n_test / 8146 * 100:.2f}'lik bir etki; sonucu "
-                "değiştirmiyor ama bölmeden önce tekrarları temizlemek daha doğru olurdu."
+                f"eğitim kümesinde bulunmaktadır; yani bu {n_test} görsel model tarafından eğitimde de "
+                f"görülmüştür. 8.146 test görseli içinde bu etki en fazla %{n_test / 8146 * 100:.2f} düzeyindedir; "
+                "sonuç değişmemektedir, ancak tekrarların bölmeden önce temizlenmesi daha doğru olurdu."
             )
             with st.expander("Farklı kümelere düşen kopyalar"):
                 st.dataframe(

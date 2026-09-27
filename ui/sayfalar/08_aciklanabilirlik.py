@@ -78,18 +78,18 @@ if img is not None:
         for j in ilk3:
             ad = etiket(siniflar_tum[j]) if siniflar_tum else str(j)
             st.progress(float(olasilik[j]), text=f"{ad} — %{olasilik[j] * 100:.1f}")
-    st.caption("Isı haritası 7×7'lik son evrişim çıktısından hesaplanıp görsel boyutuna büyütülüyor, "
-               "bu yüzden kaba bir bölge gösteriyor.")
+    st.caption("Isı haritası 7×7'lik son evrişim çıktısından hesaplanıp görsel boyutuna büyütülür; bu "
+               "nedenle kaba bir bölge gösterilmektedir.")
     nasil_okunur(
         "Solda yaprak, ortada modelin karar verirken en çok baktığı bölgeleri gösteren ısı haritası, sağda modelin ilk 3 tahmini.",
         "Kırmızı ve sarı bölgeler kararı en çok etkileyen, mavi bölgeler en az etkileyen yerlerdir.",
         "Kırmızı bölge lekenin üzerindeyse model doğru şeye bakmaktadır. Arka planda ya da yaprak sapındaysa model doğru bilse bile kısa bir yol öğrenmiş olabilir; bu, tarla fotoğraflarında başarının düşebileceğinin işaretidir.")
 
-st.info("**Bulgu:** Model çoğu örnekte lekelere bakıyor (ör. domates geç yanıklığı, üzüm esca). Ama "
-        "bazı örneklerde doğru tahmin ettiği halde yaprak sapına ya da kenardaki arka plana bakıyor "
-        "(ör. mısır pası, elma kara çürüklüğü). PlantVillage'da aynı sınıfın fotoğrafları benzer "
-        "koşullarda çekildiği için model arka plan gibi \"kısa yollar\" da öğrenebiliyor; literatürde "
-        "bu veri setinde arka plan yanlılığı raporlanmış. Tarla fotoğraflarında başarının düşebileceğinin "
-        "somut bir işareti.")
+st.info("**Bulgu:** Çoğu örnekte modelin lekelere odaklandığı görülmektedir (ör. domates geç yanıklığı, "
+        "üzüm esca). Ancak bazı örneklerde, tahmin doğru olduğu hâlde, yaprak sapına ya da kenardaki arka "
+        "plana odaklanıldığı görülmüştür (ör. mısır pası, elma kara çürüklüğü). PlantVillage'da aynı sınıfın "
+        "fotoğrafları benzer koşullarda çekildiğinden arka plan gibi \"kısa yollar\" da öğrenilebilmektedir; "
+        "literatürde bu veri setinde arka plan yanlılığı raporlanmıştır. Bu durum, tarla fotoğraflarında "
+        "başarının düşebileceğinin somut bir işaretidir.")
 
 gezinme(__file__)

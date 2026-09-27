@@ -236,7 +236,7 @@ with tab_analiz:
             st.caption(f"✅ Bitki kullanıcı tarafından doğrulandı: **{tahmin_bitki}**")
         elif tahmin_bitki:
             with st.container(border=True):
-                st.markdown(f"**Model bu yaprağı _{tahmin_bitki}_ yaprağı olarak değerlendirdi. Doğru mu?**")
+                st.markdown(f"**Yaprak, model tarafından _{tahmin_bitki}_ yaprağı olarak değerlendirilmiştir. Doğru mu?**")
                 e1, e2, e3 = st.columns([1, 1.4, 1.2], vertical_alignment="bottom")
                 if e1.button(f"✅ Evet, {tahmin_bitki}", use_container_width=True):
                     analiz["onay"] = True
@@ -252,23 +252,24 @@ with tab_analiz:
         if tanimsiz:
             st.error(
                 f"**{cnn['hastalik_tr']}** — yaprak, bu bitkinin sistemde tanımlı sınıflarına "
-                "benzemiyor. Tanınmayan bir hastalık olabilir; sistem teşhis uydurmuyor. "
+                "benzememektedir. Tanınmayan bir hastalık söz konusu olabilir; teşhis uydurulmamaktadır. "
                 "⚠️ Bir ziraat mühendisine danışmanız önerilir."
             )
             # Model filtresiz bakınca başka bir bitkiye güçlü şekilde benzetiyorsa bunu açıkça söyle
             ilk = cnn["ilk3"][0] if cnn.get("ilk3") else None
             benzettigi = BITKI_TR.get(ilk["sinif"].split("___")[0]) if ilk else None
             if benzettigi and benzettigi != analiz["bitki"] and ilk["olasilik"] >= 50:
-                st.info(f"Model bu fotoğrafı bitki bilgisi olmadan **%{ilk['olasilik']}** olasılıkla "
-                        f"**{ilk['sinif_tr']}** olarak görüyor. Fotoğraf {benzettigi} yaprağıysa aşağıdan "
-                        f"{benzettigi} olarak değerlendirin; {analiz['bitki'] or cnn.get('bitki')} olduğundan "
-                        "eminseniz bu, sistemin tanımadığı bir belirti olabilir.")
+                st.info(f"Bitki bilgisi olmadan bakıldığında fotoğraf model tarafından **%{ilk['olasilik']}** "
+                        f"olasılıkla **{ilk['sinif_tr']}** olarak sınıflandırılmaktadır. Fotoğraf {benzettigi} "
+                        f"yaprağına aitse aşağıdan {benzettigi} olarak yeniden değerlendirilebilir; "
+                        f"{analiz['bitki'] or cnn.get('bitki')} yaprağı olduğu kesinse, sistemin tanımadığı bir "
+                        "belirti söz konusu olabilir.")
                 if st.button(f"🔁 {benzettigi} olarak yeniden değerlendir"):
                     st.session_state["analiz"] = {"foto": analiz["foto"], "dosya": analiz["dosya"],
                                                   "bitki": benzettigi, "onay": True}
                     st.rerun()
         elif cnn.get("uzmana_yonlendir"):
-            st.warning(f"**{cnn['hastalik_tr']}** — model bu sonuçtan yeterince emin değil "
+            st.warning(f"**{cnn['hastalik_tr']}** — sonuç yeterince kesin değildir "
                        f"(güven %70'in altında). ⚠️ Bir ziraat mühendisine danışmanız önerilir.")
         elif _saglikli(cnn["hastalik"]):
             st.success(f"**{cnn['hastalik_tr']}** — yaprakta hastalık belirtisi tespit edilmedi.")

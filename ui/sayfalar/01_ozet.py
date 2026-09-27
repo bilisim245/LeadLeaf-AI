@@ -4,9 +4,10 @@ from ortak import gezinme, sinif_tablosu, test_sonuclari
 
 st.title("LeadLeaf AI")
 st.markdown("#### Yaprak fotoğrafından bitki hastalığı ön değerlendirmesi")
-st.write("Çiftçi Telegram'dan bir yaprak fotoğrafı gönderiyor. Model hastalığı tahmin ediyor, "
-         "bilgi tabanından o hastalığa ait kaynak metin bulunuyor ve Claude bu kaynağa göre "
-         "kısa bir rapor yazıyor. Emin olmadığı durumda sistem ziraat mühendisine yönlendiriyor.")
+st.write("Yaprak fotoğrafı çiftçi tarafından Telegram üzerinden gönderilir. Hastalık model tarafından "
+         "tahmin edilir, bilgi tabanından o hastalığa ait kaynak metin bulunur ve bu kaynağa dayanılarak "
+         "Claude tarafından kısa bir rapor yazılır. Modelin emin olmadığı durumlarda çiftçi ziraat "
+         "mühendisine yönlendirilir.")
 
 df = sinif_tablosu()
 ts = test_sonuclari()

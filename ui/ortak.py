@@ -92,12 +92,22 @@ STIL = """
   div[data-testid="stMetricLabel"] p {color: #5A6B85; font-size: .85rem; text-transform: uppercase;
       letter-spacing: .4px;}
   div[data-testid="stMetricValue"] {color: #0F2347; font-weight: 700;}
+  /* dar ekranda/projektörde "EfficientNetB0" kesilmesin: yazı boyutu ekran genişliğine göre */
+  div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] > div {
+      font-size: clamp(1.05rem, 1.8vw, 2.2rem) !important;}
   .ll-bulgu {background: #F4F7FB; border-left: 4px solid #1B3A6B; border-radius: 6px; padding: .7rem 1rem;
       margin: .3rem 0 1.4rem 0; color: #1E2B40; font-size: .95rem; line-height: 1.5;}
   .ll-bulgu-baslik {display: block; font-size: .72rem; font-weight: 700; letter-spacing: .8px;
       text-transform: uppercase; color: #2E5A9A; margin-bottom: .2rem;}
   button[data-baseweb="tab"] p {font-weight: 600;}
   [data-testid="stSidebarNav"] span {font-size: .95rem;}
+  /* Sunum: sol menü HER ZAMAN açık. Tarayıcı daha önce kapatılmış durumu hatırlasa ya da ekran dar olsa
+     bile görünür; kapatma/açma okları gizli (menü yanlışlıkla kapanmasın). */
+  section[data-testid="stSidebar"] {transform: none !important; visibility: visible !important;
+      min-width: 256px !important; max-width: 256px !important; margin-left: 0 !important;}
+  section[data-testid="stSidebar"][aria-expanded="false"] {display: block !important; position: relative !important;}
+  [data-testid="stSidebarCollapseButton"], [data-testid="stSidebarCollapsedControl"],
+  [data-testid="stExpandSidebarButton"] {display: none !important;}
 </style>
 """
 

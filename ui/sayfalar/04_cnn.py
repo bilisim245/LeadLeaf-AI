@@ -61,17 +61,19 @@ with t1:
 with t2:
     st.write("İki yol vardı: sıfırdan bir CNN yazıp eğitmek ya da daha önce milyonlarca görselle "
              "eğitilmiş bir modeli alıp bu veriye uyarlamak (transfer learning). Projede ikincisi tercih edilmiştir.")
+    # İlk sütun satır başlığı (index) yapılır; yoksa tabloda pandas'ın 0, 1, 2… satır numaraları görünür
     st.table(pd.DataFrame({
-        "": ["Başlangıç", "Gereken veri", "Eğitim süresi", "Ezberleme riski", "Projenin koşulları"],
-        "Sıfırdan CNN": ["Rastgele ağırlıklar, öğrenilmiş bilgi yok", "Çok fazla", "Uzun",
-                         "Yüksek", "Colab'ın ücretsiz GPU'su ve kısıtlı süre"],
-        "Transfer learning": ["ImageNet'te (1,28 milyon görsel, 1000 sınıf) eğitilmiş",
-                              "Daha az yeter", "Kısa", "Daha düşük",
-                              "Kenar, doku, şekil bilgisi hazır geliyor"],
-    }))
-    st.write("Yaprak da sonuçta bir görsel. Kenar, doku, renk geçişi gibi temel özellikleri ImageNet'te "
-             "öğrenmiş bir model bunları yaprakta da kullanabilir. Bu projede yalnızca son kısım 38 "
-             "sınıfa göre eğitilmiştir.")
+        "Özellik": ["Başlangıç noktası", "Gereken veri", "Eğitim süresi", "Ezberleme riski",
+                    "Bu projeye uygunluğu"],
+        "Sıfırdan CNN": ["Rastgele ağırlıklar, öğrenilmiş bilgi yok", "Çok fazla", "Uzun", "Yüksek",
+                         "Ücretsiz Colab GPU'su ve kısıtlı sürede zor"],
+        "Transfer learning": ["ImageNet'te (1,28 milyon görsel, 1000 sınıf) eğitilmiş ağırlıklar",
+                              "Daha azı yeterlidir", "Kısa", "Daha düşük",
+                              "Uygun: kenar, doku, şekil bilgisi hazır gelir"],
+    }).set_index("Özellik"))
+    st.write("Yaprak da sonuçta bir görseldir. Kenar, doku, renk geçişi gibi temel özellikler ImageNet'te "
+             "öğrenildiği için yaprakta da kullanılabilmektedir. Bu projede yalnızca son kısım 38 sınıfa "
+             "göre eğitilmiştir.")
     st.info("Not: Bu projede sıfırdan eğitilen bir CNN ile ayrıca karşılaştırma yapılmamıştır; bu, bir sonraki "
             "adım olarak yapılabilir. PlantVillage veri setini tanıtan çalışmada transfer learning her deneyde "
             "sıfırdan eğitimden daha iyi sonuç vermiştir: ortalama F1, AlexNet'te 0,9782'den 0,9927'ye, "

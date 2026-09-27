@@ -72,9 +72,15 @@ with t2:
     st.write("Yaprak da sonuçta bir görsel. Kenar, doku, renk geçişi gibi temel özellikleri ImageNet'te "
              "öğrenmiş bir model bunları yaprakta da kullanabilir. Bu projede yalnızca son kısım 38 "
              "sınıfa göre eğitilmiştir.")
-    st.info("Not: Sıfırdan eğitilen bir CNN ile ayrıca karşılaştırma yapılmamıştır. Bu bir sonraki adım olarak "
-            "yapılabilir; literatürde PlantVillage'da transfer learning'in sıfırdan eğitime göre "
-            "daha iyi sonuç verdiği biliniyor.")
+    st.info("Not: Bu projede sıfırdan eğitilen bir CNN ile ayrıca karşılaştırma yapılmamıştır; bu, bir sonraki "
+            "adım olarak yapılabilir. PlantVillage veri setini tanıtan çalışmada transfer learning her deneyde "
+            "sıfırdan eğitimden daha iyi sonuç vermiştir: ortalama F1, AlexNet'te 0,9782'den 0,9927'ye, "
+            "GoogLeNet'te 0,9836'dan 0,9934'e yükselmiştir (Mohanty, Hughes ve Salathé, 2016; renkli görüntüler, "
+            "%80 eğitim / %20 test). Fark yaklaşık 1–1,5 puandır; hata oranı (1 − doğruluk) açısından AlexNet'te "
+            "%2,1'den %0,7'ye, yani yaklaşık üçte birine inmektedir.")
+    st.caption("Kaynak: Mohanty, S. P., Hughes, D. P. ve Salathé, M. (2016). Using Deep Learning for "
+               "Image-Based Plant Disease Detection. *Frontiers in Plant Science*, 7, 1419, Tablo 1. "
+               "https://doi.org/10.3389/fpls.2016.01419")
 
 with t3:
     model = uretim_modeli()

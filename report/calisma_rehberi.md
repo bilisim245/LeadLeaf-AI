@@ -149,6 +149,19 @@ tutmamış birine öğretmekten çok daha kolay. Model "görmeyi" (kenar, doku, 
   ImageNet'in 1000 sınıflık **kafasını** alma (`include_top=False`), kendi 38 sınıflık kafamızı ekle.
 - **Faydası:** 38.000 fotoğrafla %99 doğruluk. Sıfırdan eğitmek çok daha fazla veri ve GPU zamanı isterdi.
 
+**Literatürde ne kadar fark ediyor?** PlantVillage'ı tanıtan çalışma (Mohanty, Hughes ve Salathé,
+2016, Tablo 1; renkli görüntüler, %80/%20) iki yolu doğrudan karşılaştırmış; *"transfer learning always
+yields better results"*:
+
+| Mimari | Transfer learning (ortalama F1) | Sıfırdan eğitim (ortalama F1) | Fark |
+|---|---|---|---|
+| AlexNet | 0,9927 | 0,9782 | +1,45 puan |
+| GoogLeNet | 0,9934 | 0,9836 | +0,98 puan |
+
+Fark küçük görünür ama hata oranı (1 − doğruluk) AlexNet'te %2,1'den %0,7'ye, yani yaklaşık üçte
+birine iner. Bizim projede sıfırdan eğitilmiş bir CNN ayrıca denenmedi (sonraki adım olarak
+yapılabilir); karar bu literatür sonucuna ve Colab süre kısıtına dayandı.
+
 **Projede:** `notebooks/03_...py` 219. satır civarı. Panoda: **CNN ve Transfer Learning** sayfası.
 
 ---

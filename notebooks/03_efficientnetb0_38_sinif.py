@@ -16,12 +16,12 @@
 #  mimariyi, 02'deki en iyi (kademeli fine-tuning + azalan LR) tarifle,
 #  38 sınıfın TAMAMINDA eğitiyor.
 #
-#  ÖNEMLİ NOT — RAG/içerik kademeli ilerliyor: Model 38 sınıfı tanıyacak
-#  olsa da, `agent/knowledge/*.md` (RAG bilgi tabanı) ve `TR_ADLAR` sözlüğü
-#  şu an sadece bir kısım hastalık için dolu. Sistem bu durumda ÇÖKMEZ —
-#  karşılığı olmayan sınıflar için RAG boş bağlam döner, LLM genel
-#  bilgisiyle devam eder (bkz. agent/rag.py, inference/app.py TR_ADLAR.get
-#  fallback). RAG içeriği zaman kaldıkça genişletilecek.
+#  NOT — RAG/içerik: Bu script yazıldığında (2026-09-23) `agent/knowledge/*.md`
+#  (RAG bilgi tabanı) ve `TR_ADLAR` sözlüğü yalnızca bir kısım hastalık için
+#  doluydu. 2026-09-24 itibarıyla ikisi de 38 sınıfın TAMAMINI kapsıyor
+#  (38 bilgi dosyası, 197 parça). Karşılığı olmayan bir sınıf olsaydı sistem
+#  yine çökmezdi: RAG boş bağlam döner, TR_ADLAR.get İngilizce ada düşer.
+#  Eğitim donanımı: Colab ücretsiz T4 GPU (aşağıdaki GPU kontrolü TPU'da durur).
 #
 #  NASIL ÇALIŞTIRILIR: 01/02 ile birebir aynı (GPU runtime, kaggle.json).
 #  Veri seti TAMAMEN indiği ve 38 sınıfın tamamı kopyalandığı için

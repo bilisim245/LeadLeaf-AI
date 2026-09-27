@@ -60,6 +60,18 @@ def gezinme(dosya: str) -> None:
         st.switch_page(SAYFALAR[i + 1][0])
 
 
+TELEGRAM_BOT = "https://t.me/LeadLeafAI_bot"
+
+
+def telegram_qr(kolon=None, genislik: int = 170) -> None:
+    """Telegram botunun QR kodu (ui/telegram_qr.png, t.me/LeadLeafAI_bot) — izleyiciler telefonla okutup
+    botu kendileri deneyebilsin. Resim bir kez üretildi; panoya ek paket gerekmez."""
+    yer = kolon or st
+    yer.image(os.path.join(KOK, "ui", "telegram_qr.png"), width=genislik)
+    yer.markdown(f"**Botu deneyin:** QR kod telefon kamerasıyla okutulur ya da [@LeadLeafAI_bot]({TELEGRAM_BOT}) "
+                 "açılır; yaprak fotoğrafı gönderilir.")
+
+
 def tr_sirala(metin: str) -> str:
     """Türkçe alfabetik sıralama anahtarı (Ç, Ğ, İ, Ö, Ş, Ü doğru yere gelsin)."""
     alfabe = "abcçdefgğhıijklmnoöprsştuüvyz"

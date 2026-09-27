@@ -43,7 +43,7 @@ from agent.weather import weather_summary
 from bot.db import DB
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ortak import bulgu  # noqa: E402
+from ortak import bulgu, telegram_qr  # noqa: E402
 
 load_dotenv()
 
@@ -144,10 +144,12 @@ else:
 # SEKME 1 — ANALİZ (asıl akış)
 # =====================================================================
 with tab_analiz:
-    st.caption(
+    ust_sol, ust_sag = st.columns([4, 1])
+    ust_sol.caption(
         "Yaprak fotoğrafı → model tahmini → bilgi tabanına dayalı Claude raporu → hava durumu bilgisi. "
         "*(Çiftçinin kullandığı arayüz Telegram botudur; bu ekran aynı modelin yerel gösterimidir.)*"
     )
+    telegram_qr(ust_sag, genislik=130)  # izleyiciler aynı sistemi telefondan deneyebilsin
 
     # Sol tarafta sadece menü olsun: konum ve bitki listesi fotoğraf alanının yanında
     st.header("📸 Yaprak fotoğrafı")

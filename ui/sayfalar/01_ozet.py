@@ -1,13 +1,15 @@
 import streamlit as st
 
-from ortak import gezinme, sinif_tablosu, test_sonuclari
+from ortak import gezinme, sinif_tablosu, telegram_qr, test_sonuclari
 
 st.title("LeadLeaf AI")
-st.markdown("#### Yaprak fotoğrafından bitki hastalığı ön değerlendirmesi")
-st.write("Yaprak fotoğrafı çiftçi tarafından Telegram üzerinden gönderilir. Hastalık model tarafından "
-         "tahmin edilir, bilgi tabanından o hastalığa ait kaynak metin bulunur ve bu kaynağa dayanılarak "
-         "Claude tarafından kısa bir rapor yazılır. Modelin emin olmadığı durumlarda çiftçi ziraat "
-         "mühendisine yönlendirilir.")
+giris, qr = st.columns([3, 1])
+giris.markdown("#### Yaprak fotoğrafından bitki hastalığı ön değerlendirmesi")
+giris.write("Yaprak fotoğrafı çiftçi tarafından Telegram üzerinden gönderilir. Hastalık model tarafından "
+            "tahmin edilir, bilgi tabanından o hastalığa ait kaynak metin bulunur ve bu kaynağa dayanılarak "
+            "Claude tarafından kısa bir rapor yazılır. Modelin emin olmadığı durumlarda çiftçi ziraat "
+            "mühendisine yönlendirilir.")
+telegram_qr(qr, genislik=150)
 
 df = sinif_tablosu()
 ts = test_sonuclari()

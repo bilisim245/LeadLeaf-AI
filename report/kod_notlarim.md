@@ -492,7 +492,7 @@ Servisleri açma sırası (PowerShell):
 ```
 .venv\Scripts\python -m uvicorn inference.app:app --host 127.0.0.1 --port 8000
 ngrok http --url=enclose-afterglow-sappiness.ngrok-free.dev 5678
-$env:NODE_OPTIONS="--dns-result-order=ipv4first"; $env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; npx n8n start
+$env:NODE_OPTIONS="--dns-result-order=ipv4first"; $env:N8N_WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; $env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; npx n8n start
 .venv\Scripts\python -m streamlit run ui/sunum.py
 ```
 (Her biri ayrı bir terminal penceresinde; hepsi açık kalmalı.)

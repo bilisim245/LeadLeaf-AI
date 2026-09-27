@@ -122,7 +122,7 @@ bitki/hastalık listesi + açıklamaya yazılan bitki adıyla çalışan filtre 
 .venv\Scripts\python -m uvicorn inference.app:app --host 127.0.0.1 --port 8000
 ngrok http --url=enclose-afterglow-sappiness.ngrok-free.dev 5678
 # bash: WEBHOOK_URL=https://enclose-afterglow-sappiness.ngrok-free.dev/ npx n8n start
-# PowerShell: $env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; npx n8n start
+# PowerShell: $env:N8N_WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; $env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; npx n8n start
 ```
 Kontrol: `http://127.0.0.1:8000/health` → `num_classes:38`; ngrok adresi `/healthz` → 200.
 

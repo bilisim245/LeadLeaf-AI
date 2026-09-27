@@ -464,7 +464,7 @@ ara_baslik("Servisleri başlatma (her biri ayrı PowerShell penceresinde, açık
 kod_kutusu(".venv\\Scripts\\python -m uvicorn inference.app:app --host 127.0.0.1 --port 8000\n"
            "ngrok http --url=enclose-afterglow-sappiness.ngrok-free.dev 5678\n"
            '$env:NODE_OPTIONS="--dns-result-order=ipv4first"; '
-           '$env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; npx n8n start\n'
+           '$env:N8N_WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; $env:WEBHOOK_URL="https://enclose-afterglow-sappiness.ngrok-free.dev/"; npx n8n start\n'
            ".venv\\Scripts\\python -m streamlit run ui/sunum.py")
 yaz("Kontrol: http://127.0.0.1:8000/health → num_classes: 38 · pano: http://localhost:8501 · "
     "okul (FATİH) ağında ngrok/Telegram/Claude çalışmaz → telefon hotspot'u.", 9, renk=GRI, ara=4.8)

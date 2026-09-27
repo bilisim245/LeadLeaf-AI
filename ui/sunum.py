@@ -14,7 +14,8 @@ import streamlit as st  # noqa: E402
 
 from ortak import SAYFALAR, STIL, uretim_modeli  # noqa: E402
 
-st.set_page_config(page_title="LeadLeaf AI", page_icon="🌿", layout="wide")
+# Sunumda menü solda hep açık gelsin (Streamlit dar ekran/projektörde kendiliğinden kapatabiliyor)
+st.set_page_config(page_title="LeadLeaf AI", page_icon="🌿", layout="wide", initial_sidebar_state="expanded")
 st.session_state["sunum_modu"] = True  # app.py (Canlı Demo) sadece analiz akışını göstersin
 st.logo(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png"), size="large")
 st.markdown(STIL, unsafe_allow_html=True)

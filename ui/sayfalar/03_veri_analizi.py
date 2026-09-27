@@ -59,7 +59,13 @@ with t1:
             "En üstteki en kalabalık, en alttaki en az görsele sahip sınıftır. Soldaki grafikte bir bitkiye "
             "tıklanınca yalnızca o bitkinin sınıfları renkli kalır.",
             "En büyük sınıf (portakal HLB, 5.507) en küçükten (sağlıklı patates, 152) yaklaşık 36 kat büyüktür. "
-            "Bu dengesizlik yüzünden yalnızca doğruluğa değil, her sınıfı eşit sayan macro F1 skoruna da bakılmıştır.")
+            "Bu dengesizlik nedeniyle yalnızca doğruluğa değil, her sınıfı eşit ağırlıkla hesaba katan macro F1 "
+            "skoruna da bakılmıştır. PlantVillage veri setini tanıtan çalışmada da modeller ortalama (macro) F1 "
+            "ile karşılaştırılmış ve en iyi sonuç 0,9934 olarak raporlanmıştır (Mohanty, Hughes ve Salathé, 2016); "
+            "bu projede macro F1 0,9859 olarak ölçülmüştür.")
+        st.caption("Kaynak: Mohanty, S. P., Hughes, D. P. ve Salathé, M. (2016). Using Deep Learning for "
+                   "Image-Based Plant Disease Detection. *Frontiers in Plant Science*, 7, 1419. "
+                   "https://doi.org/10.3389/fpls.2016.01419")
 
 with t2:
     m = manifest()

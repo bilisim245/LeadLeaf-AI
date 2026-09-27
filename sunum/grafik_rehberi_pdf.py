@@ -68,7 +68,9 @@ BOLUMLER = [
      "hastalıklı, açık kısım sağlıklı yaprakların payıdır.",
      "Veri dengesizdir: domates 18.160 görselle en büyük, ahududu 371 görselle en küçük bitkidir; en büyük sınıf "
      "en küçükten 36 kat büyüktür. Bu yüzden yalnızca doğruluğa bakmak yetmez; her sınıfı eşit sayan macro F1 "
-     "de raporlanmıştır. Görsellerin %72'si hastalıklıdır."),
+     "de raporlanmıştır. PlantVillage'ı tanıtan çalışmada da modeller ortalama (macro) F1 ile karşılaştırılmış, en "
+     "iyi sonuç 0,9934 olarak raporlanmıştır (Mohanty, Hughes ve Salathé, 2016); bu projede 0,9859 ölçülmüştür. "
+     "Görsellerin %72'si hastalıklıdır."),
     ("03b_bolme", "Keşifsel Veri Analizi — Eğitim / Doğrulama / Test",
      "Üç kümenin görsel sayısı ve her sınıfın bu üç kümeye nasıl paylaştırıldığını gösteren yatay çubuklar.",
      "Her çubuk bir sınıftır ve %100'e tamamlanır. Koyu lacivert eğitim, orta mavi doğrulama, açık mavi test payıdır.",

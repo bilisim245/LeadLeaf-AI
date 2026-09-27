@@ -40,7 +40,8 @@ ADIMLAR = [
      "setinde en çok karışan çiftlerdir; 83 hatanın 70'i aynı bitkinin hastalıkları arasındadır."),
     ("2:50", "Keşifsel Veri Analizi", "'Sınıf dağılımı' sekmesi; sağdaki grafikte bir bitkiye tıklanır.",
      "Dengesizliği (36 kat).",
-     "Veri dengesizdir: en büyük sınıf 5.507, en küçük 152 görseldir. Bu yüzden her sınıfı eşit sayan macro F1 de raporlanmıştır."),
+     "Veri dengesizdir: en büyük sınıf 5.507, en küçük 152 görseldir. Bu yüzden her sınıfı eşit sayan macro F1 de "
+     "raporlanmıştır; bu ölçü PlantVillage'ı tanıtan çalışmada da kullanılmıştır (Mohanty, Hughes ve Salathé, 2016)."),
     ("3:30", "Keşifsel Veri Analizi", "'Veri kalitesi' sekmesi.",
      "Tekrar eden görselleri ve ekran görüntüsü bulgusunu.",
      "54.305 görselin hepsi kontrol edilmiştir: 3 test görselinin aynısı eğitimde bulunmuş, bir klasörde de ekran "

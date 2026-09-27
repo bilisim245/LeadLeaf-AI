@@ -46,7 +46,8 @@ SAYFALAR = [
         ("Bitkilere göre grafik", "Her bitkiden kaç görsel olduğu; koyu hastalıklı, açık sağlıklı.",
          "Veri dengesizdir: domates 18.160, ahududu yalnızca 371 görsel."),
         ("Sınıflara göre grafik", "38 sınıfın görsel sayıları büyükten küçüğe.",
-         "En büyük sınıf en küçükten 36 kat büyüktür. Bu yüzden her sınıfı eşit sayan 'macro F1' ölçüsü de kullanılmıştır."),
+         "En büyük sınıf en küçükten 36 kat büyüktür. Bu yüzden her sınıfı eşit sayan 'macro F1' ölçüsü de kullanılmıştır; "
+         "aynı ölçü PlantVillage'ı tanıtan çalışmada da kullanılmıştır (Mohanty, Hughes ve Salathé, 2016)."),
         ("Eğitim / Doğrulama / Test", "Her sınıfın görsellerinin %70 / %15 / %15 paylaştırılması.",
          "Eğitim: modelin öğrendiği görseller. Doğrulama: eğitim sırasında 'iyi gidiyor mu?' kontrolü. "
          "Test: en sonda bir kez bakılan, modelin hiç görmediği görseller. Başarı yalnızca testte ölçülür."),
